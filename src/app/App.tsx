@@ -4,14 +4,16 @@ import {
   MousePointer2, Hand, Type, Square, Circle, Pen, ArrowUpRight,
   Trash2, Minus, Plus,
   Sparkles, X, Send, Bot, User, ChevronDown, StickyNote as StickyNoteIcon, Disc3, Palette, Eraser, Table, Calendar, Highlighter, Brush, Pencil,
-  Music, Play, Pause, SkipForward, SkipBack, FileMusic, Volume2
+  Music, Play, Pause, SkipForward, SkipBack, FileMusic, Volume2,
+  Link, Lock, Folder, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, MessageSquare
 } from "lucide-react";
+
 
 import { toPng } from "html-to-image";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tool = "select" | "hand" | "sticky" | "text" | "shape" | "pen" | "eraser" | "arrow" | "table";
+type Tool = "select" | "hand" | "sticky" | "text" | "shape" | "pen" | "eraser" | "arrow" | "table" | "comment";
 type ShapeKind = "rect" | "ellipse" | "diamond" | "triangle" | "hexagon" | "star" | "parallelogram" | "arrow_right" | "document" | "cross" | "pentagon" | "octagon";
 
 interface Pt { x: number; y: number }
@@ -49,6 +51,17 @@ interface Peer {
   ty: number;
 }
 
+interface Comment {
+  id: string;
+  boardId: string;
+  x: number;
+  y: number;
+  text: string;
+  author: string;
+  createdAt: number;
+  color: string;
+}
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STICKY_COLORS = ["#FFE566", "#FF9EAF", "#7BC8F6", "#B5EAD7", "#FFBF69", "#D4A1FF"];
@@ -65,6 +78,7 @@ const TOOLS: { id: Tool; label: string; key: string; icon: JSX.Element }[] = [
   { id: "eraser", label: "Eraser", key: "E", icon: <Eraser size={18} /> },
   { id: "arrow", label: "Arrow", key: "A", icon: <ArrowUpRight size={18} /> },
   { id: "table", label: "Table", key: "L", icon: <Table size={18} /> },
+  { id: "comment", label: "Comment", key: "C", icon: <MessageSquare size={18} /> },
 ];
 
 const SHAPE_KINDS: { kind: ShapeKind; label: string; icon: JSX.Element }[] = [
@@ -270,7 +284,7 @@ function StickyNote({
           )}
         </div>
       )}
-      
+
       {selected && (
         <>
           <div className="absolute top-0 left-0 w-3.5 h-3.5 bg-white border-[2.5px] border-[#3742FA] rounded-sm -translate-x-1.5 -translate-y-1.5 cursor-nwse-resize z-20 hover:scale-125 transition-transform" onPointerDown={(e) => onDragHandle(e, 'nw')} />
@@ -805,8 +819,8 @@ function Toolbar({
                     title={t.label}
                     onClick={() => setPenType(t.type as any)}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${penType === t.type
-                        ? "bg-gray-100 shadow-inner scale-95"
-                        : "hover:bg-gray-50"
+                      ? "bg-gray-100 shadow-inner scale-95"
+                      : "hover:bg-gray-50"
                       } ${t.color}`}
                   >
                     {t.icon}
@@ -846,8 +860,8 @@ function Toolbar({
                   title={label}
                   onClick={() => setShapeKind(kind)}
                   className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${shapeKind === kind
-                      ? "bg-[#3742FA] text-white shadow-md scale-105"
-                      : "text-[#4B5563] hover:bg-gray-100 hover:text-gray-900"
+                    ? "bg-[#3742FA] text-white shadow-md scale-105"
+                    : "text-[#4B5563] hover:bg-gray-100 hover:text-gray-900"
                     }`}
                 >
                   {icon}
@@ -964,6 +978,62 @@ function TopBar({
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Share Dialog State
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("Copy link");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [invitedUsers, setInvitedUsers] = useState<{ email: string; role: "edit" | "view" }[]>([]);
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionTime, setSessionTime] = useState("24:00:00");
+  const [linkAccess, setLinkAccess] = useState<"invited" | "anyone">("invited");
+  const [classroomShared, setClassroomShared] = useState(false);
+  const [showMeetInfo, setShowMeetInfo] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showAccessDropdown, setShowAccessDropdown] = useState(false);
+
+  // Open session countdown timer
+  useEffect(() => {
+    if (!sessionActive) return;
+    let totalSeconds = 24 * 60 * 60; // 24 hours
+    const interval = setInterval(() => {
+      totalSeconds--;
+      if (totalSeconds <= 0) {
+        setSessionActive(false);
+        clearInterval(interval);
+      } else {
+        const hrs = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+        const mins = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+        const secs = String(totalSeconds % 60).padStart(2, "0");
+        setSessionTime(`${hrs}:${mins}:${secs}`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sessionActive]);
+
+  const isValidEmail = (email: string) => {
+    return /\S+@\S+\.\S+/.test(email);
+  };
+  const emails = inviteEmail.split(",").map(e => e.trim()).filter(Boolean);
+  const isInviteEnabled = emails.length > 0 && emails.every(isValidEmail);
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopyStatus("Copied!");
+    setTimeout(() => setCopyStatus("Copy link"), 2000);
+  };
+
+  const handleInvite = () => {
+    if (!isInviteEnabled) return;
+    const newUsers = emails.map(email => ({ email, role: "edit" as const }));
+    setInvitedUsers(prev => {
+      const existingEmails = prev.map(u => u.email);
+      const filteredNew = newUsers.filter(nu => !existingEmails.includes(nu.email));
+      return [...prev, ...filteredNew];
+    });
+    setInviteEmail("");
+  };
+
+
   const daysInMonth = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate();
   const firstDay = new Date(calDate.getFullYear(), calDate.getMonth(), 1).getDay();
 
@@ -1003,7 +1073,7 @@ function TopBar({
     <div className="absolute top-4 left-4 right-4 z-50 flex items-start justify-between pointer-events-none">
       {/* LEFT: Board Selector & Name */}
       <div className="flex flex-col gap-2 pointer-events-auto">
-        <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 shadow-lg border border-black/[0.06]">
+        {/* <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 shadow-lg border border-black/[0.06]">
           <select
             value={currentBoardId}
             onChange={(e) => {
@@ -1018,6 +1088,55 @@ function TopBar({
             <option disabled>──────────</option>
             <option value="new">+ New Board</option>
           </select>
+        </div> */}
+        <div
+          style={{
+            position: "relative",
+            display: "inline-block",
+          }}
+        >
+          <select
+            value={currentBoardId}
+            onChange={(e) => {
+              if (e.target.value === "new") onNewBoard();
+              else onChangeBoard(e.target.value);
+            }}
+            style={{
+              border: "1px solid #D1D5DB",
+              borderRadius: "12px", // More curved
+              padding: "8px 16px",
+              fontSize: "16px",
+              fontWeight: "600",
+              backgroundColor: "#fff",
+              color: "#1F2937",
+              cursor: "pointer",
+              outline: "none",
+              height: "42px",
+              minWidth: "220px",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+            }}
+          >
+            {boards.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name || "Untitled Board"}
+              </option>
+            ))}
+            <option value="new">+ New Board</option>
+          </select>
+
+          <span
+            style={{
+              position: "absolute",
+              right: "14px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              pointerEvents: "none",
+              color: "#6B7280",
+              fontSize: "12px",
+            }}
+          >
+            ▼
+          </span>
         </div>
         <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-black/[0.06]">
           <input
@@ -1226,10 +1345,295 @@ function TopBar({
         </button>
 
         {/* Share button */}
-        <button className="flex items-center gap-2 h-9 px-4 rounded-xl bg-[#7B61FF] hover:bg-[#6B4FF0] text-white text-sm font-semibold shadow-md transition-colors">
+        <button
+          onClick={() => setShareOpen(true)}
+          className="flex items-center gap-2 h-9 px-4 rounded-xl bg-[#7B61FF] hover:bg-[#6B4FF0] text-white text-sm font-semibold shadow-md transition-colors"
+        >
           Share
         </button>
       </div>
+
+      {/* Share Dialog Overlay */}
+      {shareOpen && (
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all duration-300 pointer-events-auto">
+          <div className="flex flex-col gap-3 max-w-[500px] w-full animate-in fade-in zoom-in duration-200">
+
+            {/* Card 1: Share this board */}
+            <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="font-bold text-gray-900 text-lg">Share this board</h2>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={handleCopyLink}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-[#7B61FF] hover:text-[#6B4FF0] transition-colors"
+                  >
+                    {copyStatus === "Copied!" ? (
+                      <>
+                        <Check size={15} />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Link size={15} />
+                        <span>Copy link</span>
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShareOpen(false)}
+                    className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Email Input Invite */}
+              <div className="flex items-center gap-2.5 mb-6">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Add comma separated emails to invite"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                    className="w-full h-10 px-3.5 rounded-xl border border-gray-200 focus:border-[#7B61FF] focus:ring-1 focus:ring-[#7B61FF] outline-none text-sm text-gray-800 placeholder-gray-400 transition-all"
+                  />
+                </div>
+                <button
+                  onClick={handleInvite}
+                  disabled={!isInviteEnabled}
+                  className={`h-10 px-5 rounded-xl text-sm font-bold transition-all ${isInviteEnabled
+                    ? "bg-[#7B61FF] text-white hover:bg-[#6B4FF0] active:scale-95 cursor-pointer"
+                    : "bg-[#E6E6E6] text-[#B3B3B3] cursor-not-allowed"
+                    }`}
+                >
+                  Invite
+                </button>
+              </div>
+
+              {/* Who has access */}
+              <div className="flex flex-col">
+                <h3 className="text-gray-500 font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
+
+                {/* Lock Row */}
+                <div
+                  onClick={() => setLinkAccess(p => p === "invited" ? "anyone" : "invited")}
+                  className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100">
+                      <Lock size={15} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-sm font-semibold text-gray-800">Only invited people</div>
+                      <div className="text-xs text-gray-400">
+                        {linkAccess === "invited" ? "Private board" : "Anyone with access can join"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {linkAccess === "invited" && (
+                      <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">Active</span>
+                    )}
+                    <ChevronRight size={15} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </div>
+
+                {/* Team Project Row */}
+                <div className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100">
+                      <Folder size={15} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-sm font-semibold text-gray-800">Anyone in Team project</div>
+                      <div className="text-xs text-gray-400">Can view all project boards</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500">1 person</span>
+                    <ChevronRight size={15} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                  </div>
+                </div>
+
+                {/* Owner Row */}
+                <div className="flex items-center justify-between py-3 px-1.5 mt-1 border-t border-gray-50">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                      A
+                    </div>
+                    <div className="text-left">
+                      <div className="text-sm font-semibold text-gray-800">aries02 <span className="text-gray-400 font-normal">(you)</span></div>
+                      <div className="text-xs text-gray-400">owner@figjam.clone</div>
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-gray-400 pr-1">owner</span>
+                </div>
+
+                {/* Invited Users Rows */}
+                {invitedUsers.map((user) => (
+                  <div key={user.email} className="flex items-center justify-between py-2.5 px-1.5 border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-xs font-bold">
+                        {user.email.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="text-left max-w-[200px] truncate">
+                        <div className="text-sm font-semibold text-gray-800 truncate" title={user.email}>
+                          {user.email.split('@')[0]}
+                        </div>
+                        <div className="text-xs text-gray-400 truncate" title={user.email}>
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={user.role}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "remove") {
+                            setInvitedUsers(prev => prev.filter(u => u.email !== user.email));
+                          } else {
+                            setInvitedUsers(prev => prev.map(u => u.email === user.email ? { ...u, role: val as "edit" | "view" } : u));
+                          }
+                        }}
+                        className="bg-transparent border-none text-xs font-medium text-gray-500 hover:text-gray-800 outline-none cursor-pointer pr-1"
+                      >
+                        <option value="edit">can edit</option>
+                        <option value="view">can view</option>
+                        <option value="remove">remove</option>
+                      </select>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Card 2: Classroom, Meet, Session */}
+            <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
+
+              {/* Classroom */}
+              <div
+                onClick={() => {
+                  setClassroomShared(true);
+                  setTimeout(() => setClassroomShared(false), 3000);
+                }}
+                className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
+                    <div className="w-5 h-4 bg-green-600 rounded-sm border border-yellow-400 flex items-center justify-center text-[8px] font-bold text-white leading-none">
+                      🏫
+                    </div>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-800">
+                    {classroomShared ? "Shared successfully!" : "Share to Google Classroom"}
+                  </span>
+                </div>
+                <ChevronRight size={15} className={`text-gray-400 group-hover:translate-x-0.5 transition-transform ${classroomShared ? "text-green-500" : ""}`} />
+              </div>
+
+              {/* Meet */}
+              <div className="relative">
+                <div
+                  onMouseEnter={() => setShowMeetInfo(true)}
+                  onMouseLeave={() => setShowMeetInfo(false)}
+                  className="flex items-center justify-between py-2.5 px-1.5 rounded-xl opacity-60 cursor-not-allowed transition-colors"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-500">
+                      <Globe size={16} />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-400">Cast to a Google Meet device</span>
+                  </div>
+                  <div className="flex items-center justify-center w-5 h-5 text-gray-400 hover:text-gray-600">
+                    <Info size={15} />
+                  </div>
+                </div>
+                {showMeetInfo && (
+                  <div className="absolute right-0 bottom-10 bg-gray-900 text-white text-xs rounded-lg p-2.5 w-60 shadow-xl z-[110] leading-normal font-normal">
+                    Cast this board directly to a Google Meet device. No active devices found on your local network.
+                  </div>
+                )}
+              </div>
+
+              {/* Open Session */}
+              <div className="flex items-center justify-between py-3 px-1.5 border-t border-b border-gray-100 my-2">
+                <div className="flex items-center gap-3.5 flex-1 pr-4">
+                  <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
+                    <Users size={16} />
+                  </div>
+                  <div className="text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-gray-800">Start open session</span>
+                      {sessionActive && (
+                        <span className="text-[10px] bg-green-50 text-green-600 font-bold px-1.5 py-0.5 rounded animate-pulse">
+                          Active ({sessionTime})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                      Anyone can edit—no account required. Sessions end automatically after 24 hours.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSessionActive(!sessionActive)}
+                  className={`px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all border shrink-0 ${sessionActive
+                    ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer"
+                    : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    }`}
+                >
+                  {sessionActive ? "Stop" : "Start"}
+                </button>
+              </div>
+
+              {/* More Options */}
+              <div>
+                <div
+                  onClick={() => setShowMoreOptions(!showMoreOptions)}
+                  className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100">
+                      <MoreHorizontal size={15} />
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800">More</span>
+                  </div>
+                  <ChevronRight size={15} className={`text-gray-400 group-hover:translate-x-0.5 transition-transform ${showMoreOptions ? "rotate-90" : ""}`} />
+                </div>
+                {showMoreOptions && (
+                  <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-gray-50 rounded-xl animate-in slide-in-from-top-2 duration-150">
+                    <button
+                      onClick={() => {
+                        alert("Exporting project package... Saved to Downloads.");
+                        setShowMoreOptions(false);
+                      }}
+                      className="text-left px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg transition-colors border border-transparent hover:border-gray-100"
+                    >
+                      📥 Export CSV
+                    </button>
+                    <button
+                      onClick={() => {
+                        alert("Embedding iframe link copied to clipboard!");
+                        navigator.clipboard.writeText(`<iframe src="${window.location.href}" width="800" height="600"></iframe>`);
+                        setShowMoreOptions(false);
+                      }}
+                      className="text-left px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg transition-colors border border-transparent hover:border-gray-100"
+                    >
+                      🔗 Embed board iframe
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1245,8 +1649,24 @@ const INIT_ELS: El[] = [
   { id: "i6", type: "text", x: -10, y: 240, text: "Press V · H · S · T · R · P for tools", fontSize: 15, color: "#7A7870" },
 ];
 
+const getSessionUser = () => {
+  try {
+    const s = localStorage.getItem("figjam_session");
+    if (s) {
+      const parsed = JSON.parse(s);
+      if (parsed && parsed.name) return parsed.name;
+    }
+  } catch (e) { }
+  return "Guest";
+};
+
 export default function App() {
   const [tool, setTool] = useState<Tool>("select");
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isCommentWindowOpen, setIsCommentWindowOpen] = useState(false);
+  const [selectedCommentId, setSelectedCommentId] = useState<string | null>(null);
+  const [activePlacement, setActivePlacement] = useState<{ x: number, y: number } | null>(null);
+  const [newCommentText, setNewCommentText] = useState("");
   const [els, setEls] = useState<El[]>(INIT_ELS);
   const [boards, setBoards] = useState<Board[]>([]);
   const [currentBoardId, setCurrentBoardId] = useState<string>("");
@@ -1403,6 +1823,21 @@ export default function App() {
     });
   }, [els, cam, boardName, currentBoardId, boardBg]);
 
+  // Load comments
+  useEffect(() => {
+    const saved = localStorage.getItem("figjam-comments");
+    if (saved) {
+      try {
+        setComments(JSON.parse(saved));
+      } catch (e) { }
+    }
+  }, []);
+
+  // Save comments
+  useEffect(() => {
+    localStorage.setItem("figjam-comments", JSON.stringify(comments));
+  }, [comments]);
+
   // Simulated Multiplayer
   useEffect(() => {
     if (!simPeers) return;
@@ -1497,7 +1932,7 @@ export default function App() {
       }
 
       const toolMap: Record<string, Tool> = {
-        v: "select", h: "hand", s: "sticky", t: "text", r: "shape", p: "pen", e: "eraser", a: "arrow", l: "table"
+        v: "select", h: "hand", s: "sticky", t: "text", r: "shape", p: "pen", e: "eraser", a: "arrow", l: "table", c: "comment"
       };
       if (e.ctrlKey || e.metaKey) {
         const mapped = toolMap[e.key.toLowerCase()];
@@ -1634,6 +2069,12 @@ export default function App() {
 
     const rect = getRect();
     const w = worldPt(e.clientX, e.clientY, rect, camRef.current);
+
+    if (toolRef.current === "comment") {
+      setActivePlacement({ x: w.x, y: w.y });
+      setNewCommentText("");
+      return;
+    }
 
     if (toolRef.current === "sticky") {
       const id = uid();
@@ -2092,13 +2533,150 @@ export default function App() {
               )}
             </svg>
           )}
+
+          {comments
+            .filter((c) => c.boardId === currentBoardId)
+            .map((c) => (
+              <div
+                key={c.id}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCommentId(c.id === selectedCommentId ? null : c.id);
+                }}
+                className="absolute flex items-center justify-center cursor-pointer hover:scale-110 transition-transform duration-150 z-50 group pointer-events-auto"
+                style={{
+                  left: c.x - 16,
+                  top: c.y - 16,
+                  width: 32,
+                  height: 32,
+                }}
+              >
+                <div
+                  className="w-full.h-full rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-md border-[2.5px] border-white w-8 h-8"
+                  style={{ backgroundColor: c.color || "#3742FA" }}
+                >
+                  {c.author ? c.author.slice(0, 2).toUpperCase() : "C"}
+                </div>
+                {/* Popover content if selected or hovered */}
+                {selectedCommentId === c.id ? (
+                  <div
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className="absolute top-10 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-xl border border-gray-100 p-3 min-w-[200px] z-50"
+                  >
+                    <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-1.5 mb-1.5">
+                      <span className="font-semibold text-xs text-gray-800">{c.author}</span>
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-700 whitespace-pre-wrap select-text">{c.text}</p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setComments(prev => prev.filter(x => x.id !== c.id));
+                        setSelectedCommentId(null);
+                      }}
+                      className="mt-2 text-[10px] font-medium text-red-500 hover:text-red-700 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ) : (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900/95 text-white text-xs py-1 px-2 rounded-lg shadow-md whitespace-nowrap z-50 pointer-events-none">
+                    <span className="font-semibold">{c.author}:</span> {c.text.length > 25 ? c.text.slice(0, 25) + "..." : c.text}
+                  </div>
+                )}
+              </div>
+            ))}
+
+          {activePlacement && (
+            <div
+              onPointerDown={(e) => e.stopPropagation()}
+              className="absolute bg-white rounded-xl shadow-xl border border-gray-100 p-3 w-64 z-50 pointer-events-auto"
+              style={{
+                left: activePlacement.x,
+                top: activePlacement.y,
+              }}
+            >
+              <div className="text-xs font-semibold text-gray-600 mb-1">New comment by {getSessionUser()}</div>
+              <textarea
+                autoFocus
+                placeholder="Write a comment..."
+                value={newCommentText}
+                onChange={(e) => setNewCommentText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (newCommentText.trim()) {
+                      setComments(prev => [...prev, {
+                        id: uid(),
+                        boardId: currentBoardId,
+                        x: activePlacement.x,
+                        y: activePlacement.y,
+                        text: newCommentText.trim(),
+                        author: getSessionUser(),
+                        createdAt: Date.now(),
+                        color: "#3742FA"
+                      }]);
+                      setActivePlacement(null);
+                      setTool("select");
+                    }
+                  } else if (e.key === "Escape") {
+                    setActivePlacement(null);
+                    setTool("select");
+                  }
+                }}
+                className="w-full border border-gray-200 rounded-lg p-2 text-xs focus:ring-2 focus:ring-[#3742FA]/20 focus:border-[#3742FA] outline-none resize-none h-16 text-gray-800"
+              />
+              <div className="flex justify-end gap-1.5 mt-2">
+                <button
+                  onClick={() => {
+                    setActivePlacement(null);
+                    setTool("select");
+                  }}
+                  className="px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (newCommentText.trim()) {
+                      setComments(prev => [...prev, {
+                        id: uid(),
+                        boardId: currentBoardId,
+                        x: activePlacement.x,
+                        y: activePlacement.y,
+                        text: newCommentText.trim(),
+                        author: getSessionUser(),
+                        createdAt: Date.now(),
+                        color: "#3742FA"
+                      }]);
+                      setActivePlacement(null);
+                      setTool("select");
+                    }
+                  }}
+                  className="px-2.5 py-1 text-xs font-semibold text-white bg-[#3742FA] hover:bg-[#5B4FE8] rounded-lg transition-colors shadow-sm"
+                >
+                  Post
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Toolbar */}
       <Toolbar
         tool={tool}
-        setTool={setTool}
+        setTool={(t) => {
+          setTool(t);
+          if (t === "comment") {
+            setIsCommentWindowOpen(true);
+          } else {
+            setActivePlacement(null);
+          }
+        }}
         onZoom={doZoom}
         zoomLevel={cam.z}
         stickyColor={stickyColor}
@@ -2180,6 +2758,84 @@ export default function App() {
         </div>
       ))}
 
+      {isCommentWindowOpen && (
+        <div className="absolute top-24 right-6 w-80 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 flex flex-col z-50 pointer-events-auto overflow-hidden max-h-[500px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+            <div className="flex items-center gap-2 text-gray-800">
+              <MessageSquare size={16} className="text-[#3742FA]" />
+              <span className="font-bold text-sm">Comments</span>
+            </div>
+            <button
+              onClick={() => {
+                setIsCommentWindowOpen(false);
+                if (tool === "comment") setTool("select");
+              }}
+              className="text-gray-400 hover:text-gray-600 rounded-lg p-1 hover:bg-gray-100 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Prompt/Helper */}
+          <div className="p-3 bg-blue-50/50 border-b border-blue-50/50 text-[11px] text-blue-600 leading-normal">
+            💡 Select the Comment tool (or press C) and click anywhere on the canvas to place a comment!
+          </div>
+
+          {/* List of comments */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
+            {comments.filter(c => c.boardId === currentBoardId).length === 0 ? (
+              <div className="text-center py-8 text-gray-400 text-xs">
+                No comments on this board yet.
+              </div>
+            ) : (
+              comments
+                .filter(c => c.boardId === currentBoardId)
+                .map(c => (
+                  <div key={c.id} className="p-2.5 bg-gray-50/70 hover:bg-gray-50 rounded-xl border border-gray-100/80 transition-all flex flex-col gap-1 relative group/item">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shadow-sm"
+                          style={{ backgroundColor: c.color || "#3742FA" }}
+                        >
+                          {c.author ? c.author.slice(0, 2).toUpperCase() : "C"}
+                        </div>
+                        <span className="font-semibold text-xs text-gray-700">{c.author}</span>
+                      </div>
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(c.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-650 pl-6 whitespace-pre-wrap select-text">{c.text}</p>
+                    <div className="flex justify-between items-center mt-1 pl-6">
+                      <button
+                        onClick={() => {
+                          // Center camera on the comment
+                          setCam({ x: window.innerWidth / 2 - c.x * cam.z, y: window.innerHeight / 2 - c.y * cam.z, z: cam.z });
+                          setSelectedCommentId(c.id);
+                        }}
+                        className="text-[10px] text-[#3742FA] hover:underline font-medium"
+                      >
+                        Find on canvas
+                      </button>
+                      <button
+                        onClick={() => {
+                          setComments(prev => prev.filter(x => x.id !== c.id));
+                          if (selectedCommentId === c.id) setSelectedCommentId(null);
+                        }}
+                        className="text-[10px] text-red-500 hover:text-red-700 font-medium opacity-0 group-hover/item:opacity-100 transition-opacity"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+            )}
+          </div>
+        </div>
+      )}
+
       {/* AI Dialog */}
       <AIDialog open={aiOpen} onClose={() => setAiOpen(false)} />
 
@@ -2214,7 +2870,8 @@ export default function App() {
             tool === "text" ? "Click to place text" :
               tool === "shape" ? "Click to place shape" :
                 tool === "arrow" ? "Drag to connect elements" :
-                  tool === "pen" ? "Draw freely" : ""}
+                  tool === "pen" ? "Draw freely" :
+                    tool === "comment" ? "Click anywhere to place a comment" : ""}
         </div>
       )}
 
