@@ -1,4 +1,4 @@
-import React from "react";
+// import React from "react";
 import { Trash2, Minus, Plus, Pencil, Brush, Highlighter } from "lucide-react";
 import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
