@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import App from "./app/App.tsx";
 import Signup from "./app/components/Pages/signup.tsx";
 import Login from "./app/components/Pages/login.tsx";
+import OauthCallback from "./app/components/Pages/oauth-callback.tsx";
 import "./styles/index.css";
 
 const SESSION_KEY = "figjam_session";
@@ -46,6 +47,7 @@ createRoot(document.getElementById("root")!).render(
           </PublicOnly>
         }
       />
+      <Route path="/oauth-callback" element={<OauthCallback />} />
       <Route path="*" element={<Navigate to="/signup" replace />} />
     </Routes>
   </BrowserRouter>,
