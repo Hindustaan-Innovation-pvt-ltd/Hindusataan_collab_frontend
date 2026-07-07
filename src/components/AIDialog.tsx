@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Sparkles, X, Send, Bot, User } from "lucide-react";
-import type { ChatMessage } from "../types";
+import { Sparkles, X, Send, Bot, User, Paperclip } from "lucide-react";
+import { toPng } from "html-to-image";
+import type { ChatMessage, El } from "../types";
+import { chatService } from "../services/chatService";
 
 // ── AI Constants ───────────────────────────────────────────────────────────────
 
@@ -19,14 +21,7 @@ const AI_RESPONSES: Record<string, string> = {
   figjam: "FigJam is a collaborative whiteboard tool. You can: \n• Add sticky notes (press S) \n• Draw freehand (press P) \n• Place shapes like rectangles and ellipses \n• Move and zoom the infinite canvas \n• Use the AI assistant (that's me!) to get creative help. What would you like to explore?",
 };
 
-function simulateResponse(prompt: string): string {
-  const p = prompt.toLowerCase();
-  if (p.includes("brainstorm") || p.includes("sticky") || p.includes("note")) return AI_RESPONSES.brainstorm;
-  if (p.includes("layout") || p.includes("organiz") || p.includes("structure")) return AI_RESPONSES.layout;
-  if (p.includes("summar") || p.includes("board") || p.includes("what")) return AI_RESPONSES.summary;
-  if (p.includes("figjam") || p.includes("can i") || p.includes("create") || p.includes("help")) return AI_RESPONSES.figjam;
-  return `That's an interesting question about "${prompt}". In a collaborative whiteboard context, I'd suggest starting by mapping out your key ideas visually — one concept per sticky note. Group related themes together, then draw connections between them. Would you like me to suggest a specific framework for this?`;
-}
+
 
 let _msgId = 0;
 const msgId = () => `m${++_msgId}`;
@@ -36,9 +31,13 @@ const msgId = () => `m${++_msgId}`;
 interface AIDialogProps {
   open: boolean;
   onClose: () => void;
+  boardId?: string;
+  boardName?: string;
+  els?: El[];
+  onAIAction?: (action: string, data: any) => void;
 }
 
-function AIDialog({ open, onClose }: AIDialogProps) {
+function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: AIDialogProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: msgId(),
@@ -50,6 +49,47 @@ function AIDialog({ open, onClose }: AIDialogProps) {
   const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setIsTyping(true);
+    const userMsg: ChatMessage = { id: msgId(), role: "user", content: `Uploading file: ${file.name}...` };
+    setMessages(p => [...p, userMsg]);
+    
+    try {
+      const taskId = await chatService.uploadFile(file);
+      const assistantId = msgId();
+      setMessages(p => [...p, { id: assistantId, role: "assistant", content: "Processing file, please wait..." }]);
+      
+      const checkStatus = async () => {
+        try {
+          const status = await chatService.checkFileStatus(taskId);
+          if (status.status !== "Ready" && status.status !== "Error") {
+            setTimeout(checkStatus, 2000);
+          } else if (status.status === "Ready") {
+            setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "File processed successfully! You can now query it using the `/doc <question>` command." } : m));
+            setIsTyping(false);
+          } else {
+            const errorMsg = status.error ? `Error processing file: ${status.error}` : "Error processing file.";
+            setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: errorMsg } : m));
+            setIsTyping(false);
+          }
+        } catch (err: any) {
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: `Error processing file: ${err.message}` } : m));
+          setIsTyping(false);
+        }
+      };
+      setTimeout(checkStatus, 2000);
+    } catch (err) {
+      setMessages(p => [...p, { id: msgId(), role: "assistant", content: "Error uploading file." }]);
+      setIsTyping(false);
+    }
+    // reset input
+    e.target.value = '';
+  };
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 100);
@@ -70,22 +110,147 @@ function AIDialog({ open, onClose }: AIDialogProps) {
     setMessages(p => [...p, userMsg, assistantMsg]);
     setIsTyping(true);
 
-    // Simulate streaming token by token
-    const response = simulateResponse(text);
-    let i = 0;
-    const tick = () => {
-      if (i >= response.length) {
-        setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false } : m));
-        setIsTyping(false);
+    const sessionId = "session-" + (boardId || "default");
+    
+    try {
+      const lower = text.toLowerCase();
+      const isBoardCapture = lower.includes("what is written on this board") || lower.includes("read the board") || lower.includes("handwritten") || lower.includes("handwriting") || text.startsWith("/vision");
+      const isDoc = text.startsWith("/doc") || lower.includes("this pdf") || lower.includes("the pdf") || lower.includes("this document") || lower.includes("the document") || lower.includes("this file") || lower.includes("the file") || lower.includes("uploaded file") || lower.includes("this image") || lower.includes("the image") || lower.includes("this pic") || lower.includes("the pic") || lower.includes("this jpeg") || lower.includes("this png") || lower.includes("this doc") || lower === "explain this";
+
+      if (isBoardCapture) {
+        try {
+          const boardNode = document.getElementById("figjam-board-capture");
+          if (boardNode) {
+            setMessages(p => [...p, { id: assistantId, role: "assistant", content: "Capturing whiteboard and analyzing handwriting..." }]);
+            
+            const dataUrl = await toPng(boardNode, { backgroundColor: "#f5f5f5" });
+            const res = await fetch(dataUrl);
+            const blob = await res.blob();
+            const file = new File([blob], "board_capture.png", { type: "image/png" });
+            
+            const taskId = await chatService.uploadFile(file);
+            
+            const checkStatus = async () => {
+              try {
+                const status = await chatService.checkFileStatus(taskId);
+                if (status.status !== "Ready" && status.status !== "Error") {
+                  setTimeout(checkStatus, 2000);
+                } else if (status.status === "Ready") {
+                  setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Reading handwriting...\n\n" } : m));
+                  await chatService.askDocumentStream(
+                    text,
+                    (chunk: string) => setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: m.content + chunk, streaming: true } : m)),
+                    () => {
+                      setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false } : m));
+                      setIsTyping(false);
+                    },
+                    (err: any) => {
+                      console.error(err);
+                      setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: m.content + "\n\n(Error: Unable to reach vision backend)" } : m));
+                      setIsTyping(false);
+                    }
+                  );
+                } else {
+                  setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Error processing handwriting." } : m));
+                  setIsTyping(false);
+                }
+              } catch (err) {
+                setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Error communicating with vision server." } : m));
+                setIsTyping(false);
+              }
+            };
+            setTimeout(checkStatus, 2000);
+            return;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      if (isDoc) {
+        let prompt = text;
+        if (text.startsWith("/doc")) {
+          prompt = text.replace("/doc", "").trim() || "Summarize the document";
+        }
+        await chatService.askDocumentStream(
+          prompt,
+          (chunk) => setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: m.content + chunk } : m)),
+          () => {
+            setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false } : m));
+            setIsTyping(false);
+          },
+          (err) => {
+            console.error(err);
+            setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: m.content + "\n\n(Error: Unable to reach document backend)" } : m));
+            setIsTyping(false);
+          }
+        );
         return;
       }
-      const chunk = response.slice(i, i + Math.floor(Math.random() * 4) + 2);
-      i += chunk.length;
-      setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: m.content + chunk } : m));
-      setTimeout(tick, 18 + Math.random() * 20);
-    };
-    setTimeout(tick, 400);
-  }, [isTyping]);
+
+      await chatService.askStream(
+        text,
+        sessionId,
+        { boardId, boardName, nodes: els },
+        (chunk) => {
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: m.content + chunk } : m));
+        },
+        () => {
+          setMessages(p => {
+            const finalMsgs = [...p];
+            const msg = finalMsgs.find(m => m.id === assistantId);
+            if (msg) {
+              msg.streaming = false;
+              let hasAction = false;
+              
+              // We parse out JSON action blocks
+              const regex = /```json\s*(\{[\s\S]*?\})\s*```/g;
+              let match;
+              while ((match = regex.exec(msg.content)) !== null) {
+                let actionObj = null;
+                const jsonStr = match[1].trim();
+                try {
+                  actionObj = JSON.parse(jsonStr);
+                } catch (e) {
+                  // Auto-fix LLM formatting issues (missing closing braces)
+                  const fixes = ["}", "}}", "]}", "]}}", "}]}", "}]}}"];
+                  for (const fix of fixes) {
+                    try {
+                      actionObj = JSON.parse(jsonStr + fix);
+                      break;
+                    } catch (e2) {}
+                  }
+                  if (!actionObj) console.error("Failed to parse action json", jsonStr);
+                }
+                
+                if (actionObj && onAIAction && actionObj.action) {
+                  onAIAction(actionObj.action, actionObj.data);
+                  hasAction = true;
+                }
+              }
+
+              // Strip JSON block from chat display so it just shows the text part
+              if (hasAction) {
+                msg.content = msg.content.replace(/```json\s*\{[\s\S]*?\}\s*```/g, "").trim();
+                if (!msg.content) msg.content = "I've created that on the board for you!";
+              }
+            }
+            return finalMsgs;
+          });
+          setIsTyping(false);
+        },
+        (err) => {
+          console.error(err);
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: m.content + "\n\n(Error: Unable to reach backend)" } : m));
+          setIsTyping(false);
+        }
+      );
+    } catch (err) {
+      console.error(err);
+      setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: m.content + "\n\n(Error: Request failed)" } : m));
+      setIsTyping(false);
+    }
+  }, [isTyping, boardId, boardName, els, onAIAction]);
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -157,7 +322,9 @@ function AIDialog({ open, onClose }: AIDialogProps) {
                   : "bg-gray-100 text-gray-800 rounded-tl-sm"
                   }`}
               >
-                <span className="whitespace-pre-wrap">{msg.content}</span>
+                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {msg.content}
+                </div>
                 {msg.streaming && (
                   <span className="inline-block w-1.5 h-4 bg-current opacity-70 ml-0.5 align-middle animate-pulse rounded-sm" />
                 )}
@@ -185,6 +352,14 @@ function AIDialog({ open, onClose }: AIDialogProps) {
         {/* Input */}
         <div className="px-4 pb-4 pt-2 shrink-0 border-t border-black/[0.06]">
           <div className="flex items-end gap-2 bg-gray-100 rounded-xl px-3 py-2">
+            <input type="file" ref={fileInputRef} hidden accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.pptx,.md" onChange={handleFileUpload} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 mb-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+              title="Upload File (Image, PDF, Word, Excel, etc.)"
+            >
+              <Paperclip size={16} />
+            </button>
             <textarea
               ref={inputRef}
               value={input}

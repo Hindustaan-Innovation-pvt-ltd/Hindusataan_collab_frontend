@@ -10,8 +10,10 @@ import StickyNote from "../components/StickyNote";
 import TextNode from "../components/TextNode";
 import ShapeNode from "../components/ShapeNode";
 import TableNode from "../components/TableNode";
+import GraphNode from "../components/GraphNode";
 import AIDialog from "../components/AIDialog";
 import Toolbar from "../components/Toolbar";
+import { parseMermaidToElements } from "../utils/mermaidParser";
 import TopBar from "../components/TopBar";
 import ContextMenu from "../components/ContextMenu";
 
@@ -661,6 +663,109 @@ export default function App() {
     }
   }, []);
 
+  // ── AI Action Dispatcher ──────────────────────────────────────────────────
+  const handleAIAction = useCallback((action: string, data: any) => {
+    const cx = camRef.current.x > 0 ? (window.innerWidth / 2 - camRef.current.x) / camRef.current.z : window.innerWidth / 2;
+    const cy = camRef.current.y > 0 ? (window.innerHeight / 2 - camRef.current.y) / camRef.current.z : window.innerHeight / 2;
+    
+    // Find an empty spot loosely (just slightly offset)
+    const offsetX = Math.random() * 50 - 25;
+    const offsetY = Math.random() * 50 - 25;
+    const startX = cx + offsetX;
+    const startY = cy + offsetY;
+
+    if (action === "create_flowchart" && data.mermaid) {
+      const newEls = parseMermaidToElements(data.mermaid, startX, startY);
+      setEls(p => [...p, ...newEls]);
+    } 
+    else if (action === "create_graph" && data.chartType) {
+      const newGraph: GraphEl = {
+        id: uid(),
+        type: "graph",
+        w: 400, h: 300,
+        x: startX - 200, y: startY - 150,
+        color: "#ffffff",
+        graphData: data
+      };
+      setEls(p => [...p, newGraph]);
+    }
+    else if (action === "create_sticky_notes" && data.notes) {
+      const newEls: StickyEl[] = data.notes.map((n: any, i: number) => ({
+        id: uid(),
+        type: "sticky",
+        w: 200, h: 200,
+        x: startX - 100 + (i * 220),
+        y: startY - 100,
+        color: n.color || STICKY_COLORS[0],
+        text: n.text || ""
+      }));
+      setEls(p => [...p, ...newEls]);
+    }
+    else if (action === "create_kanban" && data.columns) {
+      const newEls: El[] = [];
+      data.columns.forEach((col: string, i: number) => {
+        const colId = uid();
+        const colX = startX - 450 + (i * 300);
+        const colY = startY - 300;
+        newEls.push({
+          id: colId, type: "shape", kind: "rect",
+          w: 280, h: 600, color: "#f3f4f6",
+          x: colX, y: colY, text: col
+        } as ShapeEl);
+
+        const tasks = data.tasks?.filter((t: any) => t.column === col) || [];
+        tasks.forEach((task: any, j: number) => {
+          newEls.push({
+            id: uid(), type: "sticky",
+            w: 240, h: 100, color: STICKY_COLORS[Math.floor(Math.random()*STICKY_COLORS.length)],
+            x: colX + 20, y: colY + 60 + (j * 120),
+            text: task.text
+          });
+        });
+      });
+      setEls(p => [...p, ...newEls]);
+    }
+    else if (action === "create_mindmap" && data.root) {
+      // Basic 1-level mindmap for now
+      const rootId = uid();
+      const newEls: El[] = [{
+        id: rootId, type: "shape", kind: "ellipse",
+        w: 200, h: 100, color: "#3742FA", text: data.root,
+        x: startX - 100, y: startY - 50
+      }];
+      if (data.children) {
+        const radius = 250;
+        data.children.forEach((child: any, i: number) => {
+          const angle = (Math.PI * 2 * i) / data.children.length;
+          const cx = startX - 80 + Math.cos(angle) * radius;
+          const cy = startY - 40 + Math.sin(angle) * radius;
+          const childId = uid();
+          newEls.push({
+            id: childId, type: "shape", kind: "rect",
+            w: 160, h: 80, color: "#1ABCFE", text: child.text,
+            x: cx, y: cy
+          } as ShapeEl);
+          newEls.push({
+            id: uid(), type: "connection", from: rootId, to: childId,
+            color: "#1C1B1F", x: 0, y: 0
+          });
+        });
+      }
+      setEls(p => [...p, ...newEls]);
+    }
+    else if (action === "create_table" && data.rows) {
+      const newTable: TableEl = {
+        id: uid(), type: "table",
+        rows: data.rows, cols: data.cols,
+        cellW: 120, cellH: 40,
+        x: startX - (data.cols * 60), y: startY - (data.rows * 20),
+        color: "#ffffff",
+        data: data.data || {}
+      };
+      setEls(p => [...p, newTable]);
+    }
+  }, []);
+
   // ── Cursor ────────────────────────────────────────────────────────────────
 
   const cursor = spaceHeld || tool === "hand" ? "grab" :
@@ -748,6 +853,7 @@ export default function App() {
 
       {/* Canvas event capture */}
       <div
+        id="figjam-board-capture"
         ref={wrapRef}
         className="absolute inset-0"
         onPointerDown={onPtrDown}
@@ -876,6 +982,14 @@ export default function App() {
                     />
                   </g>
                 </svg>
+              );
+            }
+            if (el.type === "graph") {
+              return (
+                <GraphNode
+                  key={el.id} el={el as any}
+                  selected={selIds.includes(el.id)}
+                />
               );
             }
             return null;
@@ -1207,7 +1321,7 @@ export default function App() {
       )}
 
       {/* AI Dialog */}
-      <AIDialog open={aiOpen} onClose={() => setAiOpen(false)} />
+      <AIDialog open={aiOpen} onClose={() => setAiOpen(false)} boardId={currentBoardId} boardName={boardName} els={els} onAIAction={handleAIAction} />
 
       {/* Floating AI Button */}
       {!aiOpen && (
