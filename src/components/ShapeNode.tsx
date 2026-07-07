@@ -142,16 +142,12 @@ function ShapeNode({
         onStartConnect={onStartConnect}
       />
 
-<<<<<<< HEAD
       <svg
         width={w}
         height={h}
         overflow="visible"
         className="absolute top-0 left-0 pointer-events-none"
       >
-=======
-      <svg width={w} height={h} overflow="visible" className="pointer-events-none">
->>>>>>> Textarea
         {selected && (
           <rect
             x="-4"
@@ -218,6 +214,7 @@ function ShapeNode({
               color,
               fontFamily: "inherit",
               lineHeight: 1.3,
+              fontSize: Math.max(12, h / 6),
             }}
             onBlur={(e) => onBlur(el.id, e.target.value)}
             onPointerDown={(e) => e.stopPropagation()}
@@ -232,7 +229,11 @@ function ShapeNode({
           el.text && (
             <div
               className="w-full font-semibold text-center whitespace-pre-wrap break-words"
-              style={{ color, lineHeight: 1.3 }}
+              style={{
+                color,
+                lineHeight: 1.3,
+                fontSize: Math.max(12, h / 6),
+              }}
             >
               {el.text}
             </div>
@@ -240,41 +241,6 @@ function ShapeNode({
         )}
       </div>
 
-<<<<<<< HEAD
-      {editing ? (
-        <textarea
-          ref={textareaRef}
-          defaultValue={el.text ?? ""}
-          className="absolute bg-transparent resize-none outline-none text-center p-3"
-          style={{
-            left: 0,
-            top: 0,
-            width: w,
-            height: h,
-            color,
-            fontFamily: "inherit",
-            fontWeight: 600,
-            lineHeight: 1.4,
-            fontSize: Math.max(12, h / 6),
-          }}
-          onBlur={(e) => onBlur(el.id, e.target.value)}
-          onPointerDown={(e) => e.stopPropagation()}
-        />
-      ) : (
-        el.text && (
-          <div
-            className="absolute inset-0 flex items-center justify-center font-semibold text-center whitespace-pre-wrap pointer-events-none p-3"
-            style={{
-              color,
-              lineHeight: 1.4,
-              fontSize: Math.max(12, h / 6),
-            }}
-          >
-            {el.text}
-          </div>
-        )
-      )}
-=======
       {selected &&
         !editing &&
         handles.map((hnd) => (
@@ -295,7 +261,6 @@ function ShapeNode({
             }}
           />
         ))}
->>>>>>> Textarea
     </div>
   );
 }
