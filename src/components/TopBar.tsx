@@ -37,12 +37,12 @@ function TopBar({
           setUserName(parsed.name);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("figjam_session");
-    window.location.href = "/login";
+    window.location.href = "/signup";
   };
   const [running, setRunning] = useState(false);
   const [bgMenuOpen, setBgMenuOpen] = useState(false);
@@ -453,8 +453,8 @@ function TopBar({
                   onClick={handleInvite}
                   disabled={!isInviteEnabled}
                   className={`h-10 px-5 rounded-xl text-sm font-bold transition-all ${isInviteEnabled
-                      ? "bg-[#7B61FF] text-white hover:bg-[#6B4FF0] active:scale-95 cursor-pointer"
-                      : "bg-[#E6E6E6] text-[#B3B3B3] cursor-not-allowed"
+                    ? "bg-[#7B61FF] text-white hover:bg-[#6B4FF0] active:scale-95 cursor-pointer"
+                    : "bg-[#E6E6E6] text-[#B3B3B3] cursor-not-allowed"
                     }`}
                 >
                   Invite
@@ -630,8 +630,8 @@ function TopBar({
                 <button
                   onClick={() => setSessionActive(!sessionActive)}
                   className={`px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all border shrink-0 ${sessionActive
-                      ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer"
-                      : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer"
+                    : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50 cursor-pointer"
                     }`}
                 >
                   {sessionActive ? "Stop" : "Start"}
