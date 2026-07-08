@@ -92,15 +92,47 @@ export default function Signup() {
   const handleSendOtp = async () => {
     setError("");
     setSuccess("");
-    if (!emailOrPhone) {
-      setError("Please enter your email or phone number first.");
-      return;
+    
+    let sanitizedContact = emailOrPhone.trim();
+
+    if (mode === "phone-otp") {
+      if (!emailOrPhone) {
+        setError("Please enter your phone number.");
+        return;
+      }
+      // Remove spaces
+      sanitizedContact = sanitizedContact.replace(/\s+/g, "");
+      if (/[^\d+ ]/.test(emailOrPhone)) {
+         setError("Phone number contains invalid characters.");
+         return;
+      }
+      const phoneRegex = /^(?:\+91)?\d{10}$/;
+      if (!phoneRegex.test(sanitizedContact)) {
+         setError("Please enter a valid 10-digit phone number.");
+         return;
+      }
+    } else {
+      if (!emailOrPhone) {
+        setError("Please enter your email address.");
+        return;
+      }
+      // Stricter email regex rejecting spaces, multiple @, and special chars before @
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (!emailRegex.test(sanitizedContact)) {
+         setError("Please enter a valid email address.");
+         return;
+      }
+      sanitizedContact = sanitizedContact.toLowerCase();
     }
 
     setLoading(true);
     try {
       // API request to backend to send OTP
-      await axios.post("/auth/send-email-otp", { email: emailOrPhone.trim() });
+      if (mode === "phone-otp") {
+        await axios.post("/auth/send-otp", { phone: sanitizedContact });
+      } else {
+        await axios.post("/auth/send-email-otp", { email: sanitizedContact });
+      }
       setOtpSent(true);
       setSuccess("OTP code sent successfully! Check logs or inbox.");
     } catch (err: any) {
@@ -117,26 +149,52 @@ export default function Signup() {
   const handleVerifyOtp = async () => {
     setError("");
     setSuccess("");
+    
     if (!otp) {
-      setError("Please enter the verification code.");
+      setError("Please enter OTP.");
       return;
+    }
+    
+    const sanitizedOtp = otp.trim();
+    if (!/^\d{6}$/.test(sanitizedOtp)) {
+      if (sanitizedOtp.length !== 6) {
+        setError("OTP must contain exactly 6 digits.");
+      } else {
+        setError("Invalid OTP format.");
+      }
+      return;
+    }
+    
+    let sanitizedContact = emailOrPhone.trim();
+    if (mode === "phone-otp") {
+      sanitizedContact = sanitizedContact.replace(/\s+/g, "");
+    } else {
+      sanitizedContact = sanitizedContact.toLowerCase();
     }
 
     setLoading(true);
     try {
       // API request to backend to verify OTP
-      const response = await axios.post("/auth/verify-email-otp", {
-        email: emailOrPhone.trim(),
-        otp: otp.trim()
-      });
+      let response;
+      if (mode === "phone-otp") {
+        response = await axios.post("/auth/verify-otp", {
+          phone: sanitizedContact,
+          otp: sanitizedOtp
+        });
+      } else {
+        response = await axios.post("/auth/verify-email-otp", {
+          email: sanitizedContact,
+          otp: sanitizedOtp
+        });
+      }
       setOtpVerified(true);
       setSuccess("OTP verified successfully!");
 
       // If user details & tokens are returned, cache them for direct login completion
-      if (response.data?.user && response.data?.access_token) {
+      if (response.data?.user && (response.data?.access_token || response.data?.token)) {
         setVerifiedSession({
           user: response.data.user,
-          access_token: response.data.access_token
+          access_token: response.data.access_token || response.data.token
         });
       }
     } catch (err: any) {
@@ -154,6 +212,7 @@ export default function Signup() {
     }
   };
 
+
   const handleRegisterSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
@@ -163,10 +222,20 @@ export default function Signup() {
       setError("Please enter your name.");
       return;
     }
+    
     if (!emailOrPhone) {
       setError("Please enter your email.");
       return;
     }
+    
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(emailOrPhone.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    
+    const sanitizedEmail = emailOrPhone.trim().toLowerCase();
+
     if (!otpVerified) {
       setError("Please verify the OTP first.");
       return;
@@ -189,7 +258,7 @@ export default function Signup() {
       // API call to backend to register
       await axios.post("/auth/register", {
         name: name.trim(),
-        email: emailOrPhone.toLowerCase().trim(),
+        email: sanitizedEmail,
         password: password
       });
 
@@ -197,7 +266,7 @@ export default function Signup() {
 
       // API call to backend to sign in automatically
       const loginRes = await axios.post("/auth/login", {
-        email: emailOrPhone.toLowerCase().trim(),
+        email: sanitizedEmail,
         password: password
       });
 
@@ -220,7 +289,7 @@ export default function Signup() {
     setError("");
 
     if (!emailOrPhone) {
-      setError("Please enter your email or phone number.");
+      setError(mode === "phone-otp" ? "Please enter your phone number." : "Please enter your email address.");
       return;
     }
     if (!otpVerified) {
@@ -255,6 +324,16 @@ export default function Signup() {
       setError("Please enter your email or phone number.");
       return;
     }
+    
+    let sanitizedContact = emailOrPhone.trim();
+    if (/^\+?\d+$/.test(sanitizedContact.replace(/\s+/g, ""))) {
+      // It's a phone number, clean spaces
+      sanitizedContact = sanitizedContact.replace(/\s+/g, "");
+    } else {
+      // Treat as email
+      sanitizedContact = sanitizedContact.toLowerCase();
+    }
+    
     if (!password) {
       setError("Please enter your password.");
       return;
@@ -264,7 +343,7 @@ export default function Signup() {
     try {
       // API call to backend to check login credentials
       const response = await axios.post("/auth/login", {
-        email: emailOrPhone.toLowerCase().trim(),
+        email: sanitizedContact,
         password: password
       });
 

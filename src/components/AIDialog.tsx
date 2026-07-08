@@ -193,43 +193,44 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
         return;
       }
 
+      const diagramKeywords = [
+        "flowchart", "er diagram", "uml", "activity diagram", "state diagram", 
+        "architecture", "database schema", "mind map", "decision tree", "pie chart", 
+        "bar chart", "line chart", "organization chart", "network diagram", 
+        "process flow", "workflow", "wireframe", "block diagram", "system architecture",
+        "sequence diagram", "entity relationship", "graph"
+      ];
+      const actionKeywords = [
+        "draw", "create", "generate", "make", "visualize", "show", "design", "build"
+      ];
+      
+      let isDiagram = false;
+      let isExplicitGraph = text.startsWith("/graph"); 
+      
       if (text.startsWith("/flowchart")) {
-        const prompt = text.replace("/flowchart", "").trim() || "Create a flowchart";
-        try {
-          setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Generating flowchart..." } : m));
-          let mermaid = await chatService.generateFlowchart(prompt);
-          // Strip markdown fences if the LLM added them
-          mermaid = mermaid.replace(/```mermaid\n?/gi, "").replace(/```/g, "").trim();
-          
-          if (onAIAction) {
-            onAIAction("create_flowchart", { mermaid });
-          }
-          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Flowchart created on the whiteboard!" } : m));
-        } catch (err: any) {
-          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Error generating flowchart: " + err.message } : m));
+        isDiagram = true;
+      } else {
+        const hasAction = actionKeywords.some(kw => lower.includes(kw));
+        const hasDiagramType = diagramKeywords.some(kw => lower.includes(kw));
+        const hasGenericDiagram = lower.includes("diagram") || lower.includes("chart") || lower.includes("flow");
+        
+        if (hasAction && (hasDiagramType || hasGenericDiagram)) {
+          isDiagram = true;
         }
-        setIsTyping(false);
-        return;
       }
 
-      if (text.startsWith("/graph")) {
-        const prompt = text.replace("/graph", "").trim() || "Create a graph";
-        try {
-          setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Generating graph..." } : m));
-          const data = await chatService.generateGraph(prompt, boardId);
-          if (onAIAction) {
-            onAIAction("create_graph", data);
-          }
-          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Graph created on the whiteboard!" } : m));
-        } catch (err: any) {
-          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Error generating graph: " + err.message } : m));
-        }
-        setIsTyping(false);
-        return;
+      let promptText = text;
+      let hiddenMarker = "";
+
+      if (isDiagram || isExplicitGraph) {
+        promptText = text + "\n\n[SYSTEM INSTRUCTION: The user is requesting a visual diagram. You MUST output ONLY a valid JSON action block for the canvas (e.g. `{\"action\": \"create_flowchart\", ...}`). DO NOT output ANY conversational text before or after the JSON. DO NOT output ASCII art.]";
+        hiddenMarker = "@@DIAGRAM@@\n";
       }
+
+      setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: hiddenMarker } : m));
 
       await chatService.askStream(
-        text,
+        promptText,
         sessionId,
         { boardId, boardName, nodes: els },
         (chunk) => {
@@ -243,7 +244,7 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
               msg.streaming = false;
               let hasAction = false;
               
-              // We parse out JSON action blocks
+              // 1. Regular JSON block with ```json specifier
               const regex = /```json\s*(\{[\s\S]*?\})\s*```/g;
               let match;
               while ((match = regex.exec(msg.content)) !== null) {
@@ -252,7 +253,6 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
                 try {
                   actionObj = JSON.parse(jsonStr);
                 } catch (e) {
-                  // Auto-fix LLM formatting issues (missing closing braces)
                   const fixes = ["}", "}}", "]}", "]}}", "}]}", "}]}}"];
                   for (const fix of fixes) {
                     try {
@@ -269,10 +269,99 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
                 }
               }
 
-              // Strip JSON block from chat display so it just shows the text part
+              // 2. Fallback: JSON block wrapped in generic ``` code block
+              if (!hasAction) {
+                const genericCodeRegex = /```\s*(\{[\s\S]*?"action"\s*:[\s\S]*?\})\s*```/g;
+                let gMatch;
+                while ((gMatch = genericCodeRegex.exec(msg.content)) !== null) {
+                  let actionObj = null;
+                  const jsonStr = gMatch[1].trim();
+                  try {
+                    actionObj = JSON.parse(jsonStr);
+                  } catch (e) {
+                    const fixes = ["}", "}}", "]}", "]}}", "}]}", "}]}}"];
+                    for (const fix of fixes) {
+                      try {
+                        actionObj = JSON.parse(jsonStr + fix);
+                        break;
+                      } catch (e2) {}
+                    }
+                  }
+                  if (actionObj && onAIAction && actionObj.action) {
+                    onAIAction(actionObj.action, actionObj.data);
+                    hasAction = true;
+                  }
+                }
+              }
+
+              // 3. Fallback: Raw JSON string matching action pattern somewhere in text
+              if (!hasAction) {
+                const rawJsonRegex = /(\{[\s\S]*?"action"\s*:\s*".*?"[\s\S]*?\})/g;
+                let rMatch;
+                while ((rMatch = rawJsonRegex.exec(msg.content)) !== null) {
+                  let actionObj = null;
+                  const jsonStr = rMatch[1].trim();
+                  try {
+                    actionObj = JSON.parse(jsonStr);
+                  } catch (e) {
+                    const fixes = ["}", "}}", "]}", "]}}", "}]}", "}]}}"];
+                    for (const fix of fixes) {
+                      try {
+                        actionObj = JSON.parse(jsonStr + fix);
+                        break;
+                      } catch (e2) {}
+                    }
+                  }
+                  if (actionObj && onAIAction && actionObj.action) {
+                    onAIAction(actionObj.action, actionObj.data);
+                    hasAction = true;
+                  }
+                }
+              }
+
+              // 4. Fallback: If a mermaid block ```mermaid exists
+              if (!hasAction) {
+                const mermaidBlockRegex = /```mermaid\s*([\s\S]*?)\s*```/g;
+                let mMatch;
+                if ((mMatch = mermaidBlockRegex.exec(msg.content)) !== null) {
+                  const mermaidContent = mMatch[1].trim();
+                  if (onAIAction) {
+                    onAIAction("create_flowchart", { mermaid: mermaidContent });
+                    hasAction = true;
+                  }
+                }
+              }
+
+              // 5. Fallback: If raw text contains flowchart or graph anywhere
+              if (!hasAction) {
+                const rawMermaidRegex = /(?:flowchart|graph)\s+(?:TD|LR|TB|BT|RL)[\s\S]*/i;
+                const mMatch = rawMermaidRegex.exec(msg.content);
+                if (mMatch) {
+                  let mermaidContent = mMatch[0].replace(/["'\}`]+$/, "").trim();
+                  mermaidContent = mermaidContent.replace(/\\n/g, "\n").replace(/\\"/g, '"');
+                  if (onAIAction) {
+                    onAIAction("create_flowchart", { mermaid: mermaidContent });
+                    hasAction = true;
+                  }
+                }
+              }
+
+              // Strip action blocks and mermaid code from display message
               if (hasAction) {
-                msg.content = msg.content.replace(/```json\s*\{[\s\S]*?\}\s*```/g, "").trim();
-                if (!msg.content) msg.content = "I've created that on the board for you!";
+                msg.content = msg.content
+                  .replace(/```json\s*\{[\s\S]*?\}\s*```/gi, "")
+                  .replace(/```\s*\{[\s\S]*?"action"\s*:[\s\S]*?\}\s*```/gi, "")
+                  .replace(/```mermaid\s*[\s\S]*?\s*```/gi, "")
+                  .replace(/\{[\s\S]*?"action"\s*:\s*".*?"[\s\S]*?\}/gi, "")
+                  .replace(/(?:flowchart|graph)\s+(?:TD|LR|TB|BT|RL)[\s\S]*/gi, "")
+                  .replace(/\{[\s\S]*\}/gi, "") // Aggressively remove any remaining JSON block
+                  .trim();
+                
+                if (!msg.content) {
+                  msg.content = "I've created that on the canvas for you!";
+                } else {
+                  msg.content += "\n\n*(Created on the canvas!)*";
+                }
               }
             }
             return finalMsgs;
@@ -363,7 +452,30 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
                   }`}
               >
                 <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {msg.content}
+                  {(() => {
+                    let text = msg.content;
+                    const isHiddenDiagram = text.startsWith("@@DIAGRAM@@");
+                    if (isHiddenDiagram) {
+                      if (msg.streaming) return "*(Generating diagram on canvas...)*";
+                      text = text.replace("@@DIAGRAM@@\n", "").replace("@@DIAGRAM@@", "").trim();
+                      if (!text) return "Diagram has been generated on the canvas.";
+                    }
+                    if (msg.streaming) {
+                      const lower = text.toLowerCase();
+                      const markers = ["```json", "```mermaid", "flowchart td", "graph td", "flowchart lr", "graph lr", '{"action"', '{ "action"', '{"', '{ "'];
+                      let earliestIndex = -1;
+                      for (const marker of markers) {
+                        const idx = lower.indexOf(marker);
+                        if (idx !== -1 && (earliestIndex === -1 || idx < earliestIndex)) {
+                          earliestIndex = idx;
+                        }
+                      }
+                      if (earliestIndex !== -1) {
+                        text = text.substring(0, earliestIndex).trim() + "\n\n*(Drawing on canvas...)*";
+                      }
+                    }
+                    return text || (msg.streaming && msg.role === "assistant" ? "..." : "");
+                  })()}
                 </div>
                 {msg.streaming && (
                   <span className="inline-block w-1.5 h-4 bg-current opacity-70 ml-0.5 align-middle animate-pulse rounded-sm" />
