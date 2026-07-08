@@ -214,6 +214,7 @@ function ShapeNode({
               color,
               fontFamily: "inherit",
               lineHeight: 1.3,
+              fontSize: Math.max(12, h / 6),
             }}
             onBlur={(e) => onBlur(el.id, e.target.value)}
             onPointerDown={(e) => e.stopPropagation()}
@@ -228,7 +229,11 @@ function ShapeNode({
           el.text && (
             <div
               className="w-full font-semibold text-center whitespace-pre-wrap break-words"
-              style={{ color, lineHeight: 1.3 }}
+              style={{
+                color,
+                lineHeight: 1.3,
+                fontSize: Math.max(12, h / 6),
+              }}
             >
               {el.text}
             </div>
