@@ -97,11 +97,11 @@ function TableNode({ el, selected, editingId, zoom, onBlur, onDblClick, onUpdate
       style={{ left: x, top: y, width: w, height: h, cursor: "grab" }}
     >
       <div
-        className="absolute inset-0 bg-white border-2 border-gray-300 rounded overflow-hidden flex flex-col shadow-sm"
+        className="absolute inset-0 bg-white border-2 border-black rounded overflow-hidden flex flex-col shadow-sm"
         style={{ boxShadow: selected ? "0 0 0 2px #3742FA" : undefined }}
       >
         {Array.from({ length: rows }).map((_, r) => (
-          <div key={r} className="flex flex-1 w-full border-b border-gray-200 last:border-b-0">
+          <div key={r} className="flex flex-1 w-full border-b border-black last:border-b-0">
             {Array.from({ length: cols }).map((_, c) => {
               const cellId = `${el.id}-${r}-${c}`;
               const isEditing = editingId === cellId;
@@ -110,7 +110,7 @@ function TableNode({ el, selected, editingId, zoom, onBlur, onDblClick, onUpdate
               return (
                 <div
                   key={c}
-                  className="flex-1 border-r border-gray-200 last:border-r-0 relative flex items-center justify-center p-1.5 hover:bg-gray-50/80 transition-colors"
+                  className="flex-1 border-r border-black last:border-r-0 relative flex items-center justify-center p-1.5 hover:bg-gray-50/80 transition-colors"
                   onPointerDown={(e) => {
                     if (isEditing) return; // let the input handle its own pointer events
                     handleCellPointerDown(e, cellId);

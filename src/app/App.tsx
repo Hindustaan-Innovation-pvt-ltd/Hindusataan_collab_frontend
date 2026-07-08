@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Sparkles, X, MessageSquare } from "lucide-react";
-import { toPng } from "html-to-image";
+import IconNode from "../components/IconNode";
+// import { toPng } from "html-to-image";
 
 import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Board, Peer, Comment } from "../types";
-import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS, INIT_ELS } from "../constants";
+import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, INIT_ELS } from "../constants";
 import { uid, worldPt, pathD, getElementBox, getBoundaryPt } from "../utils";
 
 import StickyNote from "../components/StickyNote";
@@ -831,6 +832,24 @@ export default function App() {
     }
   }, []);
 
+  const onInsertIcon = useCallback((iconName: string) => {
+    // Place the new icon at the current center of the visible canvas
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, getRect(), camRef.current);
+
+    const id = uid();
+    const size = 48;
+    setEls(p => [...p, {
+      id, type: "icon",
+      iconName,
+      x: centerWorld.x - size / 2,
+      y: centerWorld.y - size / 2,
+      size,
+      color: "#1C1B1F",
+    }]);
+    setSelIds([id]);
+  }, []);
+
   return (
     <div
       className="w-full h-full relative overflow-hidden"
@@ -889,9 +908,43 @@ export default function App() {
                 />
               );
             }
+            // if (el.type === "shape") {
+            //   return <ShapeNode key={el.id} el={el} selected={selIds.includes(el.id)} onStartConnect={onStartConnect} />;
+            // }
             if (el.type === "shape") {
-              return <ShapeNode key={el.id} el={el} selected={selIds.includes(el.id)} onStartConnect={onStartConnect} />;
+              return (
+                <ShapeNode
+                  key={el.id}
+                  el={el as ShapeEl}
+                  selected={selIds.includes(el.id)}
+                  onStartConnect={onStartConnect}
+                  editing={editId === el.id}
+
+                  // Fixed: Using Object.assign to bypass type union spreading errors
+                  onResize={(id, partial) => {
+                    setEls((current) =>
+                      current.map((item) =>
+                        item.id === id ? (Object.assign({}, item, partial) as any) : item
+                      ) as El[]
+                    );
+                  }}
+
+                  onDblClick={(id) => setEditId(id)}
+
+                  onBlur={(id, text) => {
+                    setEls((current) =>
+                      current.map((item) =>
+                        item.id === id ? (Object.assign({}, item, { text }) as any) : item
+                      ) as El[]
+                    );
+                    setEditId(null);
+                  }}
+                />
+              );
             }
+
+
+
             if (el.type === "table") {
               return (
                 <TableNode
@@ -902,6 +955,16 @@ export default function App() {
                   onBlur={onBlur}
                   onDblClick={onElDblClick}
                   onUpdate={onUpdateEl}
+                />
+              );
+            }
+            if (el.type === "icon") {
+              return (
+                <IconNode
+                  key={el.id}
+                  el={el}
+                  selected={selIds.includes(el.id)}
+                  onResize={(id, size) => onUpdateEl(id, { size })}
                 />
               );
             }
@@ -1191,6 +1254,7 @@ export default function App() {
         setToolMenuOpen={setToolMenuOpen}
         onDelete={onDelete}
         hasSelection={selIds.length > 0}
+        onInsertIcon={onInsertIcon}
       />
 
       {/* Top bar */}
