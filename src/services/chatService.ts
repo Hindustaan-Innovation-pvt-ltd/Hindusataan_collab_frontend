@@ -22,13 +22,11 @@ export const chatService = {
     onError: (err: any) => void
   ) {
     try {
-      const payload: ChatRequest = {
-        message,
-        session_id: sessionId,
-        context: boardContext,
+      const payload = {
+        question: message,
       };
 
-      const response = await fetch(`${API_URL}/api/chat`, {
+      const response = await fetch(`${API_URL}/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

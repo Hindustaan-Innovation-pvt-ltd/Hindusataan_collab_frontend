@@ -70,7 +70,12 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
           if (status.status !== "Ready" && status.status !== "Error") {
             setTimeout(checkStatus, 2000);
           } else if (status.status === "Ready") {
-            setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "File processed successfully! You can now query it using the `/doc <question>` command." } : m));
+            const resultSummary = status.result?.summary || status.result?.vision_output;
+            if (resultSummary) {
+              setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "**File processed! Here is the summary:**\n\n" + resultSummary } : m));
+            } else {
+              setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "File processed successfully! You can now query it using the `/doc <question>` command." } : m));
+            }
             setIsTyping(false);
           } else {
             const errorMsg = status.error ? `Error processing file: ${status.error}` : "Error processing file.";
@@ -185,6 +190,41 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
             setIsTyping(false);
           }
         );
+        return;
+      }
+
+      if (text.startsWith("/flowchart")) {
+        const prompt = text.replace("/flowchart", "").trim() || "Create a flowchart";
+        try {
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Generating flowchart..." } : m));
+          let mermaid = await chatService.generateFlowchart(prompt);
+          // Strip markdown fences if the LLM added them
+          mermaid = mermaid.replace(/```mermaid\n?/gi, "").replace(/```/g, "").trim();
+          
+          if (onAIAction) {
+            onAIAction("create_flowchart", { mermaid });
+          }
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Flowchart created on the whiteboard!" } : m));
+        } catch (err: any) {
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Error generating flowchart: " + err.message } : m));
+        }
+        setIsTyping(false);
+        return;
+      }
+
+      if (text.startsWith("/graph")) {
+        const prompt = text.replace("/graph", "").trim() || "Create a graph";
+        try {
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Generating graph..." } : m));
+          const data = await chatService.generateGraph(prompt, boardId);
+          if (onAIAction) {
+            onAIAction("create_graph", data);
+          }
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Graph created on the whiteboard!" } : m));
+        } catch (err: any) {
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Error generating graph: " + err.message } : m));
+        }
+        setIsTyping(false);
         return;
       }
 
