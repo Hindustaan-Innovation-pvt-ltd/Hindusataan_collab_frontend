@@ -1,4 +1,4 @@
-export type ShapeKind = "rect" | "ellipse" | "triangle" | "diamond" | "arrow";
+export type ShapeKind = "rect" | "ellipse" | "triangle" | "diamond" | "arrow" | "hexagon" | "star" | "parallelogram" | "arrow_right" | "document" | "cross" | "pentagon" | "octagon";
 
 export type Tool =
   | "select"
@@ -129,6 +129,14 @@ export interface PathEl extends BaseEl {
   penType: PenType;
 }
 
+export interface GraphEl extends BaseEl {
+  type: "graph";
+  w: number;
+  h: number;
+  color: string;
+  graphData: any;
+}
+
 export type El =
   | StickyEl
   | TextEl
@@ -137,7 +145,15 @@ export type El =
   | IconEl
   | ConnectionEl
   | FreeArrowEl
-  | PathEl;
+  | PathEl
+  | GraphEl;
+
+export interface ChatMessage {
+  id: string;
+  role: "assistant" | "user";
+  content: string;
+  streaming?: boolean;
+}
 
 
 
