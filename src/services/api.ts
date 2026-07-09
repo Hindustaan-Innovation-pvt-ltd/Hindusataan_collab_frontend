@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://127.0.0.1:8000" : "https://apijam.allindiahub.com");
 
 // ── Axios instance (used by collaborationService, boardService, etc.) ──────
 const api = axios.create({
