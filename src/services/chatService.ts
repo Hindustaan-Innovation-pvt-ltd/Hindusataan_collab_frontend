@@ -24,7 +24,13 @@ export const chatService = {
   ) {
     try {
       const payload = {
-        question: message,
+        message: message,
+        session_id: _sessionId,
+        context: {
+          board_id: _boardContext.boardId,
+          board_name: _boardContext.boardName,
+          nodes: _boardContext.nodes
+        }
       };
 
       let lastIndex = 0;

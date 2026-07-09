@@ -1155,6 +1155,7 @@ export default function App() {
                 />
               );
             }
+
             if (el.type === "connection") {
               const c = el as ConnectionEl;
               const fromEl = els.find(x => x.id === c.from);
