@@ -223,7 +223,12 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
       let hiddenMarker = "";
 
       if (isDiagram || isExplicitGraph) {
-        promptText = text + "\n\n[SYSTEM INSTRUCTION: The user is requesting a visual diagram. You MUST output ONLY a valid JSON action block for the canvas (e.g. `{\"action\": \"create_flowchart\", ...}`). DO NOT output ANY conversational text before or after the JSON. DO NOT output ASCII art.]";
+        promptText = text + `\n\n[SYSTEM INSTRUCTION: The user is requesting a visual diagram. You MUST output ONLY a valid JSON action block for the canvas matching one of these schemas:
+1. Flowcharts/ER/UML/Network/Sequence/Architecture/Block/Process: {"action": "create_flowchart", "data": {"mermaid": "graph TD\\n A[Node Text]-->|Edge Label|B[Other Text]"}}
+   IMPORTANT FOR MERMAID: You MUST ONLY use "graph TD" or "flowchart TD" or LR. DO NOT use "erDiagram" or "classDiagram". Simulate ER diagrams and Architecture diagrams using flowchart nodes with rich text labels. ALWAYS include text labels inside nodes (e.g. A[Text]) and use edge labels (e.g. A -->|Label| B) for relationships.
+2. Pie/Bar/Line/Scatter Charts: {"action": "create_graph", "data": {"title": "Chart Title", "chartType": "bar", "labels": ["Q1","Q2"], "datasets": [{"label": "Sales", "data": [10,20]}]}} (chartType can be pie, bar, line, scatter)
+3. Mind Map: {"action": "create_mindmap", "data": {"root": "Main Topic", "children": [{"text": "Child 1"}, {"text": "Child 2"}]}}
+DO NOT output ANY conversational text before or after the JSON. DO NOT output raw Mermaid code outside the JSON block. DO NOT output ASCII art. MUST output strictly valid JSON.]`;
         hiddenMarker = "@@DIAGRAM@@\n";
       }
 

@@ -42,6 +42,7 @@ function TopBar({
 
   const handleLogout = () => {
     localStorage.removeItem("figjam_session");
+    localStorage.removeItem("figjam_token");
     window.location.href = "/signup";
   };
   const [running, setRunning] = useState(false);

@@ -667,32 +667,32 @@ export default function App() {
 
   // ── AI Action Dispatcher ──────────────────────────────────────────────────
   const handleAIAction = useCallback((action: string, data: any) => {
-    const cx = camRef.current.x > 0 ? (window.innerWidth / 2 - camRef.current.x) / camRef.current.z : window.innerWidth / 2;
-    const cy = camRef.current.y > 0 ? (window.innerHeight / 2 - camRef.current.y) / camRef.current.z : window.innerHeight / 2;
+    const cx = window.innerWidth / 2;
+    const cy = window.innerHeight / 2;
     
-    // Find an empty spot loosely (just slightly offset)
-    const offsetX = Math.random() * 50 - 25;
-    const offsetY = Math.random() * 50 - 25;
-    const startX = cx + offsetX;
-    const startY = cy + offsetY;
+    // We will place diagrams directly at the center of the world (0, 0)
+    // and then auto-zoom/pan to perfectly frame them.
+    const startX = 0;
+    const startY = 0;
+
+    let newEls: El[] = [];
 
     if (action === "create_flowchart" && data.mermaid) {
-      const newEls = parseMermaidToElements(data.mermaid, startX, startY);
-      setEls(p => [...p, ...newEls]);
+      newEls = parseMermaidToElements(data.mermaid, startX, startY);
     } 
     else if (action === "create_graph" && data.chartType) {
       const newGraph: GraphEl = {
         id: uid(),
         type: "graph",
-        w: 400, h: 300,
-        x: startX - 200, y: startY - 150,
+        w: 600, h: 400,
+        x: startX - 300, y: startY - 200,
         color: "#ffffff",
         graphData: data
       };
-      setEls(p => [...p, newGraph]);
+      newEls.push(newGraph);
     }
     else if (action === "create_sticky_notes" && data.notes) {
-      const newEls: StickyEl[] = data.notes.map((n: any, i: number) => ({
+      newEls = data.notes.map((n: any, i: number) => ({
         id: uid(),
         type: "sticky",
         w: 200, h: 200,
@@ -701,10 +701,8 @@ export default function App() {
         color: n.color || STICKY_COLORS[0],
         text: n.text || ""
       }));
-      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_kanban" && data.columns) {
-      const newEls: El[] = [];
       data.columns.forEach((col: string, i: number) => {
         const colId = uid();
         const colX = startX - 450 + (i * 300);
@@ -725,27 +723,25 @@ export default function App() {
           });
         });
       });
-      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_mindmap" && data.root) {
-      // Basic 1-level mindmap for now
       const rootId = uid();
-      const newEls: El[] = [{
+      newEls.push({
         id: rootId, type: "shape", kind: "ellipse",
         w: 200, h: 100, color: "#3742FA", text: data.root,
         x: startX - 100, y: startY - 50
-      }];
+      });
       if (data.children) {
         const radius = 250;
         data.children.forEach((child: any, i: number) => {
           const angle = (Math.PI * 2 * i) / data.children.length;
-          const cx = startX - 80 + Math.cos(angle) * radius;
-          const cy = startY - 40 + Math.sin(angle) * radius;
+          const childX = startX - 80 + Math.cos(angle) * radius;
+          const childY = startY - 40 + Math.sin(angle) * radius;
           const childId = uid();
           newEls.push({
             id: childId, type: "shape", kind: "rect",
             w: 160, h: 80, color: "#1ABCFE", text: child.text,
-            x: cx, y: cy
+            x: childX, y: childY
           } as ShapeEl);
           newEls.push({
             id: uid(), type: "connection", from: rootId, to: childId,
@@ -753,7 +749,6 @@ export default function App() {
           });
         });
       }
-      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_table" && data.rows) {
       const newTable: TableEl = {
@@ -764,7 +759,48 @@ export default function App() {
         color: "#ffffff",
         data: data.data || {}
       };
-      setEls(p => [...p, newTable]);
+      newEls.push(newTable);
+    }
+
+    if (newEls.length > 0) {
+      // Clear the canvas to render the new drawing cleanly
+      setEls(newEls);
+
+      // Auto-zoom to fit the newly generated elements
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      newEls.forEach(el => {
+        let ew = 100, eh = 100;
+        if ('w' in el) { ew = (el as any).w; eh = (el as any).h; }
+        if (el.type === 'table') { ew = (el as TableEl).cols * (el as TableEl).cellW; eh = (el as TableEl).rows * (el as TableEl).cellH; }
+        if (el.type === 'connection' || el.type === 'free_arrow' || el.type === 'path') return; // ignore lines for bounding box calculation if we want
+        
+        const x = el.x || 0;
+        const y = el.y || 0;
+        if (x < minX) minX = x;
+        if (x + ew > maxX) maxX = x + ew;
+        if (y < minY) minY = y;
+        if (y + eh > maxY) maxY = y + eh;
+      });
+
+      if (minX !== Infinity) {
+        const padding = 150;
+        const boundingW = maxX - minX + padding * 2;
+        const boundingH = maxY - minY + padding * 2;
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        
+        let newZ = Math.min(viewportW / boundingW, viewportH / boundingH);
+        newZ = Math.max(0.1, Math.min(1.5, newZ)); // Reasonable cap
+
+        const centerBoundingX = minX + (maxX - minX) / 2;
+        const centerBoundingY = minY + (maxY - minY) / 2;
+
+        setCam({
+          x: viewportW / 2 - centerBoundingX * newZ,
+          y: viewportH / 2 - centerBoundingY * newZ,
+          z: newZ
+        });
+      }
     }
   }, []);
 
@@ -1000,6 +1036,30 @@ export default function App() {
                       stroke={c.color} strokeWidth="3" markerEnd={`url(#arrowhead-${c.id})`}
                       style={{ pointerEvents: "none", filter: selIds.includes(c.id) ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
                     />
+                    {c.label && (
+                      <>
+                        <rect
+                          x={(pt1.x + pt2.x) / 2 - (c.label.length * 4)}
+                          y={(pt1.y + pt2.y) / 2 - 10}
+                          width={c.label.length * 8}
+                          height={20}
+                          fill="white"
+                          rx={4}
+                        />
+                        <text
+                          x={(pt1.x + pt2.x) / 2}
+                          y={(pt1.y + pt2.y) / 2}
+                          fill="#1C1B1F"
+                          fontSize="12"
+                          fontWeight="bold"
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          style={{ pointerEvents: "none" }}
+                        >
+                          {c.label}
+                        </text>
+                      </>
+                    )}
                   </g>
                 </svg>
               );
