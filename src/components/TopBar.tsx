@@ -107,7 +107,49 @@ export const TopBar = React.memo(function TopBar({
   const [sessionTime, setSessionTime] = useState("24:00:00");
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [showEmbedInfo, setShowEmbedInfo] = useState(false);
+
+  // Delete Board Modal State
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const confirmDeleteBoard = () => {
+    setDeleteError(null);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!onDeleteBoard) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      // onDeleteBoard returns a Promise because it's async in App.tsx
+      await onDeleteBoard();
+      setDeleteConfirmOpen(false);
+      setShareOpen(false);
+      showToast?.("Board deleted successfully.", "success");
+    } catch (e: any) {
+      setDeleteError(e.response?.data?.message || e.message || "Failed to delete board.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteConfirmOpen(false);
+    setIsDeleting(false);
+    setDeleteError(null);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && deleteConfirmOpen && !isDeleting) {
+        handleCancelDelete();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [deleteConfirmOpen, isDeleting]);
 
   // Open session countdown timer
   useEffect(() => {
@@ -194,11 +236,7 @@ export const TopBar = React.memo(function TopBar({
             placeholder="Name your board"
           />
           {onDeleteBoard && boards.length > 0 && (
-            <button onClick={() => {
-              if (window.confirm("Are you sure you want to delete this board?")) {
-                onDeleteBoard();
-              }
-            }} className="p-1 hover:bg-gray-100 rounded text-red-500 transition-colors" title="Delete Board">
+            <button onClick={confirmDeleteBoard} className="p-1 hover:bg-gray-100 rounded text-red-500 transition-colors" title="Delete Board">
               <Trash2 size={16} />
             </button>
           )}
@@ -475,8 +513,8 @@ export const TopBar = React.memo(function TopBar({
 
       {/* Share Dialog Overlay */}
       {shareOpen && (
-        <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all duration-300 pointer-events-auto">
-          <div className="flex flex-col gap-3 max-w-[500px] w-full animate-in fade-in zoom-in duration-200 relative">
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[100] flex justify-center p-4 transition-all duration-300 pointer-events-auto overflow-y-auto overflow-x-hidden">
+          <div className="flex flex-col gap-3 max-w-[500px] w-full h-auto animate-in fade-in zoom-in duration-300 relative my-auto">
 
             {view === "main" ? (
               <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
@@ -538,11 +576,11 @@ export const TopBar = React.memo(function TopBar({
                           <Lock size={10} className="text-gray-400" />
                           <span>Private</span>
                         </div>
-                        <ChevronRight size={15} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                        <ChevronRight size={15} className={`text-gray-400 transition-transform duration-200 ${visibilityPopoverOpen ? "rotate-90" : "group-hover:translate-x-0.5"}`} />
                       </div>
                     </div>
                     {visibilityPopoverOpen && (
-                      <div className="absolute top-full left-0 mt-2 w-[320px] bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-[110] animate-in fade-in slide-in-from-top-1">
+                      <div className="mt-1 w-full bg-white rounded-xl shadow-sm border border-gray-100 p-2 animate-in fade-in slide-in-from-top-1 duration-200">
                         <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Board Visibility</div>
                         
                         <button className="w-full text-left flex items-start gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-50 transition-colors cursor-default">
@@ -857,17 +895,17 @@ export const TopBar = React.memo(function TopBar({
                       <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">📄 Export</div>
                       
                       {/* Export Board Submenu Trigger */}
-                      <div className="relative">
+                      <div className="flex flex-col">
                         <button 
                           onClick={() => setShowExportMenu(!showExportMenu)}
                           className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all flex items-center justify-between group"
                         >
                           <span>Export Board</span>
-                          <ChevronRight size={14} className={`text-gray-400 group-hover:text-gray-600 transition-transform ${showExportMenu ? "rotate-90" : ""}`} />
+                          <ChevronRight size={14} className={`text-gray-400 transition-transform duration-200 ${showExportMenu ? "rotate-90" : "group-hover:translate-x-0.5"}`} />
                         </button>
                         
                         {showExportMenu && (
-                          <div className="absolute right-full top-0 mr-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-1.5 z-[120] animate-in fade-in slide-in-from-right-2">
+                          <div className="mt-1 w-full bg-white rounded-xl shadow-sm border border-gray-100 p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
                             <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-50 rounded-lg flex items-center justify-between cursor-not-allowed">
                               <span>Export as PNG</span>
                               <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
@@ -908,48 +946,6 @@ export const TopBar = React.memo(function TopBar({
 
                     <div className="h-px bg-gray-200/50 mx-2" />
 
-                    {/* Sharing Group */}
-                    <div className="my-1">
-                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">🔗 Sharing</div>
-                      <button 
-                        onClick={handleCopyLink}
-                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all"
-                      >
-                        Copy Share Link
-                      </button>
-                      
-                      <div className="relative">
-                        <button 
-                          onClick={() => setShowEmbedInfo(!showEmbedInfo)}
-                          className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all flex items-center justify-between group"
-                        >
-                          <span>Embed Board</span>
-                          <ChevronRight size={14} className={`text-gray-400 group-hover:text-gray-600 transition-transform ${showEmbedInfo ? "rotate-90" : ""}`} />
-                        </button>
-                        
-                        {showEmbedInfo && (
-                          <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-[120] animate-in fade-in slide-in-from-top-2">
-                            <p className="text-[10px] font-medium text-gray-500 mb-2">Generate an iframe snippet to embed this board anywhere.</p>
-                            <div className="bg-gray-50 rounded-lg border border-gray-200 p-2 text-[10px] font-mono text-gray-600 break-all mb-2 select-all">
-                              {`<iframe src="${window.location.origin}/board/${currentBoardId}" width="100%" height="600px" style="border:none;"></iframe>`}
-                            </div>
-                            <button 
-                              onClick={() => {
-                                navigator.clipboard.writeText(`<iframe src="${window.location.origin}/board/${currentBoardId}" width="100%" height="600px" style="border:none;"></iframe>`);
-                                if (showToast) showToast("Embed code copied!", "success");
-                                setShowEmbedInfo(false);
-                              }}
-                              className="w-full bg-[#7B61FF] hover:bg-[#6B4FF0] text-white text-xs font-bold py-1.5 rounded-lg transition-colors"
-                            >
-                              Copy Code
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="h-px bg-gray-200/50 mx-2" />
-
                     {/* Board Group */}
                     <div className="mt-1">
                       <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">⚙ Board</div>
@@ -973,12 +969,7 @@ export const TopBar = React.memo(function TopBar({
                         <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                       </button>
                       <button 
-                        onClick={() => {
-                          if (onDeleteBoard && window.confirm("Are you sure you want to delete this board? This action cannot be undone.")) {
-                            onDeleteBoard();
-                            setShareOpen(false);
-                          }
-                        }}
+                        onClick={confirmDeleteBoard}
                         disabled={!onDeleteBoard}
                         className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
                       >
@@ -989,6 +980,58 @@ export const TopBar = React.memo(function TopBar({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+            onClick={handleCancelDelete} 
+          />
+          {/* Modal */}
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
+                  <Trash2 size={20} />
+                </div>
+                <h2 className="text-lg font-bold text-gray-900">Delete Board</h2>
+              </div>
+              <p className="text-sm text-gray-600 mt-3 leading-relaxed">
+                Are you sure you want to permanently delete this board?
+              </p>
+              <p className="text-sm font-semibold text-gray-800 mt-2">
+                This action cannot be undone.
+              </p>
+              
+              {deleteError && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs font-medium text-red-600">
+                  {deleteError}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3 rounded-b-2xl">
+              <button
+                onClick={handleCancelDelete}
+                disabled={isDeleting}
+                autoFocus
+                className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 disabled:opacity-70 flex items-center gap-2 shadow-sm shadow-red-600/20"
+              >
+                {isDeleting ? "Deleting..." : "Delete Board"}
+              </button>
             </div>
           </div>
         </div>

@@ -2,12 +2,19 @@ import api from "./api";
 
 export const collaborationService = {
   inviteCollaborator: async (boardId: string, email: string, role: string = "viewer") => {
-    const response = await api.post("/api/collaboration/invite", {
+    const payload = {
       board_id: boardId,
       invitee_email: email,
       role: role,
-    });
-    return response.data;
+    };
+    console.log("Invite Payload:", payload);
+    try {
+      const response = await api.post("/api/collaboration/invite", payload);
+      return response.data;
+    } catch (error: any) {
+      console.log(error.response?.data);
+      throw error;
+    }
   },
 
   acceptInvite: async (inviteId: string) => {

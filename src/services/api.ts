@@ -12,15 +12,36 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
+    
+    // Protect collaboration endpoints
+    if (config.url && config.url.includes("/api/collaboration")) {
+      if (!token) {
+        alert("Please log in first.");
+        return Promise.reject(new Error("Please log in first."));
+      }
+    }
+
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Do not throw error here, let the backend reject if it requires auth
-    // otherwise public endpoints like GET /boards/ will fail on frontend before sending.
+    
     return config;
   },
   (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem("figjam_token");
+      localStorage.removeItem("token");
+      alert("Session expired. Please login again.");
+      window.location.href = "/login";
+    }
     return Promise.reject(error);
   }
 );

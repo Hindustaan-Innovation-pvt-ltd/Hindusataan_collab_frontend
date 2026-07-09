@@ -33,7 +33,18 @@ class WebSocketService {
 
     // Use environment variable or fallback to current host with ws/wss protocol
     const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-    const wsUrl = API_URL.replace(/^http/, "ws") + `/ws/board/${this.currentBoardId}`;
+    let wsUrl = API_URL.replace(/^http/, "ws") + `/ws/board/${this.currentBoardId}`;
+    
+    const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
+    if (token) {
+      wsUrl += `?token=${token}`;
+    }
+
+    console.log({
+      boardId: this.currentBoardId,
+      tokenExists: !!token,
+      wsUrl
+    });
 
     try {
       this.ws = new WebSocket(wsUrl);

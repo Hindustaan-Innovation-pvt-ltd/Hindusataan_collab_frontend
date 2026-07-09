@@ -955,6 +955,7 @@ export default function App() {
       } catch (e: any) {
         console.error("Failed to delete board", e);
         showToast(e.response?.data?.message || "Failed to delete board", "error");
+        throw e;
       }
     }
   }, [currentBoardId, boards, setBoards, setCurrentBoardId, setBoardName, setEls, setCam, showToast, INIT_ELS]);
