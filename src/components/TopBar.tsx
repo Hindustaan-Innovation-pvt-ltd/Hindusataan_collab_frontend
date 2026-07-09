@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   ChevronDown, Palette, Disc3, Music, Calendar,
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
-  Link, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, Trash2, Search
+  Link, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search
 } from "lucide-react";
 import type { Board } from "../types";
 import { useShareDialog } from "../hooks/useShareDialog";
@@ -29,6 +29,26 @@ export const TopBar = React.memo(function TopBar({
   simPeers, onToggleSimPeers, showToast
 }: TopBarProps) {
   const [seconds, setSeconds] = useState(3 * 60);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [userName, setUserName] = useState("Guest");
+
+  useEffect(() => {
+    try {
+      const s = localStorage.getItem("figjam_session");
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed && parsed.name) {
+          setUserName(parsed.name);
+        }
+      }
+    } catch (e) { }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("figjam_session");
+    localStorage.removeItem("figjam_token");
+    window.location.href = "/signup";
+  };
   const [running, setRunning] = useState(false);
   const [bgMenuOpen, setBgMenuOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
@@ -195,12 +215,32 @@ export const TopBar = React.memo(function TopBar({
       <div className="flex items-center gap-2 pointer-events-auto">
         <div className="flex items-center gap-1 bg-white rounded-2xl px-2 py-1.5 shadow-lg border border-black/[0.06]">
           {/* Avatar */}
-          <button className="flex items-center gap-1 pl-1 pr-2 h-8 rounded-xl hover:bg-gray-100 transition-colors">
-            <div className="w-6 h-6 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-xs font-bold">
-              A
-            </div>
-            <ChevronDown size={13} className="text-gray-400" />
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              className="flex items-center gap-1 pl-1 pr-2 h-8 rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              <div className="w-6 h-6 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-xs font-bold uppercase">
+                {userName.charAt(0)}
+              </div>
+              <ChevronDown size={13} className="text-gray-400" />
+            </button>
+            {userMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-black/[0.06] p-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                <div className="px-3 py-2 border-b border-black/[0.04]">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Logged in as</p>
+                  <p className="text-xs font-bold text-gray-700 truncate">{userName}</p>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#FF4757] font-bold hover:bg-red-50 rounded-lg transition-colors mt-1"
+                >
+                  <LogOut size={12} />
+                  Log Out
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="w-px h-5 bg-gray-200" />
 
@@ -714,6 +754,7 @@ export const TopBar = React.memo(function TopBar({
                     </button>
                   </div>
                 </div>
+
               </div>
             )}
 
@@ -785,8 +826,8 @@ export const TopBar = React.memo(function TopBar({
                 <button
                   onClick={() => setSessionActive(!sessionActive)}
                   className={`px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all border shrink-0 ${sessionActive
-                      ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer"
-                      : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer"
+                    : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50 cursor-pointer"
                     }`}
                 >
                   {sessionActive ? "Stop" : "Start"}

@@ -16,17 +16,15 @@ export interface ChatRequest {
 export const chatService = {
   async askStream(
     message: string,
-    sessionId: string,
-    boardContext: { boardId?: string; boardName?: string; nodes: El[] },
+    _sessionId: string,
+    _boardContext: { boardId?: string; boardName?: string; nodes: El[] },
     onChunk: (chunk: string) => void,
     onDone: () => void,
     onError: (err: any) => void
   ) {
     try {
-      const payload: ChatRequest = {
-        message,
-        session_id: sessionId,
-        context: boardContext,
+      const payload = {
+        question: message,
       };
 
       let lastIndex = 0;
@@ -39,7 +37,7 @@ export const chatService = {
             lastIndex = xhr.responseText.length;
             onChunk(chunkStr);
           }
-        },
+        }
       });
       onDone();
     } catch (err) {

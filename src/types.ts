@@ -116,6 +116,7 @@ export interface ConnectionEl extends BaseEl {
   from: string;
   to: string;
   color: string;
+  label?: string;
 }
 
 export interface FreeArrowEl extends BaseEl {

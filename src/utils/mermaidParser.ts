@@ -37,23 +37,37 @@ export function parseMermaidToElements(mermaid: string, startX: number, startY: 
     }
   }
 
-  // 2. Extract edges robustly by splitting on arrow sequences
+  // 2. Extract edges robustly by splitting on arrow sequences and preserving labels
   for (const line of cleanLines) {
     let strippedLine = line;
     strippedLine = strippedLine.replace(nodePattern, "$1");
     
-    const arrowRegex = /\s*(?:-[->]+|==+>|-\.-+>)(?:\|[^|]+\|)?\s*|\s*--[^-]+-->\s*|\s*-\.[^-]+\.->\s*|\s*==[^=]+==>\s*/g;
-    const parts = strippedLine.split(arrowRegex).filter(p => p.trim() !== "");
+    // Use a capturing group so that the arrow itself (and its label) is kept in the resulting array
+    const arrowRegexWithCapture = /\s*((?:-[->]+|==+>|-\.-+>)(?:\|[^|]+\|)?|--[^-]+-->|-\.[^-]+\.->|==[^=]+==>)\s*/g;
+    const tokens = strippedLine.split(arrowRegexWithCapture).filter(p => p !== undefined && p.trim() !== "");
     
-    if (parts.length > 1) {
-      for (let i = 0; i < parts.length - 1; i++) {
-        const fromMatch = parts[i].match(/^\s*([A-Za-z0-9_]+)/);
-        const toMatch = parts[i+1].match(/^\s*([A-Za-z0-9_]+)/);
+    if (tokens.length >= 3) {
+      for (let i = 0; i < tokens.length - 2; i += 2) {
+        const fromMatch = tokens[i].match(/^\s*([A-Za-z0-9_]+)/);
+        const arrow = tokens[i+1];
+        const toMatch = tokens[i+2].match(/^\s*([A-Za-z0-9_]+)/);
         
-        if (fromMatch && toMatch) {
+        if (fromMatch && toMatch && arrow) {
           const fromKey = fromMatch[1];
           const toKey = toMatch[1];
           
+          let label = undefined;
+          if (arrow.includes("|")) {
+            const m = arrow.match(/\|([^|]+)\|/);
+            if (m) label = m[1].trim();
+          } else if (arrow.startsWith("--") && arrow.endsWith("-->")) {
+            label = arrow.slice(2, -3).trim();
+          } else if (arrow.startsWith("==") && arrow.endsWith("==>")) {
+            label = arrow.slice(2, -3).trim();
+          } else if (arrow.startsWith("-.") && arrow.endsWith(".->")) {
+            label = arrow.slice(2, -3).trim();
+          }
+
           if (!nodes.has(fromKey)) registerNode(fromKey, fromKey, "[");
           if (!nodes.has(toKey)) registerNode(toKey, toKey, "[");
           
@@ -63,6 +77,7 @@ export function parseMermaidToElements(mermaid: string, startX: number, startY: 
             from: nodes.get(fromKey)!.id,
             to: nodes.get(toKey)!.id,
             color: "#1C1B1F",
+            label,
             x: 0, y: 0
           });
         }
