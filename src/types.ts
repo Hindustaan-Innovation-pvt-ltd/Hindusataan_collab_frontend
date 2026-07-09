@@ -57,6 +57,33 @@ export interface Comment {
   color?: string;
 }
 
+export interface BoardMeta {
+  id: string;
+  title: string;
+  description: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Collaborator {
+  id: string;
+  board_id: string;
+  user_id: string;
+  role: string;
+}
+
+export interface Invite {
+  id: string;
+  board_id: string;
+  inviter_id: string;
+  invitee_email: string;
+  role: string;
+  status: string;
+  created_at: string;
+  expires_at: string;
+}
+
 // Fields shared by every canvas element
 interface BaseEl {
   id: string;
@@ -129,6 +156,14 @@ export interface PathEl extends BaseEl {
   penType: PenType;
 }
 
+export interface GraphEl extends BaseEl {
+  type: "graph";
+  w: number;
+  h: number;
+  color: string;
+  graphData: any;
+}
+
 export type El =
   | StickyEl
   | TextEl
@@ -137,7 +172,8 @@ export type El =
   | IconEl
   | ConnectionEl
   | FreeArrowEl
-  | PathEl;
+  | PathEl
+  | GraphEl;
 
 
 

@@ -3,7 +3,7 @@ import { Sparkles, X, MessageSquare } from "lucide-react";
 import IconNode from "../components/IconNode";
 // import { toPng } from "html-to-image";
 
-import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Board, Peer, Comment } from "../types";
+import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Board, Peer, Comment, StickyEl, GraphEl, TableEl } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, INIT_ELS } from "../constants";
 import { uid, worldPt, pathD, getElementBox, getBoundaryPt } from "../utils";
 
@@ -18,6 +18,9 @@ import { parseMermaidToElements } from "../utils/mermaidParser";
 
 import TopBar from "../components/TopBar";
 import ContextMenu from "../components/ContextMenu";
+import { BoardChat } from "../components/BoardChat";
+import { liveChatService, type LiveChatMessage } from "../services/liveChatService";
+import { websocketService } from '../services/websocketService';
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
@@ -25,6 +28,8 @@ import ContextMenu from "../components/ContextMenu";
 
 const getSessionUser = () => {
   try {
+    const token = localStorage.getItem("token");
+    if (!token) return "Guest";
     const s = localStorage.getItem("figjam_session");
     if (s) {
       const parsed = JSON.parse(s);
@@ -34,7 +39,16 @@ const getSessionUser = () => {
   return "Guest";
 };
 
-export default function App() {
+interface AppProps {
+  initialBoardId?: string;
+  initialName?: string;
+  initialEls?: El[];
+  initialCam?: Cam;
+  onSave?: (name: string, els: El[], cam: Cam) => void;
+  role?: "owner" | "editor" | "viewer";
+}
+
+export default function App({ initialBoardId, initialName, initialEls, initialCam, onSave, role = "owner" }: AppProps = {}) {
   const [tool, setTool] = useState<Tool>("select");
   const [comments, setComments] = useState<Comment[]>([]);
   const [isCommentWindowOpen, setIsCommentWindowOpen] = useState(false);
@@ -42,12 +56,20 @@ export default function App() {
   const [activePlacement, setActivePlacement] = useState<{ x: number, y: number } | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
   const [els, setEls] = useState<El[]>(INIT_ELS);
-  const [boards, setBoards] = useState<Board[]>([]);
   const [currentBoardId, setCurrentBoardId] = useState<string>("");
   const [boardName, setBoardName] = useState("Untitled Board");
   const [boardBg, setBoardBg] = useState<"white" | "black" | "green">("white");
   const [selIds, setSelIds] = useState<string[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Live Chat State
+  const [liveChatMessages, setLiveChatMessages] = useState<LiveChatMessage[]>([]);
+  const [liveChatTypingUsers, setLiveChatTypingUsers] = useState<string[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  const containerRef = useRef<HTMLDivElement>(null);
   const [cam, setCam] = useState<Cam>({ x: 0, y: 0, z: 1 });
   const [stickyColor, setStickyColor] = useState(STICKY_COLORS[0]);
   const [shapeColor, setShapeColor] = useState(SHAPE_COLORS[0]);
@@ -60,18 +82,15 @@ export default function App() {
   const [liveArrow, setLiveArrow] = useState<{ start: Pt, end: Pt } | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
-  const [simPeers, setSimPeers] = useState(false);
-
-  const [peers, setPeers] = useState<Peer[]>([
-    { id: "p1", name: "Alice", color: "#F24E1E", x: 300, y: 300, tx: 300, ty: 300 },
-    { id: "p2", name: "Bob", color: "#1ABCFE", x: 800, y: 400, tx: 800, ty: 400 },
-  ]);
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  const [peers, setPeers] = useState<Peer[]>([]);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string | null } | null>(null);
 
   const [history, setHistory] = useState<El[][]>([INIT_ELS]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const isUndoRedoRef = useRef(false);
+  const isRemoteUpdateRef = useRef(false);
 
   useEffect(() => {
     if (isUndoRedoRef.current) {
@@ -148,6 +167,11 @@ export default function App() {
     toolRef.current = tool;
   }, [penColor, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
+  
+  const lastCursorSendRef = useRef<number>(0);
+  const lastSentCursorPtRef = useRef<{ x: number, y: number } | null>(null);
+  const pendingCursorTimerRef = useRef<number | null>(null);
+  const cursorStatsRef = useRef({ total: 0, sent: 0, droppedThrottle: 0, droppedTiny: 0, lastLog: Date.now() });
 
   // Interaction state refs
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
@@ -157,45 +181,113 @@ export default function App() {
   const drawRef = useRef<Pt[]>([]);
   const arrowRef = useRef<{ id: string; start: Pt } | null>(null);
 
-  // Center canvas on mount and load boards
+  // Center canvas on mount and load board
   useEffect(() => {
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
-    const saved = localStorage.getItem("figjam-boards");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        if (parsed.length > 0) {
-          setBoards(parsed);
-          const last = parsed[0];
-          setCurrentBoardId(last.id);
-          setBoardName(last.name);
-          setBoardBg(last.bg || "white");
-          setEls(last.els);
-          setCam(last.cam);
-          return;
-        }
-      } catch (e) { }
-    }
-    setCam({ x: cx, y: cy, z: 1 });
-    const defaultBoard: Board = { id: "default", name: "Untitled Board", els: INIT_ELS, cam: { x: cx, y: cy, z: 1 }, updatedAt: Date.now() };
-    setBoards([defaultBoard]);
-    setEls(INIT_ELS);
-  }, []);
 
-  // Save to localStorage
+    if (initialBoardId) {
+      setCurrentBoardId(initialBoardId);
+      setBoardName(initialName || "Untitled Board");
+      setEls(initialEls !== undefined ? initialEls : INIT_ELS);
+      setCam(initialCam || { x: cx, y: cy, z: 1 });
+      return;
+    }
+
+    setCam({ x: cx, y: cy, z: 1 });
+    setEls(INIT_ELS);
+  }, [initialBoardId]);
+
+  // Load chat history
   useEffect(() => {
-    if (!currentBoardId) return;
-    // Debounce or save directly
-    setBoards(prev => {
-      const updated = prev.map(b => b.id === currentBoardId ? { ...b, els, cam, name: boardName, bg: boardBg, updatedAt: Date.now() } : b);
-      if (!updated.find(b => b.id === currentBoardId)) {
-        updated.push({ id: currentBoardId, name: boardName, bg: boardBg, els, cam, updatedAt: Date.now() });
+    if (currentBoardId) {
+      liveChatService.getChatHistory(currentBoardId)
+        .then(msgs => setLiveChatMessages(msgs))
+        .catch(err => console.error("Failed to load chat history:", err));
+    }
+  }, [currentBoardId]);
+
+  // Handle incoming websocket updates
+  useEffect(() => {
+    websocketService.onMessageCallback = (msg) => {
+      if (msg.type === "board_update" && msg.payload) {
+        isRemoteUpdateRef.current = true;
+        if (msg.payload.els) setEls(msg.payload.els);
+        if (msg.payload.cam) setCam(msg.payload.cam);
+      } else if (msg.type === "cursor_update" && msg.payload) {
+        console.log("Cursor message received:", msg.payload);
+        setPeers(prev => {
+          const idx = prev.findIndex(p => p.id === msg.payload.user_id);
+          if (idx !== -1) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], tx: msg.payload.x, ty: msg.payload.y };
+            console.log("Remote cursor state updated for:", msg.payload.user_id);
+            return next;
+          }
+          return prev;
+        });
+      } else if (msg.type === "presence") {
+        setOnlineUsers(msg.online_users || []);
+        setPeers(prev => {
+           const next = [...prev];
+           const currentIds = next.map(p => p.id);
+           (msg.online_users || []).forEach((u: any) => {
+             if (!currentIds.includes(u.user_id)) {
+               // initialize at center or arbitrary point, it will quickly lerp
+               next.push({ id: u.user_id, name: u.name, color: u.color, x: 0, y: 0, tx: 0, ty: 0 });
+             }
+           });
+           const onlineIds = (msg.online_users || []).map((u: any) => u.user_id);
+           const nextFiltered = next.filter(p => {
+             const keep = onlineIds.includes(p.id);
+             if (!keep) console.log("User disconnected, removing cursor for:", p.id);
+             return keep;
+           });
+           return nextFiltered;
+        });
+      } else if (msg.type === "chat_message") {
+        setLiveChatMessages(prev => [...prev, msg.payload as LiveChatMessage]);
+        if (!isChatOpen) {
+          setChatUnreadCount(prev => prev + 1);
+        }
+      } else if (msg.type === "typing_start") {
+        setLiveChatTypingUsers(prev => {
+          if (!prev.includes(msg.payload.username)) return [...prev, msg.payload.username];
+          return prev;
+        });
+      } else if (msg.type === "typing_stop") {
+        setLiveChatTypingUsers(prev => prev.filter(name => name !== msg.payload.username));
       }
-      localStorage.setItem("figjam-boards", JSON.stringify(updated));
-      return updated;
-    });
-  }, [els, cam, boardName, currentBoardId, boardBg]);
+    };
+    return () => {
+      websocketService.onMessageCallback = null;
+    };
+  }, [isChatOpen]);
+
+  // Send websocket updates (debounced)
+  useEffect(() => {
+    if (!currentBoardId || role === "viewer") return;
+    
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      websocketService.send("board_update", { els, cam });
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [els, cam, currentBoardId, role]);
+
+  // Save to backend
+  useEffect(() => {
+    if (!currentBoardId || role === "viewer") return;
+    
+    if (onSave) {
+      onSave(boardName, els, cam);
+    }
+  }, [els, cam, boardName, currentBoardId, boardBg, onSave]);
 
   // Load comments
   useEffect(() => {
@@ -212,21 +304,28 @@ export default function App() {
     localStorage.setItem("figjam-comments", JSON.stringify(comments));
   }, [comments]);
 
-  // Simulated Multiplayer
+  // Cursor Interpolation Loop
   useEffect(() => {
-    if (!simPeers) return;
-    const int = setInterval(() => {
-      setPeers(prev => prev.map(p => {
-        if (Math.random() < 0.05) {
-          // pick new target
-          return { ...p, tx: Math.random() * window.innerWidth, ty: Math.random() * window.innerHeight };
-        }
-        // move smoothly towards target
-        return { ...p, x: p.x + (p.tx - p.x) * 0.1, y: p.y + (p.ty - p.y) * 0.1 };
-      }));
-    }, 50);
-    return () => clearInterval(int);
-  }, [simPeers]);
+    let animationFrameId: number;
+    const loop = () => {
+      setPeers(prev => {
+        let changed = false;
+        const next = prev.map(p => {
+          const dx = p.tx - p.x;
+          const dy = p.ty - p.y;
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            changed = true;
+            return { ...p, x: p.x + dx * 0.3, y: p.y + dy * 0.3 };
+          }
+          return p;
+        });
+        return changed ? next : prev;
+      });
+      animationFrameId = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
 
   // ── Zoom ──────────────────────────────────────────────────────────────────
 
@@ -257,6 +356,9 @@ export default function App() {
         e.preventDefault();
         return;
       }
+
+      if (role === "viewer") return; // Viewers can only pan
+
 
       if (e.key === "Delete" || e.key === "Backspace") {
         if (selIdsRef.current.length > 0) {
@@ -354,8 +456,10 @@ export default function App() {
     if (e.button === 2) return; // Right click
 
     if (editIdRef.current) return;
-
+    
     const isPan = toolRef.current === "hand" || spaceRef.current;
+
+    if (role === "viewer" && !isPan) return; // Viewers can only pan
 
     if (isPan) {
       panRef.current = { px: e.clientX, py: e.clientY, cx: camRef.current.x, cy: camRef.current.y };
@@ -587,6 +691,54 @@ export default function App() {
   }, []);
 
   const onPtrMove = useCallback((e: React.PointerEvent) => {
+    const now = Date.now();
+    const pt = worldPt(e.clientX, e.clientY, getRect(), camRef.current);
+    
+    // --- Cursor Optimization Logic ---
+    cursorStatsRef.current.total++;
+    let isTiny = false;
+    
+    if (lastSentCursorPtRef.current) {
+      const dx = pt.x - lastSentCursorPtRef.current.x;
+      const dy = pt.y - lastSentCursorPtRef.current.y;
+      if (dx * dx + dy * dy < 9) { // less than 3 pixels
+        isTiny = true;
+      }
+    }
+    
+    const send = (sendPt: {x: number, y: number}) => {
+      console.log("Cursor message sent");
+      websocketService.send("cursor_update", sendPt);
+      lastSentCursorPtRef.current = sendPt;
+      lastCursorSendRef.current = Date.now();
+      cursorStatsRef.current.sent++;
+    };
+
+    if (isTiny) {
+      cursorStatsRef.current.droppedTiny++;
+    } else if (now - lastCursorSendRef.current > 50) {
+      if (pendingCursorTimerRef.current) {
+        window.clearTimeout(pendingCursorTimerRef.current);
+        pendingCursorTimerRef.current = null;
+      }
+      send(pt);
+    } else {
+      cursorStatsRef.current.droppedThrottle++;
+      if (pendingCursorTimerRef.current) window.clearTimeout(pendingCursorTimerRef.current);
+      pendingCursorTimerRef.current = window.setTimeout(() => {
+        send(pt);
+        pendingCursorTimerRef.current = null;
+      }, 50);
+    }
+    
+    if (now - cursorStatsRef.current.lastLog > 2000) {
+      if (cursorStatsRef.current.total > 0) {
+        console.log(`[Cursor Optimization] Total: ${cursorStatsRef.current.total} | Sent: ${cursorStatsRef.current.sent} | Dropped (Throttle): ${cursorStatsRef.current.droppedThrottle} | Dropped (Tiny Move): ${cursorStatsRef.current.droppedTiny}`);
+      }
+      cursorStatsRef.current = { total: 0, sent: 0, droppedThrottle: 0, droppedTiny: 0, lastLog: now };
+    }
+    // ---------------------------------
+
     if (panRef.current) {
       const { px, py, cx, cy } = panRef.current;
       setCam(p => ({ ...p, x: cx + (e.clientX - px), y: cy + (e.clientY - py) }));
@@ -667,32 +819,32 @@ export default function App() {
 
   // ── AI Action Dispatcher ──────────────────────────────────────────────────
   const handleAIAction = useCallback((action: string, data: any) => {
-    const cx = window.innerWidth / 2;
-    const cy = window.innerHeight / 2;
+    const cx = (window.innerWidth / 2 - camRef.current.x) / camRef.current.z;
+    const cy = (window.innerHeight / 2 - camRef.current.y) / camRef.current.z;
     
-    // We will place diagrams directly at the center of the world (0, 0)
-    // and then auto-zoom/pan to perfectly frame them.
-    const startX = 0;
-    const startY = 0;
-
-    let newEls: El[] = [];
+    // Find an empty spot loosely (just slightly offset)
+    const offsetX = Math.random() * 50 - 25;
+    const offsetY = Math.random() * 50 - 25;
+    const startX = cx + offsetX;
+    const startY = cy + offsetY;
 
     if (action === "create_flowchart" && data.mermaid) {
-      newEls = parseMermaidToElements(data.mermaid, startX, startY);
+      const newEls = parseMermaidToElements(data.mermaid, startX, startY);
+      setEls(p => [...p, ...newEls]);
     } 
     else if (action === "create_graph" && data.chartType) {
       const newGraph: GraphEl = {
         id: uid(),
         type: "graph",
-        w: 600, h: 400,
-        x: startX - 300, y: startY - 200,
+        w: 400, h: 300,
+        x: startX - 200, y: startY - 150,
         color: "#ffffff",
         graphData: data
       };
-      newEls.push(newGraph);
+      setEls(p => [...p, newGraph]);
     }
     else if (action === "create_sticky_notes" && data.notes) {
-      newEls = data.notes.map((n: any, i: number) => ({
+      const newEls: StickyEl[] = data.notes.map((n: any, i: number) => ({
         id: uid(),
         type: "sticky",
         w: 200, h: 200,
@@ -701,8 +853,10 @@ export default function App() {
         color: n.color || STICKY_COLORS[0],
         text: n.text || ""
       }));
+      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_kanban" && data.columns) {
+      const newEls: El[] = [];
       data.columns.forEach((col: string, i: number) => {
         const colId = uid();
         const colX = startX - 450 + (i * 300);
@@ -723,25 +877,27 @@ export default function App() {
           });
         });
       });
+      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_mindmap" && data.root) {
+      // Basic 1-level mindmap for now
       const rootId = uid();
-      newEls.push({
+      const newEls: El[] = [{
         id: rootId, type: "shape", kind: "ellipse",
         w: 200, h: 100, color: "#3742FA", text: data.root,
         x: startX - 100, y: startY - 50
-      });
+      }];
       if (data.children) {
         const radius = 250;
         data.children.forEach((child: any, i: number) => {
           const angle = (Math.PI * 2 * i) / data.children.length;
-          const childX = startX - 80 + Math.cos(angle) * radius;
-          const childY = startY - 40 + Math.sin(angle) * radius;
+          const cx = startX - 80 + Math.cos(angle) * radius;
+          const cy = startY - 40 + Math.sin(angle) * radius;
           const childId = uid();
           newEls.push({
             id: childId, type: "shape", kind: "rect",
             w: 160, h: 80, color: "#1ABCFE", text: child.text,
-            x: childX, y: childY
+            x: cx, y: cy
           } as ShapeEl);
           newEls.push({
             id: uid(), type: "connection", from: rootId, to: childId,
@@ -749,6 +905,7 @@ export default function App() {
           });
         });
       }
+      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_table" && data.rows) {
       const newTable: TableEl = {
@@ -759,48 +916,7 @@ export default function App() {
         color: "#ffffff",
         data: data.data || {}
       };
-      newEls.push(newTable);
-    }
-
-    if (newEls.length > 0) {
-      // Clear the canvas to render the new drawing cleanly
-      setEls(newEls);
-
-      // Auto-zoom to fit the newly generated elements
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      newEls.forEach(el => {
-        let ew = 100, eh = 100;
-        if ('w' in el) { ew = (el as any).w; eh = (el as any).h; }
-        if (el.type === 'table') { ew = (el as TableEl).cols * (el as TableEl).cellW; eh = (el as TableEl).rows * (el as TableEl).cellH; }
-        if (el.type === 'connection' || el.type === 'free_arrow' || el.type === 'path') return; // ignore lines for bounding box calculation if we want
-        
-        const x = el.x || 0;
-        const y = el.y || 0;
-        if (x < minX) minX = x;
-        if (x + ew > maxX) maxX = x + ew;
-        if (y < minY) minY = y;
-        if (y + eh > maxY) maxY = y + eh;
-      });
-
-      if (minX !== Infinity) {
-        const padding = 150;
-        const boundingW = maxX - minX + padding * 2;
-        const boundingH = maxY - minY + padding * 2;
-        const viewportW = window.innerWidth;
-        const viewportH = window.innerHeight;
-        
-        let newZ = Math.min(viewportW / boundingW, viewportH / boundingH);
-        newZ = Math.max(0.1, Math.min(1.5, newZ)); // Reasonable cap
-
-        const centerBoundingX = minX + (maxX - minX) / 2;
-        const centerBoundingY = minY + (maxY - minY) / 2;
-
-        setCam({
-          x: viewportW / 2 - centerBoundingX * newZ,
-          y: viewportH / 2 - centerBoundingY * newZ,
-          z: newZ
-        });
-      }
+      setEls(p => [...p, newTable]);
     }
   }, []);
 
@@ -1036,30 +1152,6 @@ export default function App() {
                       stroke={c.color} strokeWidth="3" markerEnd={`url(#arrowhead-${c.id})`}
                       style={{ pointerEvents: "none", filter: selIds.includes(c.id) ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
                     />
-                    {c.label && (
-                      <>
-                        <rect
-                          x={(pt1.x + pt2.x) / 2 - (c.label.length * 4)}
-                          y={(pt1.y + pt2.y) / 2 - 10}
-                          width={c.label.length * 8}
-                          height={20}
-                          fill="white"
-                          rx={4}
-                        />
-                        <text
-                          x={(pt1.x + pt2.x) / 2}
-                          y={(pt1.y + pt2.y) / 2}
-                          fill="#1C1B1F"
-                          fontSize="12"
-                          fontWeight="bold"
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          style={{ pointerEvents: "none" }}
-                        >
-                          {c.label}
-                        </text>
-                      </>
-                    )}
                   </g>
                 </svg>
               );
@@ -1320,52 +1412,60 @@ export default function App() {
 
       {/* Top bar */}
       <TopBar
-        boards={boards}
         currentBoardId={currentBoardId}
         boardName={boardName}
         boardBg={boardBg}
         onChangeBg={setBoardBg}
-        onChangeBoard={(id) => {
-          const board = boards.find(b => b.id === id);
-          if (board) {
-            setCurrentBoardId(board.id);
-            setBoardName(board.name);
-            setBoardBg(board.bg || "white");
-            isUndoRedoRef.current = true;
-            setEls(board.els);
-            setHistory([board.els]);
-            setHistoryIndex(0);
-            setCam(board.cam);
-            setSelIds([]);
-            setEditId(null);
-          }
-        }}
-        onNewBoard={() => {
-          const id = uid();
-          setCurrentBoardId(id);
-          setBoardName("New Board");
-          setEls([]);
-        }}
         onRenameBoard={(name) => setBoardName(name)}
-        simPeers={simPeers}
-        onToggleSimPeers={() => setSimPeers(p => !p)}
+        role={role}
+        onlineUsers={onlineUsers}
       />
 
-      {/* Peers / Simulated Multiplayer */}
-      {simPeers && peers.map(p => (
-        <div
-          key={p.id}
-          className="absolute top-0 left-0 pointer-events-none z-40 transition-transform duration-[50ms] ease-linear"
-          style={{ transform: `translate(${p.x}px, ${p.y}px)` }}
-        >
-          <svg width="20" height="26" viewBox="0 0 16 23" fill={p.color} stroke="white" strokeWidth="2" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>
-            <path d="M1.3853 0.385299C0.840742 -0.159258 0 0.226343 0 0.996155V21.1398C0 21.9405 0.992646 22.3168 1.52355 21.7145L5.78762 16.8797L9.58801 22.6517C9.91428 23.1472 10.5843 23.2882 11.0853 22.9666L13.1118 21.6659C13.6128 21.3444 13.7538 20.6811 13.4276 20.1856L9.62719 14.4136H15.0038C15.7737 14.4136 16.1593 13.4834 15.6147 12.9388L1.3853 0.385299Z" />
-          </svg>
-          <div className="absolute top-5 left-4 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-md pointer-events-none" style={{ backgroundColor: p.color }}>
-            {p.name}
+      {/* Real-time Multiplayer Cursors */}
+      {peers.map(p => {
+        const screenX = p.x * cam.z + cam.x;
+        const screenY = p.y * cam.z + cam.y;
+        
+        // Log once per render per cursor (throttle spam)
+        if (Math.random() < 0.02) console.log("Cursor rendered for:", p.id);
+        
+        return (
+          <div
+            key={p.id}
+            className="absolute top-0 left-0 pointer-events-none z-40 transition-transform duration-[50ms] ease-linear"
+            style={{ transform: `translate(${screenX}px, ${screenY}px)` }}
+          >
+            <svg width="20" height="26" viewBox="0 0 16 23" fill={p.color} stroke="white" strokeWidth="2" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>
+              <path d="M1.3853 0.385299C0.840742 -0.159258 0 0.226343 0 0.996155V21.1398C0 21.9405 0.992646 22.3168 1.52355 21.7145L5.78762 16.8797L9.58801 22.6517C9.91428 23.1472 10.5843 23.2882 11.0853 22.9666L13.1118 21.6659C13.6128 21.3444 13.7538 20.6811 13.4276 20.1856L9.62719 14.4136H15.0038C15.7737 14.4136 16.1593 13.4834 15.6147 12.9388L1.3853 0.385299Z" />
+            </svg>
+            <div className="absolute top-5 left-4 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-md pointer-events-none" style={{ backgroundColor: p.color }}>
+              {p.name}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
+
+      {/* Collaboration Chat */}
+      {currentBoardId && (
+        <BoardChat
+          messages={liveChatMessages}
+          currentUserId={onlineUsers.find(u => u.name === getSessionUser())?.user_id || ""}
+          typingUsers={liveChatTypingUsers}
+          onSendMessage={(message) => {
+            websocketService.send("chat_message", { message });
+          }}
+          onTyping={(isTyping) => {
+            websocketService.send(isTyping ? "typing_start" : "typing_stop", {});
+          }}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          unreadCount={chatUnreadCount}
+          onToggle={() => {
+            setIsChatOpen(prev => !prev);
+            setChatUnreadCount(0);
+          }}
+        />
+      )}
 
       {isCommentWindowOpen && (
         <div className="absolute top-24 right-6 w-80 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 flex flex-col z-50 pointer-events-auto overflow-hidden max-h-[500px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
