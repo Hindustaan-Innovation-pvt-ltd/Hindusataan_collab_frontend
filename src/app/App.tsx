@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 import IconNode from "../components/IconNode";
 // import { toPng } from "html-to-image";
 
-import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Comment, TableEl, GraphEl } from "../types";
+import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Board, Peer, Comment, StickyEl, GraphEl, TableEl } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, INIT_ELS } from "../constants";
 import { uid, worldPt, pathD, getElementBox, getBoundaryPt } from "../utils";
 
@@ -16,10 +16,7 @@ import GraphNode from "../components/GraphNode";
 import AIDialog from "../components/AIDialog";
 import Toolbar from "../components/Toolbar";
 import { boardService } from "../services/boardService";
-import { websocketService } from "../services/websocketService";
-import { parseMermaidToElements } from "../utils/mermaidParser";
-import TopBar from "../components/TopBar";
-import ContextMenu from "../components/ContextMenu";
+import { websocketService } from '../services/websocketService';
 
 import { useBoardSync } from "../hooks/useBoardSync";
 import { useLiveCollaboration } from "../hooks/useLiveCollaboration";
@@ -30,6 +27,8 @@ import { useToast } from "../hooks/useToast";
 
 const getSessionUser = () => {
   try {
+    const token = localStorage.getItem("token");
+    if (!token) return "Guest";
     const s = localStorage.getItem("figjam_session");
     if (s) {
       const parsed = JSON.parse(s);
@@ -42,6 +41,8 @@ const getSessionUser = () => {
 export default function App() {
   const [mySessionId] = useState(() => uid());
   const [myColor] = useState(() => SHAPE_COLORS[Math.floor(Math.random() * SHAPE_COLORS.length)]);
+  const { boardId: urlBoardId } = useParams();
+  const navigate = useNavigate();
   const [tool, setTool] = useState<Tool>("select");
   
   const { toast, showToast } = useToast();
@@ -52,14 +53,20 @@ export default function App() {
   const [activePlacement, setActivePlacement] = useState<{ x: number, y: number } | null>(null);
   const [newCommentText, setNewCommentText] = useState("");
   const [els, setEls] = useState<El[]>(INIT_ELS);
-  const { boardId: urlBoardId } = useParams();
-  const navigate = useNavigate();
-
   const [currentBoardId, setCurrentBoardId] = useState<string>(urlBoardId || "");
   const [boardName, setBoardName] = useState("Untitled Board");
   const [boardBg, setBoardBg] = useState<"white" | "black" | "green">("white");
   const [selIds, setSelIds] = useState<string[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Live Chat State
+  const [liveChatMessages, setLiveChatMessages] = useState<any[]>([]);
+  const [liveChatTypingUsers, setLiveChatTypingUsers] = useState<string[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
+
+  const containerRef = useRef<HTMLDivElement>(null);
   const [cam, setCam] = useState<Cam>({ x: 0, y: 0, z: 1 });
   const [stickyColor, setStickyColor] = useState(STICKY_COLORS[0]);
   const [shapeColor, setShapeColor] = useState(SHAPE_COLORS[0]);
@@ -73,6 +80,7 @@ export default function App() {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [simPeers, setSimPeers] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string | null } | null>(null);
 
@@ -155,6 +163,11 @@ export default function App() {
     toolRef.current = tool;
   }, [penColor, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
+  
+  const lastCursorSendRef = useRef<number>(0);
+  const lastSentCursorPtRef = useRef<{ x: number, y: number } | null>(null);
+  const pendingCursorTimerRef = useRef<number | null>(null);
+  const cursorStatsRef = useRef({ total: 0, sent: 0, droppedThrottle: 0, droppedTiny: 0, lastLog: Date.now() });
 
   // Interaction state refs
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
@@ -175,7 +188,7 @@ export default function App() {
   });
 
   // Live Collaboration
-  const { peers, setPeers, broadcastPresence, setBroadcastEditId } = useLiveCollaboration({
+  const { peers: livePeers, setPeers, broadcastPresence, setBroadcastEditId } = useLiveCollaboration({
     currentBoardId, mySessionId, myColor, setEls, setCam, showToast, selIdsRef, isRemoteUpdateRef
   });
 
@@ -183,6 +196,68 @@ export default function App() {
   useEffect(() => {
     setBroadcastEditId(editId);
   }, [editId, setBroadcastEditId]);
+
+  // Handle incoming websocket updates
+  useEffect(() => {
+    websocketService.onMessageCallback = (msg) => {
+      if (msg.type === "board_update" && msg.payload) {
+        isRemoteUpdateRef.current = true;
+        if (msg.payload.els) setEls(msg.payload.els);
+        if (msg.payload.cam) setCam(msg.payload.cam);
+      } else if (msg.type === "cursor_update" && msg.payload) {
+        setPeers(prev => {
+          const idx = prev.findIndex(p => p.id === msg.payload.user_id);
+          if (idx !== -1) {
+            const next = [...prev];
+            next[idx] = { ...next[idx], tx: msg.payload.x, ty: msg.payload.y };
+            return next;
+          }
+          return prev;
+        });
+      } else if (msg.type === "presence") {
+        setOnlineUsers(msg.online_users || []);
+      } else if (msg.type === "chat_message") {
+        setLiveChatMessages(prev => [...prev, msg.payload]);
+        if (!isChatOpen) {
+          setChatUnreadCount(prev => prev + 1);
+        }
+      } else if (msg.type === "typing_start") {
+        setLiveChatTypingUsers(prev => {
+          if (!prev.includes(msg.payload.username)) return [...prev, msg.payload.username];
+          return prev;
+        });
+      } else if (msg.type === "typing_stop") {
+        setLiveChatTypingUsers(prev => prev.filter(name => name !== msg.payload.username));
+      }
+    };
+    return () => {
+      websocketService.onMessageCallback = null;
+    };
+  }, [isChatOpen]);
+
+  // Send websocket updates (debounced)
+  useEffect(() => {
+    if (!currentBoardId) return;
+    
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      websocketService.send("board_update", { els, cam });
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  // Save to backend
+  useEffect(() => {
+    if (!currentBoardId || role === "viewer") return;
+    
+    if (onSave) {
+      onSave(boardName, els, cam);
+    }
+  }, [els, cam, boardName, currentBoardId, boardBg, onSave]);
+>>>>>>> 187ff32f7bef9e8221cf03e2b678fa2c31513bb4
 
   // Load comments
   useEffect(() => {
@@ -199,23 +274,29 @@ export default function App() {
     localStorage.setItem("figjam-comments", JSON.stringify(comments));
   }, [comments]);
 
-  // Simulated Multiplayer
+  // Cursor Interpolation Loop
   useEffect(() => {
-    if (!simPeers) return;
-    const int = setInterval(() => {
-      setPeers(prev => prev.map(p => {
-        if (Math.random() < 0.05) {
-          // pick new target
-          return { ...p, tx: Math.random() * window.innerWidth, ty: Math.random() * window.innerHeight };
-        }
-        // move smoothly towards target
-        const tx = p.tx ?? p.x;
-        const ty = p.ty ?? p.y;
-        return { ...p, x: p.x + (tx - p.x) * 0.1, y: p.y + (ty - p.y) * 0.1 };
-      }));
-    }, 50);
-    return () => clearInterval(int);
-  }, [simPeers]);
+    let animationFrameId: number;
+    const loop = () => {
+      setPeers(prev => {
+        let changed = false;
+        const next = prev.map(p => {
+          const tx = p.tx ?? p.x;
+          const ty = p.ty ?? p.y;
+          const dx = tx - p.x;
+          const dy = ty - p.y;
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            changed = true;
+            return { ...p, x: p.x + dx * 0.3, y: p.y + dy * 0.3 };
+          }
+          return p;
+        });
+        return changed ? next : prev;
+      });
+      animationFrameId = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => cancelAnimationFrame(animationFrameId);
 
   // ── Zoom ──────────────────────────────────────────────────────────────────
 
@@ -246,6 +327,9 @@ export default function App() {
         e.preventDefault();
         return;
       }
+
+      if (role === "viewer") return; // Viewers can only pan
+
 
       if (e.key === "Delete" || e.key === "Backspace") {
         if (selIdsRef.current.length > 0) {
@@ -350,8 +434,10 @@ export default function App() {
     if (e.button === 2) return; // Right click
 
     if (editIdRef.current) return;
-
+    
     const isPan = toolRef.current === "hand" || spaceRef.current;
+
+    if (role === "viewer" && !isPan) return; // Viewers can only pan
 
     if (isPan) {
       panRef.current = { px: e.clientX, py: e.clientY, cx: camRef.current.x, cy: camRef.current.y };
@@ -594,8 +680,10 @@ export default function App() {
     const rect = getRect();
     const w = worldPt(e.clientX, e.clientY, rect, camRef.current);
     
-    // Broadcast presence coordinates (throttled internally)
+    // Broadcast presence coordinates
     broadcastPresence(w.x, w.y);
+    // Also send via WebSocket for real-time cursors
+    websocketService.send("cursor_update", w);
 
     if (panRef.current) {
       const { px, py, cx, cy } = panRef.current;
@@ -677,7 +765,6 @@ export default function App() {
     const cx = camRef.current.x > 0 ? (window.innerWidth / 2 - camRef.current.x) / camRef.current.z : window.innerWidth / 2;
     const cy = camRef.current.y > 0 ? (window.innerHeight / 2 - camRef.current.y) / camRef.current.z : window.innerHeight / 2;
     
-    // We will place diagrams at the current camera center
     const startX = cx;
     const startY = cy;
 
@@ -687,20 +774,21 @@ export default function App() {
       console.log("Handling create_flowchart with mermaid data");
       newEls = parseMermaidToElements(data.mermaid, startX, startY);
       console.log("Created mermaid nodes:", newEls);
+      setEls(p => [...p, ...newEls]);
     } 
     else if (action === "create_graph" && data.chartType) {
       const newGraph: GraphEl = {
         id: uid(),
         type: "graph",
-        w: 600, h: 400,
-        x: startX - 300, y: startY - 200,
+        w: 400, h: 300,
+        x: startX - 200, y: startY - 150,
         color: "#ffffff",
         graphData: data
       };
-      newEls.push(newGraph);
+      setEls(p => [...p, newGraph]);
     }
     else if (action === "create_sticky_notes" && data.notes) {
-      newEls = data.notes.map((n: any, i: number) => ({
+      const newEls: StickyEl[] = data.notes.map((n: any, i: number) => ({
         id: uid(),
         type: "sticky",
         w: 200, h: 200,
@@ -709,8 +797,10 @@ export default function App() {
         color: n.color || STICKY_COLORS[0],
         text: n.text || ""
       }));
+      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_kanban" && data.columns) {
+      const newEls: El[] = [];
       data.columns.forEach((col: string, i: number) => {
         const colId = uid();
         const colX = startX - 450 + (i * 300);
@@ -731,25 +821,27 @@ export default function App() {
           });
         });
       });
+      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_mindmap" && data.root) {
+      // Basic 1-level mindmap for now
       const rootId = uid();
-      newEls.push({
+      const newEls: El[] = [{
         id: rootId, type: "shape", kind: "ellipse",
         w: 200, h: 100, color: "#3742FA", text: data.root,
         x: startX - 100, y: startY - 50
-      });
+      }];
       if (data.children) {
         const radius = 250;
         data.children.forEach((child: any, i: number) => {
           const angle = (Math.PI * 2 * i) / data.children.length;
-          const childX = startX - 80 + Math.cos(angle) * radius;
-          const childY = startY - 40 + Math.sin(angle) * radius;
+          const cx = startX - 80 + Math.cos(angle) * radius;
+          const cy = startY - 40 + Math.sin(angle) * radius;
           const childId = uid();
           newEls.push({
             id: childId, type: "shape", kind: "rect",
             w: 160, h: 80, color: "#1ABCFE", text: child.text,
-            x: childX, y: childY
+            x: cx, y: cy
           } as ShapeEl);
           newEls.push({
             id: uid(), type: "connection", from: rootId, to: childId,
@@ -757,6 +849,7 @@ export default function App() {
           });
         });
       }
+      setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_table" && data.rows) {
       const newTable: TableEl = {
@@ -767,48 +860,7 @@ export default function App() {
         color: "#ffffff",
         data: data.data || {}
       };
-      newEls.push(newTable);
-    }
-
-    if (newEls.length > 0) {
-      // Clear the canvas to render the new drawing cleanly
-      setEls(newEls);
-
-      // Auto-zoom to fit the newly generated elements
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      newEls.forEach(el => {
-        let ew = 100, eh = 100;
-        if ('w' in el) { ew = (el as any).w; eh = (el as any).h; }
-        if (el.type === 'table') { ew = (el as TableEl).cols * (el as TableEl).cellW; eh = (el as TableEl).rows * (el as TableEl).cellH; }
-        if (el.type === 'connection' || el.type === 'free_arrow' || el.type === 'path') return; // ignore lines for bounding box calculation if we want
-        
-        const x = el.x || 0;
-        const y = el.y || 0;
-        if (x < minX) minX = x;
-        if (x + ew > maxX) maxX = x + ew;
-        if (y < minY) minY = y;
-        if (y + eh > maxY) maxY = y + eh;
-      });
-
-      if (minX !== Infinity) {
-        const padding = 150;
-        const boundingW = maxX - minX + padding * 2;
-        const boundingH = maxY - minY + padding * 2;
-        const viewportW = window.innerWidth;
-        const viewportH = window.innerHeight;
-        
-        let newZ = Math.min(viewportW / boundingW, viewportH / boundingH);
-        newZ = Math.max(0.1, Math.min(1.5, newZ)); // Reasonable cap
-
-        const centerBoundingX = minX + (maxX - minX) / 2;
-        const centerBoundingY = minY + (maxY - minY) / 2;
-
-        setCam({
-          x: viewportW / 2 - centerBoundingX * newZ,
-          y: viewportH / 2 - centerBoundingY * newZ,
-          z: newZ
-        });
-      }
+      setEls(p => [...p, newTable]);
     }
   }, []);
 
@@ -1170,30 +1222,6 @@ export default function App() {
                       stroke={c.color} strokeWidth="3" markerEnd={`url(#arrowhead-${c.id})`}
                       style={{ pointerEvents: "none", filter: selIds.includes(c.id) ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
                     />
-                    {c.label && (
-                      <>
-                        <rect
-                          x={(pt1.x + pt2.x) / 2 - (c.label.length * 4)}
-                          y={(pt1.y + pt2.y) / 2 - 10}
-                          width={c.label.length * 8}
-                          height={20}
-                          fill="white"
-                          rx={4}
-                        />
-                        <text
-                          x={(pt1.x + pt2.x) / 2}
-                          y={(pt1.y + pt2.y) / 2}
-                          fill="#1C1B1F"
-                          fontSize="12"
-                          fontWeight="bold"
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          style={{ pointerEvents: "none" }}
-                        >
-                          {c.label}
-                        </text>
-                      </>
-                    )}
                   </g>
                 </svg>
               );
@@ -1495,8 +1523,6 @@ export default function App() {
 
       {/* Top bar */}
       <TopBar
-        showToast={showToast}
-        boards={boards}
         currentBoardId={currentBoardId}
         boardName={boardName}
         boardBg={boardBg}
@@ -1506,14 +1532,45 @@ export default function App() {
         onNewBoard={handleNewBoard}
         onRenameBoard={handleRenameBoard}
         onDeleteBoard={handleDeleteBoard}
+        boards={boards}
         simPeers={simPeers}
         onToggleSimPeers={handleToggleSimPeers}
+        showToast={showToast}
+        role="owner"
+        onlineUsers={onlineUsers}
+        chatOpen={isChatOpen}
+        onToggleChat={() => {
+          setIsChatOpen(prev => !prev);
+          setChatUnreadCount(0);
+        }}
+        chatUnreadCount={chatUnreadCount}
       />
 
       {/* Peers / Simulated Multiplayer */}
       {peers.map(p => {
         const screenX = p.x * cam.z + cam.x;
         const screenY = p.y * cam.z + cam.y;
+=======
+        onRenameBoard={(name) => setBoardName(name)}
+        role={role}
+        onlineUsers={onlineUsers}
+        chatOpen={isChatOpen}
+        onToggleChat={() => {
+          setIsChatOpen(prev => !prev);
+          setChatUnreadCount(0);
+        }}
+        chatUnreadCount={chatUnreadCount}
+      />
+
+      {/* Real-time Multiplayer Cursors */}
+      {peers.map(p => {
+        const screenX = p.x * cam.z + cam.x;
+        const screenY = p.y * cam.z + cam.y;
+        
+        // Log once per render per cursor (throttle spam)
+        if (Math.random() < 0.02) console.log("Cursor rendered for:", p.id);
+        
+>>>>>>> 187ff32f7bef9e8221cf03e2b678fa2c31513bb4
         return (
           <div
             key={p.id}
@@ -1523,7 +1580,7 @@ export default function App() {
             <svg width="20" height="26" viewBox="0 0 16 23" fill={p.color} stroke="white" strokeWidth="2" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>
               <path d="M1.3853 0.385299C0.840742 -0.159258 0 0.226343 0 0.996155V21.1398C0 21.9405 0.992646 22.3168 1.52355 21.7145L5.78762 16.8797L9.58801 22.6517C9.91428 23.1472 10.5843 23.2882 11.0853 22.9666L13.1118 21.6659C13.6128 21.3444 13.7538 20.6811 13.4276 20.1856L9.62719 14.4136H15.0038C15.7737 14.4136 16.1593 13.4834 15.6147 12.9388L1.3853 0.385299Z" />
             </svg>
-            <div className="absolute top-5 left-4 flex flex-col gap-1 pointer-events-none">
+              <div className="absolute top-5 left-4 flex flex-col gap-1 pointer-events-none">
               <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-md" style={{ backgroundColor: p.color }}>
                 <span>{p.name}</span>
                 {p.editingId && <span className="opacity-80 font-medium">(Editing)</span>}
@@ -1536,9 +1593,40 @@ export default function App() {
                 </div>
               )}
             </div>
+            </div>
           </div>
         );
       })}
+      {/* Collaboration Chat */}
+      {currentBoardId && (
+        <BoardChat
+          messages={liveChatMessages}
+          currentUserId={onlineUsers.find(u => u.name === getSessionUser())?.user_id || ""}
+          typingUsers={liveChatTypingUsers}
+          onSendMessage={(message) => {
+            const currentUserId = onlineUsers.find(u => u.name === getSessionUser())?.user_id || "";
+            const optimisticMsg: LiveChatMessage = {
+              board_id: currentBoardId,
+              user_id: currentUserId,
+              username: getSessionUser(),
+              message,
+              timestamp: new Date().toISOString()
+            };
+            setLiveChatMessages(prev => [...prev, optimisticMsg]);
+            websocketService.send("chat_message", { message });
+          }}
+          onTyping={(isTyping) => {
+            websocketService.send(isTyping ? "typing_start" : "typing_stop", {});
+          }}
+          isOpen={isChatOpen}
+          onClose={() => setIsChatOpen(false)}
+          unreadCount={chatUnreadCount}
+          onToggle={() => {
+            setIsChatOpen(prev => !prev);
+            setChatUnreadCount(0);
+          }}
+        />
+      )}
 
       {isCommentWindowOpen && (
         <div className="absolute top-24 right-6 w-80 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 flex flex-col z-50 pointer-events-auto overflow-hidden max-h-[500px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>

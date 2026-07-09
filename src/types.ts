@@ -61,6 +61,33 @@ export interface Comment {
   color?: string;
 }
 
+export interface BoardMeta {
+  id: string;
+  title: string;
+  description: string;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Collaborator {
+  id: string;
+  board_id: string;
+  user_id: string;
+  role: string;
+}
+
+export interface Invite {
+  id: string;
+  board_id: string;
+  inviter_id: string;
+  invitee_email: string;
+  role: string;
+  status: string;
+  created_at: string;
+  expires_at: string;
+}
+
 // Fields shared by every canvas element
 interface BaseEl {
   id: string;
@@ -159,54 +186,3 @@ export interface ChatMessage {
   content: string;
   streaming?: boolean;
 }
-
-
-
-// export type ShapeKind = "rect" | "ellipse" | "triangle" | "diamond" | "arrow";
-// export type El = TextEl | ShapeEl | TableEl | IconEl;
-
-// export interface ShapeEl {
-//   id: string;
-//   x: number;
-//   y: number;
-//   w: number;
-//   h: number;
-//   color: string;
-//   kind: ShapeKind;
-//   text?: string;
-// }
-
-// export interface TextEl {
-//   id: string;
-//   x: number;
-//   y: number;
-//   text: string;
-//   fontSize: number;
-//   color: string;
-// }
-
-// export interface TableEl {
-//   id: string;
-//   x: number;
-//   y: number;
-//   rows: number;
-//   cols: number;
-//   cellW: number;
-//   cellH: number;
-//   // Cell contents keyed by "row,col" — e.g. data["0,1"] = "Header B"
-//   data: Record<string, string>;
-// }
-
-// export interface IconEl {
-//   id: string;
-//   type: "icon";
-//   iconName: string; // e.g. "CupSoda", "Smile" — matches a lucide-react export name
-//   x: number;
-//   y: number;
-//   size: number;
-//   color: string;
-// }
-
-// export type Tool = "select" | "pen" | "shape" | "sticky" | "text" | "table"|"icon";
-// export type PenType = "pen" | "marker" | "highlighter";
-// export type PenThickness = "thin" | "thick";

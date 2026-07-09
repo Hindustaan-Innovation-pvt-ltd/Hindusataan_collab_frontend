@@ -1,32 +1,41 @@
 import React, { useState, useRef, useEffect } from "react";
+import { Link } from "react-router";
 import {
   ChevronDown, Palette, Disc3, Music, Calendar,
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
-  Link, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search
+  Link as LinkIcon, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search, MessageSquare
 } from "lucide-react";
 import type { Board } from "../types";
 import { useShareDialog } from "../hooks/useShareDialog";
+import { PendingInvitesPanel } from "./PendingInvitesPanel";
 
 interface TopBarProps {
-  boards: Board[];
   currentBoardId: string;
   boardName: string;
-  saveState: "idle" | "saving" | "saved" | "error";
-  onChangeBoard: (id: string) => void;
-  onNewBoard: () => void;
+  saveState?: "idle" | "saving" | "saved" | "error";
+  onChangeBoard?: (id: string) => void;
+  onNewBoard?: () => void;
   onRenameBoard: (name: string) => void;
   onDeleteBoard?: () => void;
   boardBg: "white" | "black" | "green";
   onChangeBg: (bg: "white" | "black" | "green") => void;
-  simPeers: boolean;
-  onToggleSimPeers: () => void;
+  simPeers?: boolean;
+  onToggleSimPeers?: () => void;
   showToast?: (text: string, type?: 'success' | 'error' | 'info') => void;
+  boards?: Board[];
+  onlineUsers?: any[];
+  role?: "owner" | "editor" | "viewer";
+  chatOpen?: boolean;
+  onToggleChat?: () => void;
+  chatUnreadCount?: number;
 }
 
 export const TopBar = React.memo(function TopBar({
-  boards, currentBoardId, boardName, saveState, onChangeBoard, onNewBoard, onRenameBoard, onDeleteBoard,
+  boards = [], currentBoardId, boardName, saveState, onChangeBoard, onNewBoard, onRenameBoard, onDeleteBoard,
   boardBg, onChangeBg,
-  simPeers, onToggleSimPeers, showToast
+  simPeers = false, onToggleSimPeers, showToast,
+  onlineUsers = [], role = "owner",
+  chatOpen = false, onToggleChat = () => {}, chatUnreadCount = 0
 }: TopBarProps) {
   const [seconds, setSeconds] = useState(3 * 60);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -34,6 +43,11 @@ export const TopBar = React.memo(function TopBar({
 
   useEffect(() => {
     try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setUserName("Guest");
+        return;
+      }
       const s = localStorage.getItem("figjam_session");
       if (s) {
         const parsed = JSON.parse(s);
@@ -41,13 +55,13 @@ export const TopBar = React.memo(function TopBar({
           setUserName(parsed.name);
         }
       }
-    } catch (e) { }
+    } catch (e) {}
   }, []);
 
   const handleLogout = () => {
+    localStorage.removeItem("token");
     localStorage.removeItem("figjam_session");
-    localStorage.removeItem("figjam_token");
-    window.location.href = "/signup";
+    window.location.href = "/login";
   };
   const [running, setRunning] = useState(false);
   const [bgMenuOpen, setBgMenuOpen] = useState(false);
@@ -212,27 +226,17 @@ export const TopBar = React.memo(function TopBar({
       {/* LEFT: Board Selector & Name */}
       <div className="flex flex-col gap-2 pointer-events-auto">
         <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 shadow-lg border border-black/[0.06]">
-          <select
-            value={currentBoardId}
-            onChange={(e) => {
-              if (e.target.value === "new") onNewBoard();
-              else onChangeBoard(e.target.value);
-            }}
-            className="text-sm font-semibold text-gray-800 bg-transparent outline-none cursor-pointer"
-          >
-            {boards.map(b => (
-              <option key={b.id} value={b.id}>{b.name || "Untitled Board"}</option>
-            ))}
-            <option disabled>──────────</option>
-            <option value="new">+ New Board</option>
-          </select>
+          <Link to="/" className="text-sm font-semibold text-[#7B61FF] hover:underline flex items-center gap-1">
+            ← Dashboard
+          </Link>
         </div>
         <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-black/[0.06]">
           <input
             type="text"
             value={boardName}
+            disabled={role === "viewer"}
             onChange={(e) => onRenameBoard(e.target.value)}
-            className="text-xs bg-transparent outline-none w-32 font-medium text-gray-600 placeholder-gray-400"
+            className="text-xs bg-transparent outline-none w-32 font-medium text-gray-600 placeholder-gray-400 disabled:opacity-50"
             placeholder="Name your board"
           />
           {onDeleteBoard && boards.length > 0 && (
@@ -297,9 +301,10 @@ export const TopBar = React.memo(function TopBar({
           {/* Background Color Popup */}
           <div className="relative">
             <button
+              disabled={role === "viewer"}
               onClick={() => setBgMenuOpen(o => !o)}
               title="Board Background"
-              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${bgMenuOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-[#7B61FF] hover:bg-[#f2efff] hover:scale-105"}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all disabled:opacity-50 ${bgMenuOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-[#7B61FF] hover:bg-[#f2efff] hover:scale-105"}`}
             >
               <Palette size={18} />
             </button>
@@ -452,6 +457,24 @@ export const TopBar = React.memo(function TopBar({
               </div>
             )}
           </div>
+
+          <div className="w-px h-5 bg-gray-200" />
+
+          {/* Chat Toggle */}
+          <div className="relative">
+            <button
+              onClick={onToggleChat}
+              title="Board Chat"
+              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${chatOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-gray-500 hover:bg-[#f2efff] hover:text-[#7B61FF]"}`}
+            >
+              <MessageSquare size={16} />
+              {chatUnreadCount > 0 && !chatOpen && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full h-4 w-4 flex items-center justify-center border border-white">
+                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Board Search */}
@@ -493,14 +516,27 @@ export const TopBar = React.memo(function TopBar({
           )}
         </div>
 
-        {/* Simulate Multiplayer button */}
-        <button
-          onClick={onToggleSimPeers}
-          className={`flex items-center gap-2 h-9 px-3 rounded-xl text-xs font-bold shadow-md transition-all ${simPeers ? "bg-[#3742FA] text-white hover:bg-[#2c35c9]" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-100"
-            }`}
-        >
-          {simPeers ? "Stop Cursors" : "Simulate Cursors"}
-        </button>
+        {/* Online Presence Avatars */}
+        {onlineUsers.length > 0 && (
+          <div className="flex items-center ml-2 relative" title={`${onlineUsers.length} online`}>
+            {onlineUsers.map((u, i) => (
+              <div 
+                key={u.user_id || i}
+                className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-md -ml-2 first:ml-0"
+                style={{ backgroundColor: u.color || "#7B61FF", zIndex: 10 - i }}
+                title={u.name}
+              >
+                {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+              </div>
+            ))}
+            <div className="ml-2 text-xs font-bold text-gray-500">
+              {onlineUsers.length} Online
+            </div>
+          </div>
+        )}
+
+        {/* Notifications */}
+        <PendingInvitesPanel />
 
         {/* Share button */}
         <button
@@ -983,6 +1019,9 @@ export const TopBar = React.memo(function TopBar({
             </div>
           </div>
         </div>
+=======
+        <ShareBoardModal boardId={currentBoardId} onClose={() => setShareOpen(false)} />
+>>>>>>> 187ff32f7bef9e8221cf03e2b678fa2c31513bb4
       )}
 
       {/* Delete Confirmation Modal */}

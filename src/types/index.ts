@@ -57,3 +57,5 @@ export interface ChatMessage {
   streaming?: boolean;
   graphData?: any;
 }
+
+export * from './collaboration';

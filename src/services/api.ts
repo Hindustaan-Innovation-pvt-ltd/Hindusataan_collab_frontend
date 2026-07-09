@@ -3,6 +3,7 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
+// ── Axios instance (used by collaborationService, boardService, etc.) ──────
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -14,11 +15,9 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
     
-    // Protect collaboration endpoints
     if (config.url && config.url.includes("/api/collaboration")) {
       if (!token) {
-        alert("Please log in first.");
-        return Promise.reject(new Error("Please log in first."));
+        return Promise.reject(new Error("Please log in first to use collaboration features."));
       }
     }
 
@@ -39,7 +38,6 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem("figjam_token");
       localStorage.removeItem("token");
-      alert("Session expired. Please login again.");
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -47,3 +45,36 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// ── fetchWithAuth helper (used by new integration-branch services) ──────────
+/**
+ * A helper function to make fetch requests with the Authorization header.
+ * Checks both "figjam_token" and "token" keys in localStorage.
+ */
+export async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
+  const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
+  const headers = new Headers(options.headers || {});
+  
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  if (response.status === 401) {
+    console.error("Unauthorized request. Token might be invalid or expired.");
+    localStorage.removeItem("token");
+    localStorage.removeItem("figjam_token");
+    localStorage.removeItem("figjam_session");
+    window.location.href = "/login";
+  }
+
+  return response;
+}

@@ -27,6 +27,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': 'http://127.0.0.1:8000',
+      '/boards': 'http://127.0.0.1:8000',
+      '/board/upload': 'http://127.0.0.1:8000',
+      '/board/upload-file': 'http://127.0.0.1:8000',
+      '/board/search-document-stream': 'http://127.0.0.1:8000',
+      '/board/status': 'http://127.0.0.1:8000',
       '/generate-flowchart': 'http://127.0.0.1:8000',
       '/generate-graph': 'http://127.0.0.1:8000',
       '/auth': 'http://127.0.0.1:8000'

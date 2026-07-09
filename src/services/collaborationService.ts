@@ -27,6 +27,16 @@ export const collaborationService = {
     return response.data;
   },
 
+  getPendingInvites: async () => {
+    const response = await api.get("/api/collaboration/invites/pending");
+    return response.data?.data?.invites || [];
+  },
+
+  getBoardRole: async (boardId: string): Promise<string> => {
+    const response = await api.get(`/api/collaboration/board/${boardId}/role`);
+    return response.data?.data?.role || "viewer";
+  },
+
   getCollaborators: async (boardId: string) => {
     const response = await api.get(`/api/collaboration/board/${boardId}`);
     return response.data?.data?.collaborators || [];

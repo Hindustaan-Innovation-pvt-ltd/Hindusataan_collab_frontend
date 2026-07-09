@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { Toaster } from "sonner";
 import App from "./app/App.tsx";
 import Welcome from "./app/components/Pages/welcome.tsx";
 import Signup from "./app/components/Pages/signup.tsx";
@@ -18,11 +19,11 @@ function isAuthenticated() {
   return !!localStorage.getItem(SESSION_KEY);
 }
 
-function ProtectedApp() {
+function ProtectedApp({ children }: { children?: ReactNode }) {
   if (!isAuthenticated()) {
     return <Navigate to="/welcome" replace />;
   }
-  return <App />;
+  return <>{children}</>;
 }
 
 function PublicOnly({ children }: { children: ReactNode }) {
@@ -32,37 +33,44 @@ function PublicOnly({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+import DashboardPage from "./pages/DashboardPage";
+import BoardPage from "./pages/BoardPage";
+
 createRoot(document.getElementById("root")!).render(
-  <BrowserRouter>
-    <Routes>
-      <Route path="/" element={<ProtectedApp />} />
-      <Route path="/board/:boardId/:boardName?" element={<ProtectedApp />} />
-      <Route
-        path="/welcome"
-        element={
-          <PublicOnly>
-            <Welcome />
-          </PublicOnly>
-        }
-      />
-      <Route
-        path="/signup"
-        element={
-          <PublicOnly>
-            <Signup />
-          </PublicOnly>
-        }
-      />
-      <Route
-        path="/login"
-        element={
-          <PublicOnly>
-            <Login />
-          </PublicOnly>
-        }
-      />
-      <Route path="/oauth-callback" element={<OauthCallback />} />
-      <Route path="*" element={<Navigate to="/welcome" replace />} />
-    </Routes>
-  </BrowserRouter>,
+  <>
+    <Toaster position="top-right" richColors />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<ProtectedApp><DashboardPage /></ProtectedApp>} />
+        <Route path="/board/:board_id" element={<ProtectedApp><BoardPage /></ProtectedApp>} />
+        <Route path="/board/:boardId/:boardName?" element={<ProtectedApp><App /></ProtectedApp>} />
+        <Route
+          path="/welcome"
+          element={
+            <PublicOnly>
+              <Welcome />
+            </PublicOnly>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicOnly>
+              <Signup />
+            </PublicOnly>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PublicOnly>
+              <Login />
+            </PublicOnly>
+          }
+        />
+        <Route path="/oauth-callback" element={<OauthCallback />} />
+        <Route path="*" element={<Navigate to="/welcome" replace />} />
+      </Routes>
+    </BrowserRouter>
+  </>
 );
