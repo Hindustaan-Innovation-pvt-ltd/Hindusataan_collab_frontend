@@ -62,7 +62,7 @@ export function useShareDialog(currentBoardId: string, boardName: string, showTo
     
     try {
       await Promise.all(
-        emails.map(email => collaborationService.inviteCollaborator(currentBoardId, email, "edit"))
+        emails.map(email => collaborationService.inviteCollaborator(currentBoardId, email, "editor"))
       );
 
       await fetchCollaborators();

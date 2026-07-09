@@ -40,7 +40,20 @@ export function useBoardSync({
 
     boardService.getBoards().then(async fetchedBoards => {
       console.log("Boards from backend:", fetchedBoards);
-      if (fetchedBoards && fetchedBoards.length > 0) {
+      if (!fetchedBoards || fetchedBoards.length === 0) {
+        try {
+          const newId = await boardService.createBoard("Untitled Board");
+          const newBoard: Board = { id: newId, name: "Untitled Board", bg: "white", els: INIT_ELS, cam: { x: cx, y: cy, z: 1 }, updatedAt: Date.now() };
+          setBoards([newBoard]);
+          setCurrentBoardId(newId);
+          setBoardName("Untitled Board");
+          setBoardBg("white");
+          setEls(INIT_ELS);
+          setCam({ x: cx, y: cy, z: 1 });
+        } catch (e) {
+          console.error("Failed to create initial board", e);
+        }
+      } else {
         setBoards(fetchedBoards);
         const selectedBoard = urlBoardId 
           ? fetchedBoards.find(b => b.id === urlBoardId) || fetchedBoards[0]
