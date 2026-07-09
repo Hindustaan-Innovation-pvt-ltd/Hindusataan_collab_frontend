@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, Link as LinkIcon, Check, Lock, ChevronRight, Folder } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Link as LinkIcon, X, Check, Lock, ChevronRight } from "lucide-react";
 import { collaborationService } from '../services/collaborationService';
 import type { Collaborator } from '../types';
 import { toast } from 'sonner';
@@ -63,7 +63,7 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
         await collaborationService.removeCollaborator(boardId, userId);
         toast.success("Collaborator removed");
       } else {
-        await collaborationService.updateRole(boardId, userId, newRole);
+        await collaborationService.updateCollaboratorRole(boardId, userId, newRole);
         toast.success("Role updated");
       }
       fetchCollaborators();

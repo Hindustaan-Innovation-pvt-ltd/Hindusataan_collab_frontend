@@ -1,10 +1,8 @@
-import React from 'react';
 import { useNavigate } from 'react-router';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from './ui/card'; // Assuming shadcn UI or similar is used, I will just use basic html if this fails. Let's use basic html for now to be safe.
-import type { BoardMeta } from '../types';
+import type { Board } from '../types';
 
 interface BoardCardProps {
-  board: BoardMeta;
+  board: Board;
   onDelete: (id: string) => void;
 }
 
@@ -16,7 +14,7 @@ export function BoardCard({ board, onDelete }: BoardCardProps) {
       <div>
         <h3 className="text-lg font-semibold truncate">{board.name || 'Untitled Board'}</h3>
         <p className="text-sm text-gray-500 mt-1">
-          Created: {new Date(board.created_at).toLocaleDateString()}
+          Last updated: {new Date(board.updatedAt).toLocaleDateString()}
         </p>
       </div>
       <div className="mt-4 flex gap-2">

@@ -4,7 +4,7 @@ import { useParams, useNavigate } from "react-router";
 import IconNode from "../components/IconNode";
 // import { toPng } from "html-to-image";
 
-import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Board, Peer, Comment, StickyEl, GraphEl, TableEl } from "../types";
+import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Peer, Comment, StickyEl, GraphEl, TableEl } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, INIT_ELS } from "../constants";
 import { uid, worldPt, pathD, getElementBox, getBoundaryPt } from "../utils";
 
@@ -17,10 +17,14 @@ import AIDialog from "../components/AIDialog";
 import Toolbar from "../components/Toolbar";
 import { boardService } from "../services/boardService";
 import { websocketService } from '../services/websocketService';
+import { parseMermaidToElements } from "../utils/mermaidParser";
+import TopBar from "../components/TopBar";
+import ContextMenu from "../components/ContextMenu";
+import { BoardChat } from "../components/BoardChat";
+import type { LiveChatMessage } from "../services/liveChatService";
 
 import { useBoardSync } from "../hooks/useBoardSync";
 import { useLiveCollaboration } from "../hooks/useLiveCollaboration";
-
 import { useToast } from "../hooks/useToast";
 
 // ── App ───────────────────────────────────────────────────────────────────────
@@ -58,7 +62,6 @@ export default function App() {
   const [boardBg, setBoardBg] = useState<"white" | "black" | "green">("white");
   const [selIds, setSelIds] = useState<string[]>([]);
   const [editId, setEditId] = useState<string | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
 
   // Live Chat State
   const [liveChatMessages, setLiveChatMessages] = useState<any[]>([]);
@@ -66,7 +69,6 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
-  const containerRef = useRef<HTMLDivElement>(null);
   const [cam, setCam] = useState<Cam>({ x: 0, y: 0, z: 1 });
   const [stickyColor, setStickyColor] = useState(STICKY_COLORS[0]);
   const [shapeColor, setShapeColor] = useState(SHAPE_COLORS[0]);
@@ -79,8 +81,8 @@ export default function App() {
   const [liveArrow, setLiveArrow] = useState<{ start: Pt, end: Pt } | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
-  const [simPeers, setSimPeers] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  const [peers, setPeers] = useState<Peer[]>([]);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string | null } | null>(null);
 
@@ -164,11 +166,6 @@ export default function App() {
   }, [penColor, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
   
-  const lastCursorSendRef = useRef<number>(0);
-  const lastSentCursorPtRef = useRef<{ x: number, y: number } | null>(null);
-  const pendingCursorTimerRef = useRef<number | null>(null);
-  const cursorStatsRef = useRef({ total: 0, sent: 0, droppedThrottle: 0, droppedTiny: 0, lastLog: Date.now() });
-
   // Interaction state refs
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
   const dragRef = useRef<{ id: string; ox: number; oy: number }[] | null>(null);
@@ -188,8 +185,8 @@ export default function App() {
   });
 
   // Live Collaboration
-  const { peers: livePeers, setPeers, broadcastPresence, setBroadcastEditId } = useLiveCollaboration({
-    currentBoardId, mySessionId, myColor, setEls, setCam, showToast, selIdsRef, isRemoteUpdateRef
+  const { broadcastPresence, setBroadcastEditId } = useLiveCollaboration({
+    currentBoardId, mySessionId, myColor, selIdsRef
   });
 
   // Keep broadcast edit state in sync
@@ -249,15 +246,7 @@ export default function App() {
     }, 100);
 
     return () => clearTimeout(timeout);
-  // Save to backend
-  useEffect(() => {
-    if (!currentBoardId || role === "viewer") return;
-    
-    if (onSave) {
-      onSave(boardName, els, cam);
-    }
-  }, [els, cam, boardName, currentBoardId, boardBg, onSave]);
->>>>>>> 187ff32f7bef9e8221cf03e2b678fa2c31513bb4
+  }, [els, cam, currentBoardId]);
 
   // Load comments
   useEffect(() => {
@@ -297,6 +286,7 @@ export default function App() {
     };
     loop();
     return () => cancelAnimationFrame(animationFrameId);
+  }, []);
 
   // ── Zoom ──────────────────────────────────────────────────────────────────
 
@@ -327,9 +317,6 @@ export default function App() {
         e.preventDefault();
         return;
       }
-
-      if (role === "viewer") return; // Viewers can only pan
-
 
       if (e.key === "Delete" || e.key === "Backspace") {
         if (selIdsRef.current.length > 0) {
@@ -436,8 +423,6 @@ export default function App() {
     if (editIdRef.current) return;
     
     const isPan = toolRef.current === "hand" || spaceRef.current;
-
-    if (role === "viewer" && !isPan) return; // Viewers can only pan
 
     if (isPan) {
       panRef.current = { px: e.clientX, py: e.clientY, cx: camRef.current.x, cy: camRef.current.y };
@@ -947,23 +932,6 @@ export default function App() {
     setSelIds([id]);
   }, []);
 
-  const handleNewBoard = useCallback(async () => {
-    try {
-      const newName = "New Board";
-      const id = await boardService.createBoard(newName);
-      const cx = window.innerWidth / 2;
-      const cy = window.innerHeight / 2;
-      setCurrentBoardId(id);
-      setBoardName(newName);
-      setEls(INIT_ELS);
-      setCam({ x: cx, y: cy, z: 1 });
-      setBoards(prev => [{ id, name: newName, els: INIT_ELS, cam: { x: cx, y: cy, z: 1 }, updatedAt: Date.now(), bg: "white" }, ...prev]);
-    } catch (e: any) {
-      console.error("Failed to create board", e);
-      showToast(e.response?.data?.message || "Failed to create board", "error");
-    }
-  }, [setCurrentBoardId, setBoardName, setEls, setCam, setBoards, showToast, INIT_ELS]);
-
   const handleRenameBoard = useCallback(async (name: string) => {
     setBoardName(name);
     if (currentBoardId) {
@@ -1059,10 +1027,6 @@ export default function App() {
       }
     }
   }, [boards, setCurrentBoardId, setBoardName, setBoardBg, setEls, setCam, setSelIds, setEditId, INIT_ELS]);
-
-  const handleToggleSimPeers = useCallback(() => {
-    setSimPeers(p => !p);
-  }, []);
 
   if (isLoading) {
     return (
@@ -1529,30 +1493,11 @@ export default function App() {
         saveState={saveState}
         onChangeBg={setBoardBg}
         onChangeBoard={handleChangeBoard}
-        onNewBoard={handleNewBoard}
         onRenameBoard={handleRenameBoard}
         onDeleteBoard={handleDeleteBoard}
         boards={boards}
-        simPeers={simPeers}
-        onToggleSimPeers={handleToggleSimPeers}
         showToast={showToast}
         role="owner"
-        onlineUsers={onlineUsers}
-        chatOpen={isChatOpen}
-        onToggleChat={() => {
-          setIsChatOpen(prev => !prev);
-          setChatUnreadCount(0);
-        }}
-        chatUnreadCount={chatUnreadCount}
-      />
-
-      {/* Peers / Simulated Multiplayer */}
-      {peers.map(p => {
-        const screenX = p.x * cam.z + cam.x;
-        const screenY = p.y * cam.z + cam.y;
-=======
-        onRenameBoard={(name) => setBoardName(name)}
-        role={role}
         onlineUsers={onlineUsers}
         chatOpen={isChatOpen}
         onToggleChat={() => {
@@ -1566,11 +1511,6 @@ export default function App() {
       {peers.map(p => {
         const screenX = p.x * cam.z + cam.x;
         const screenY = p.y * cam.z + cam.y;
-        
-        // Log once per render per cursor (throttle spam)
-        if (Math.random() < 0.02) console.log("Cursor rendered for:", p.id);
-        
->>>>>>> 187ff32f7bef9e8221cf03e2b678fa2c31513bb4
         return (
           <div
             key={p.id}
@@ -1580,7 +1520,7 @@ export default function App() {
             <svg width="20" height="26" viewBox="0 0 16 23" fill={p.color} stroke="white" strokeWidth="2" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}>
               <path d="M1.3853 0.385299C0.840742 -0.159258 0 0.226343 0 0.996155V21.1398C0 21.9405 0.992646 22.3168 1.52355 21.7145L5.78762 16.8797L9.58801 22.6517C9.91428 23.1472 10.5843 23.2882 11.0853 22.9666L13.1118 21.6659C13.6128 21.3444 13.7538 20.6811 13.4276 20.1856L9.62719 14.4136H15.0038C15.7737 14.4136 16.1593 13.4834 15.6147 12.9388L1.3853 0.385299Z" />
             </svg>
-              <div className="absolute top-5 left-4 flex flex-col gap-1 pointer-events-none">
+            <div className="absolute top-5 left-4 flex flex-col gap-1 pointer-events-none">
               <div className="flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-bold text-white shadow-md" style={{ backgroundColor: p.color }}>
                 <span>{p.name}</span>
                 {p.editingId && <span className="opacity-80 font-medium">(Editing)</span>}
@@ -1592,7 +1532,6 @@ export default function App() {
                   <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                 </div>
               )}
-            </div>
             </div>
           </div>
         );

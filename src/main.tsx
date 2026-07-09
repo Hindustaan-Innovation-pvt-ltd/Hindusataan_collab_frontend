@@ -34,7 +34,6 @@ function PublicOnly({ children }: { children: ReactNode }) {
 }
 
 import DashboardPage from "./pages/DashboardPage";
-import BoardPage from "./pages/BoardPage";
 
 createRoot(document.getElementById("root")!).render(
   <>
@@ -42,7 +41,6 @@ createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<ProtectedApp><DashboardPage /></ProtectedApp>} />
-        <Route path="/board/:board_id" element={<ProtectedApp><BoardPage /></ProtectedApp>} />
         <Route path="/board/:boardId/:boardName?" element={<ProtectedApp><App /></ProtectedApp>} />
         <Route
           path="/welcome"

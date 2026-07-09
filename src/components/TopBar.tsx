@@ -14,13 +14,10 @@ interface TopBarProps {
   boardName: string;
   saveState?: "idle" | "saving" | "saved" | "error";
   onChangeBoard?: (id: string) => void;
-  onNewBoard?: () => void;
   onRenameBoard: (name: string) => void;
   onDeleteBoard?: () => void;
   boardBg: "white" | "black" | "green";
   onChangeBg: (bg: "white" | "black" | "green") => void;
-  simPeers?: boolean;
-  onToggleSimPeers?: () => void;
   showToast?: (text: string, type?: 'success' | 'error' | 'info') => void;
   boards?: Board[];
   onlineUsers?: any[];
@@ -31,9 +28,9 @@ interface TopBarProps {
 }
 
 export const TopBar = React.memo(function TopBar({
-  boards = [], currentBoardId, boardName, saveState, onChangeBoard, onNewBoard, onRenameBoard, onDeleteBoard,
+  boards = [], currentBoardId, boardName, saveState, onChangeBoard, onRenameBoard, onDeleteBoard,
   boardBg, onChangeBg,
-  simPeers = false, onToggleSimPeers, showToast,
+  showToast,
   onlineUsers = [], role = "owner",
   chatOpen = false, onToggleChat = () => {}, chatUnreadCount = 0
 }: TopBarProps) {
@@ -114,7 +111,7 @@ export const TopBar = React.memo(function TopBar({
   const handleSelectSearchedBoard = (board: Board) => {
     setSearchQuery(board.name || "Untitled Board");
     setIsSearchOpen(false);
-    onChangeBoard(board.id);
+    onChangeBoard?.(board.id);
   };
 
   const [sessionActive, setSessionActive] = useState(false);
@@ -572,7 +569,7 @@ export const TopBar = React.memo(function TopBar({
                         </>
                       ) : (
                         <>
-                          <Link size={15} />
+                          <LinkIcon size={15} />
                           <span>Copy link</span>
                         </>
                       )}
@@ -1019,9 +1016,6 @@ export const TopBar = React.memo(function TopBar({
             </div>
           </div>
         </div>
-=======
-        <ShareBoardModal boardId={currentBoardId} onClose={() => setShareOpen(false)} />
->>>>>>> 187ff32f7bef9e8221cf03e2b678fa2c31513bb4
       )}
 
       {/* Delete Confirmation Modal */}

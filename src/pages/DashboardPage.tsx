@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { boardService } from '../services/boardService';
 import { BoardCard } from '../components/BoardCard';
-import type { BoardMeta } from '../types';
+import type { Board } from '../types';
 
 export default function DashboardPage() {
-  const [boards, setBoards] = useState<BoardMeta[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
