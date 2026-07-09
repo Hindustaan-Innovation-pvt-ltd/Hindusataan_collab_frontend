@@ -11,7 +11,7 @@ import "./styles/index.css";
 import axios from "axios";
 
 // Configure global Axios settings
-axios.defaults.baseURL = "http://127.0.0.1:8000";
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
 const SESSION_KEY = "figjam_session";
 
