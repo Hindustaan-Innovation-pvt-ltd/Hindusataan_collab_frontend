@@ -932,45 +932,56 @@ export default function App() {
     setSelIds([id]);
   }, []);
 
-  const handleRenameBoard = useCallback(async (name: string) => {
-    setBoardName(name);
-    if (currentBoardId) {
-       try {
-         await boardService.updateBoard(currentBoardId, name);
-       } catch (e: any) {
-         console.error("Failed to rename board", e);
-         showToast(e.response?.data?.message || "Failed to rename board", "error");
-       }
+  const handleRenameBoard = useCallback(async (id: string, name: string) => {
+    if (id === currentBoardId) {
+      setBoardName(name);
     }
-  }, [currentBoardId, setBoardName, showToast]);
+    
+    // Optimistically update the boards list
+    setBoards(prev => prev.map(b => b.id === id ? { ...b, name } : b));
+    
+    try {
+      await boardService.updateBoard(id, name);
+    } catch (e: any) {
+      console.error("Failed to rename board", e);
+      showToast(e.response?.data?.message || "Failed to rename board", "error");
+      
+      // Revert optimism by refetching boards
+      boardService.getBoards().then(setBoards).catch(() => {});
+    }
+  }, [currentBoardId, setBoardName, showToast, setBoards]);
 
-  const handleDeleteBoard = useCallback(async () => {
-    if (currentBoardId) {
+  const handleDeleteBoard = useCallback(async (id: string) => {
+    if (id) {
       try {
-        await boardService.deleteBoard(currentBoardId);
-        const remaining = boards.filter(b => b.id !== currentBoardId);
+        await boardService.deleteBoard(id);
+        const remaining = boards.filter(b => b.id !== id);
         setBoards(remaining);
-        if (remaining.length > 0) {
-          const next = remaining[0];
-          setCurrentBoardId(next.id);
-          setBoardName(next.name);
-          try {
-            const content = await boardService.getBoardContent(next.id);
-            setEls(content.els && content.els.length > 0 ? content.els : INIT_ELS);
-            setCam(content.cam || { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
-          } catch (e) {
-            console.error("Failed to fetch board content", e);
+        
+        // Only redirect or recreate if we deleted the currently active board
+        if (id === currentBoardId) {
+          if (remaining.length > 0) {
+            const next = remaining[0];
+            setCurrentBoardId(next.id);
+            setBoardName(next.name);
+            try {
+              const content = await boardService.getBoardContent(next.id);
+              setEls(content.els && content.els.length > 0 ? content.els : INIT_ELS);
+              setCam(content.cam || { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+            } catch (e) {
+              console.error("Failed to fetch board content", e);
+              setEls(INIT_ELS);
+              setCam({ x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+            }
+          } else {
+            const newName = "Untitled Board";
+            const newId = await boardService.createBoard(newName);
+            setCurrentBoardId(newId);
+            setBoardName(newName);
             setEls(INIT_ELS);
             setCam({ x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+            setBoards([{ id: newId, name: newName, els: INIT_ELS, cam: { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 }, updatedAt: Date.now(), bg: "white" }]);
           }
-        } else {
-          const newName = "Untitled Board";
-          const newId = await boardService.createBoard(newName);
-          setCurrentBoardId(newId);
-          setBoardName(newName);
-          setEls(INIT_ELS);
-          setCam({ x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
-          setBoards([{ id: newId, name: newName, els: INIT_ELS, cam: { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 }, updatedAt: Date.now(), bg: "white" }]);
         }
       } catch (e: any) {
         console.error("Failed to delete board", e);
@@ -979,6 +990,24 @@ export default function App() {
       }
     }
   }, [currentBoardId, boards, setBoards, setCurrentBoardId, setBoardName, setEls, setCam, showToast, INIT_ELS]);
+
+  const handleCreateBoard = useCallback(async () => {
+    try {
+      const newName = "Untitled Board";
+      const newId = await boardService.createBoard(newName);
+      const newBoard: Board = { id: newId, name: newName, bg: "white", els: INIT_ELS, cam: { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 }, updatedAt: Date.now() };
+      setBoards(prev => [...prev, newBoard]);
+      setCurrentBoardId(newId);
+      setBoardName(newName);
+      setEls(INIT_ELS);
+      setCam({ x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+      setHistory([INIT_ELS]);
+      setHistoryIndex(0);
+    } catch (e: any) {
+      console.error("Failed to create board", e);
+      showToast(e.response?.data?.message || "Failed to create board", "error");
+    }
+  }, [setBoards, setCurrentBoardId, setBoardName, setEls, setCam, INIT_ELS, showToast]);
 
   const handleChangeBoard = useCallback(async (id: string) => {
     loadingBoardIdRef.current = id;
@@ -1496,6 +1525,7 @@ export default function App() {
         onChangeBoard={handleChangeBoard}
         onRenameBoard={handleRenameBoard}
         onDeleteBoard={handleDeleteBoard}
+        onCreateBoard={handleCreateBoard}
         boards={boards}
         showToast={showToast}
         role="owner"

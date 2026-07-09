@@ -33,14 +33,13 @@ function PublicOnly({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-import DashboardPage from "./pages/DashboardPage";
 
 createRoot(document.getElementById("root")!).render(
   <>
     <Toaster position="top-right" richColors />
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<ProtectedApp><DashboardPage /></ProtectedApp>} />
+        <Route path="/" element={<ProtectedApp><App /></ProtectedApp>} />
         <Route path="/board/:boardId/:boardName?" element={<ProtectedApp><App /></ProtectedApp>} />
         <Route
           path="/welcome"

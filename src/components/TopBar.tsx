@@ -14,8 +14,9 @@ interface TopBarProps {
   boardName: string;
   saveState?: "idle" | "saving" | "saved" | "error";
   onChangeBoard?: (id: string) => void;
-  onRenameBoard: (name: string) => void;
-  onDeleteBoard?: () => void;
+  onRenameBoard: (id: string, name: string) => void;
+  onDeleteBoard?: (id: string) => void;
+  onCreateBoard?: () => void;
   boardBg: "white" | "black" | "green";
   onChangeBg: (bg: "white" | "black" | "green") => void;
   showToast?: (text: string, type?: 'success' | 'error' | 'info') => void;
@@ -28,7 +29,7 @@ interface TopBarProps {
 }
 
 export const TopBar = React.memo(function TopBar({
-  boards = [], currentBoardId, boardName, saveState, onChangeBoard, onRenameBoard, onDeleteBoard,
+  boards = [], currentBoardId, boardName, saveState, onChangeBoard, onRenameBoard, onDeleteBoard, onCreateBoard,
   boardBg, onChangeBg,
   showToast,
   onlineUsers = [], role = "owner",
@@ -65,6 +66,12 @@ export const TopBar = React.memo(function TopBar({
   const [calOpen, setCalOpen] = useState(false);
   const [calDate, setCalDate] = useState(new Date());
 
+  // Board Selector State
+  const [boardSelectorOpen, setBoardSelectorOpen] = useState(false);
+  const [renamingBoardId, setRenamingBoardId] = useState<string | null>(null);
+  const [renamingBoardName, setRenamingBoardName] = useState("");
+  const boardSelectorRef = useRef<HTMLDivElement>(null);
+
   // Music Player State
   const [musicOpen, setMusicOpen] = useState(false);
   const [playlist, setPlaylist] = useState<File[]>([]);
@@ -99,6 +106,10 @@ export const TopBar = React.memo(function TopBar({
       if (visibilityRef.current && !visibilityRef.current.contains(event.target as Node)) {
         setVisibilityPopoverOpen(false);
       }
+      if (boardSelectorRef.current && !boardSelectorRef.current.contains(event.target as Node)) {
+        setBoardSelectorOpen(false);
+        setRenamingBoardId(null);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -123,20 +134,22 @@ export const TopBar = React.memo(function TopBar({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
 
-  const confirmDeleteBoard = () => {
+  const confirmDeleteBoard = (id: string) => {
     setDeleteError(null);
+    setBoardToDelete(id);
     setDeleteConfirmOpen(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (!onDeleteBoard) return;
+    if (!onDeleteBoard || !boardToDelete) return;
     setIsDeleting(true);
     setDeleteError(null);
     try {
-      // onDeleteBoard returns a Promise because it's async in App.tsx
-      await onDeleteBoard();
+      await onDeleteBoard(boardToDelete);
       setDeleteConfirmOpen(false);
+      setBoardToDelete(null);
       setShareOpen(false);
       showToast?.("Board deleted successfully.", "success");
     } catch (e: any) {
@@ -220,34 +233,126 @@ export const TopBar = React.memo(function TopBar({
 
   return (
     <div className="absolute top-4 left-4 right-4 z-50 flex items-start justify-between pointer-events-none">
-      {/* LEFT: Board Selector & Name */}
-      <div className="flex flex-col gap-2 pointer-events-auto">
-        <div className="flex items-center gap-2 bg-white rounded-xl px-3 py-1.5 shadow-lg border border-black/[0.06]">
-          <Link to="/" className="text-sm font-semibold text-[#7B61FF] hover:underline flex items-center gap-1">
-            ← Dashboard
-          </Link>
+      {/* LEFT: Board Selector Dropdown */}
+      <div className="flex flex-col gap-2 pointer-events-auto relative" ref={boardSelectorRef}>
+        <div 
+          onClick={() => setBoardSelectorOpen(!boardSelectorOpen)}
+          className="flex items-center justify-between gap-2 bg-white rounded-xl px-3 h-10 shadow-lg border border-black/[0.06] hover:bg-gray-50 cursor-pointer min-w-[200px] transition-colors"
+        >
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-gray-800 truncate max-w-[150px]">
+              {boardName}
+            </span>
+          </div>
+          <ChevronDown size={16} className={`text-gray-400 transition-transform ${boardSelectorOpen ? 'rotate-180' : ''}`} />
         </div>
-        <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-black/[0.06]">
-          <input
-            type="text"
-            value={boardName}
-            disabled={role === "viewer"}
-            onChange={(e) => onRenameBoard(e.target.value)}
-            className="text-xs bg-transparent outline-none w-32 font-medium text-gray-600 placeholder-gray-400 disabled:opacity-50"
-            placeholder="Name your board"
-          />
-          {onDeleteBoard && boards.length > 0 && (
-            <button onClick={confirmDeleteBoard} className="p-1 hover:bg-gray-100 rounded text-red-500 transition-colors" title="Delete Board">
-              <Trash2 size={16} />
-            </button>
-          )}
-          <div className="w-px h-4 bg-gray-200 mx-1" />
-          <span className="text-[10px] font-medium text-gray-400 w-16">
+        
+        {/* Save indicator pill */}
+        <div className="absolute top-11 left-0 flex items-center bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-black/[0.06] opacity-80 pointer-events-none">
+          <span className="text-[10px] font-medium text-gray-500">
             {saveState === "saving" && "Saving..."}
-            {saveState === "saved" && "Saved"}
+            {saveState === "saved" && "Saved to cloud"}
             {saveState === "error" && <span className="text-red-500">Error saving</span>}
+            {saveState === "idle" && "All changes saved"}
           </span>
         </div>
+
+        {/* Dropdown Menu */}
+        {boardSelectorOpen && (
+          <div className="absolute top-12 left-0 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="max-h-[300px] overflow-y-auto p-1.5 flex flex-col gap-0.5 custom-scrollbar">
+              {boards.map(board => (
+                <div 
+                  key={board.id}
+                  className={`flex items-center justify-between px-2.5 h-9 rounded-lg group transition-colors ${board.id === currentBoardId ? 'bg-indigo-50/50' : 'hover:bg-gray-50 cursor-pointer'}`}
+                  onClick={(e) => {
+                    if (renamingBoardId === board.id) return;
+                    if (board.id !== currentBoardId) {
+                      onChangeBoard?.(board.id);
+                      setBoardSelectorOpen(false);
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    {board.id === currentBoardId ? (
+                      <Check size={14} className="text-indigo-600 shrink-0" />
+                    ) : (
+                      <div className="w-3.5 shrink-0" /> // Spacer for alignment
+                    )}
+                    
+                    {renamingBoardId === board.id ? (
+                      <input
+                        autoFocus
+                        value={renamingBoardName}
+                        onChange={(e) => setRenamingBoardName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            onRenameBoard(board.id, renamingBoardName);
+                            setRenamingBoardId(null);
+                          } else if (e.key === 'Escape') {
+                            setRenamingBoardId(null);
+                          }
+                        }}
+                        onBlur={() => {
+                          onRenameBoard(board.id, renamingBoardName);
+                          setRenamingBoardId(null);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-sm text-gray-800 bg-white border border-indigo-300 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 w-full"
+                      />
+                    ) : (
+                      <span className={`text-sm truncate ${board.id === currentBoardId ? 'font-semibold text-indigo-900' : 'font-medium text-gray-700'}`}>
+                        {board.name}
+                      </span>
+                    )}
+                  </div>
+
+                  {renamingBoardId !== board.id && (
+                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRenamingBoardId(board.id);
+                          setRenamingBoardName(board.name);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                        title="Rename"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (board.id === currentBoardId) {
+                            showToast?.("Switch to another board first to delete this one.", "info");
+                          } else {
+                            confirmDeleteBoard(board.id);
+                          }
+                        }}
+                        className={`p-1.5 rounded-md transition-colors ${board.id === currentBoardId ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+                        title={board.id === currentBoardId ? "Active board cannot be deleted" : "Delete"}
+                      >
+                        <Trash2 size={12} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            <div className="p-1.5 border-t border-gray-100 bg-gray-50/50">
+              <button 
+                onClick={() => {
+                  onCreateBoard?.();
+                  setBoardSelectorOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+              >
+                <span className="text-lg leading-none mb-0.5">+</span> New Board
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* RIGHT: Top Bar tools */}
@@ -518,7 +623,7 @@ export const TopBar = React.memo(function TopBar({
           <div className="flex items-center ml-2 relative" title={`${onlineUsers.length} online`}>
             {onlineUsers.map((u, i) => (
               <div 
-                key={u.user_id || i}
+                key={`${u.user_id || 'user'}-${i}`}
                 className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-md -ml-2 first:ml-0"
                 style={{ backgroundColor: u.color || "#7B61FF", zIndex: 10 - i }}
                 title={u.name}
@@ -741,14 +846,14 @@ export const TopBar = React.memo(function TopBar({
                   ) : (
                     <>
                       <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Members</div>
-                      {collaborators.map((user: any) => {
+                      {collaborators.map((user: any, idx: number) => {
                         const isOwner = user.role === "owner";
                         const email = user.email || user.user_id || "unknown@example.com";
                         const name = email.split('@')[0];
                         const initial = name.charAt(0).toUpperCase();
 
                         return (
-                          <div key={user.id || email} className={`flex items-center justify-between py-2.5 px-1.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors`}>
+                          <div key={`${user.id || email}-${idx}`} className={`flex items-center justify-between py-2.5 px-1.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors`}>
                             <div className="flex items-center gap-3.5">
                               <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${
                                 isOwner 
