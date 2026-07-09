@@ -2,27 +2,31 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   ChevronDown, Palette, Disc3, Music, Calendar,
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
-  Link, Lock, Folder, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X
+  Link, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, Trash2, Search
 } from "lucide-react";
 import type { Board } from "../types";
+import { useShareDialog } from "../hooks/useShareDialog";
 
 interface TopBarProps {
   boards: Board[];
   currentBoardId: string;
   boardName: string;
+  saveState: "idle" | "saving" | "saved" | "error";
   onChangeBoard: (id: string) => void;
   onNewBoard: () => void;
   onRenameBoard: (name: string) => void;
+  onDeleteBoard?: () => void;
   boardBg: "white" | "black" | "green";
   onChangeBg: (bg: "white" | "black" | "green") => void;
   simPeers: boolean;
   onToggleSimPeers: () => void;
+  showToast?: (text: string, type?: 'success' | 'error' | 'info') => void;
 }
 
-function TopBar({
-  boards, currentBoardId, boardName, onChangeBoard, onNewBoard, onRenameBoard,
+export const TopBar = React.memo(function TopBar({
+  boards, currentBoardId, boardName, saveState, onChangeBoard, onNewBoard, onRenameBoard, onDeleteBoard,
   boardBg, onChangeBg,
-  simPeers, onToggleSimPeers
+  simPeers, onToggleSimPeers, showToast
 }: TopBarProps) {
   const [seconds, setSeconds] = useState(3 * 60);
   const [running, setRunning] = useState(false);
@@ -39,17 +43,51 @@ function TopBar({
   const audioRef = useRef<HTMLAudioElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Share Dialog State
-  const [shareOpen, setShareOpen] = useState(false);
-  const [copyStatus, setCopyStatus] = useState("Copy link");
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [invitedUsers, setInvitedUsers] = useState<{ email: string; role: "edit" | "view" }[]>([]);
+  // Share Dialog Hook
+  const {
+    shareOpen, setShareOpen, isInviting, inviteMessage, inviteError,
+    copyStatus, inviteEmail, setInviteEmail, collaborators,
+    classroomShared,
+    showMeetInfo, setShowMeetInfo, isLoadingCollaborators,
+    isInviteEnabled, handleCopyLink, handleInvite, handleRoleChange, handleClassroomShare
+  } = useShareDialog(currentBoardId, boardName, showToast);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const visibilityRef = useRef<HTMLDivElement>(null);
+  const [view, setView] = useState<"main" | "collaborators">("main");
+  const [visibilityPopoverOpen, setVisibilityPopoverOpen] = useState(false);
+  const [collaboratorToRemove, setCollaboratorToRemove] = useState<any | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setIsSearchOpen(false);
+      }
+      if (visibilityRef.current && !visibilityRef.current.contains(event.target as Node)) {
+        setVisibilityPopoverOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredSearchBoards = boards.filter(b => 
+    (b.name || "Untitled Board").toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleSelectSearchedBoard = (board: Board) => {
+    setSearchQuery(board.name || "Untitled Board");
+    setIsSearchOpen(false);
+    onChangeBoard(board.id);
+  };
+
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionTime, setSessionTime] = useState("24:00:00");
-  const [linkAccess, setLinkAccess] = useState<"invited" | "anyone">("invited");
-  const [classroomShared, setClassroomShared] = useState(false);
-  const [showMeetInfo, setShowMeetInfo] = useState(false);
   const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showEmbedInfo, setShowEmbedInfo] = useState(false);
 
   // Open session countdown timer
   useEffect(() => {
@@ -70,28 +108,7 @@ function TopBar({
     return () => clearInterval(interval);
   }, [sessionActive]);
 
-  const isValidEmail = (email: string) => {
-    return /\S+@\S+\.\S+/.test(email);
-  };
-  const emails = inviteEmail.split(",").map(e => e.trim()).filter(Boolean);
-  const isInviteEnabled = emails.length > 0 && emails.every(isValidEmail);
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
-    setCopyStatus("Copied!");
-    setTimeout(() => setCopyStatus("Copy link"), 2000);
-  };
-
-  const handleInvite = () => {
-    if (!isInviteEnabled) return;
-    const newUsers = emails.map(email => ({ email, role: "edit" as const }));
-    setInvitedUsers(prev => {
-      const existingEmails = prev.map(u => u.email);
-      const filteredNew = newUsers.filter(nu => !existingEmails.includes(nu.email));
-      return [...prev, ...filteredNew];
-    });
-    setInviteEmail("");
-  };
 
   const daysInMonth = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate();
   const firstDay = new Date(calDate.getFullYear(), calDate.getMonth(), 1).getDay();
@@ -156,6 +173,21 @@ function TopBar({
             className="text-xs bg-transparent outline-none w-32 font-medium text-gray-600 placeholder-gray-400"
             placeholder="Name your board"
           />
+          {onDeleteBoard && boards.length > 0 && (
+            <button onClick={() => {
+              if (window.confirm("Are you sure you want to delete this board?")) {
+                onDeleteBoard();
+              }
+            }} className="p-1 hover:bg-gray-100 rounded text-red-500 transition-colors" title="Delete Board">
+              <Trash2 size={16} />
+            </button>
+          )}
+          <div className="w-px h-4 bg-gray-200 mx-1" />
+          <span className="text-[10px] font-medium text-gray-400 w-16">
+            {saveState === "saving" && "Saving..."}
+            {saveState === "saved" && "Saved"}
+            {saveState === "error" && <span className="text-red-500">Error saving</span>}
+          </span>
         </div>
       </div>
 
@@ -344,6 +376,45 @@ function TopBar({
           </div>
         </div>
 
+        {/* Board Search */}
+        <div ref={searchContainerRef} className="relative">
+          <div className="flex items-center bg-gray-50 border border-gray-100 rounded-xl px-2.5 h-9 transition-all focus-within:ring-2 focus-within:ring-[#7B61FF] focus-within:border-transparent w-48 shadow-sm">
+            <Search size={14} className="text-gray-400 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search boards..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsSearchOpen(true);
+              }}
+              onFocus={() => setIsSearchOpen(true)}
+              className="w-full bg-transparent border-none outline-none text-xs text-gray-700 px-2 placeholder-gray-400"
+            />
+          </div>
+          
+          {/* Dropdown */}
+          {isSearchOpen && searchQuery.trim() !== "" && (
+            <div className="absolute top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+              {filteredSearchBoards.length > 0 ? (
+                filteredSearchBoards.map(board => (
+                  <button
+                    key={board.id}
+                    onClick={() => handleSelectSearchedBoard(board)}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex flex-col"
+                  >
+                    <span className="font-medium truncate">{board.name || "Untitled Board"}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-4 text-xs text-center text-gray-400">
+                  No boards found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Simulate Multiplayer button */}
         <button
           onClick={onToggleSimPeers}
@@ -365,170 +436,293 @@ function TopBar({
       {/* Share Dialog Overlay */}
       {shareOpen && (
         <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all duration-300 pointer-events-auto">
-          <div className="flex flex-col gap-3 max-w-[500px] w-full animate-in fade-in zoom-in duration-200">
+          <div className="flex flex-col gap-3 max-w-[500px] w-full animate-in fade-in zoom-in duration-200 relative">
 
-            {/* Card 1: Share this board */}
-            <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="font-bold text-gray-900 text-lg">Share this board</h2>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={handleCopyLink}
-                    className="flex items-center gap-1.5 text-sm font-semibold text-[#7B61FF] hover:text-[#6B4FF0] transition-colors"
-                  >
-                    {copyStatus === "Copied!" ? (
-                      <>
-                        <Check size={15} />
-                        <span>Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Link size={15} />
-                        <span>Copy link</span>
-                      </>
+            {view === "main" ? (
+              <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="font-bold text-gray-900 text-lg">Share this board</h2>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={handleCopyLink}
+                      disabled={!currentBoardId}
+                      className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${
+                        !currentBoardId ? "text-gray-400 cursor-not-allowed" : "text-[#7B61FF] hover:text-[#6B4FF0]"
+                      }`}
+                    >
+                      {copyStatus === "Copied!" ? (
+                        <>
+                          <Check size={15} />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Link size={15} />
+                          <span>Copy link</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setShareOpen(false)}
+                      className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Who has access */}
+                <div className="flex flex-col">
+                  <h3 className="text-gray-500 font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
+
+                  {/* Lock Row */}
+                  <div ref={visibilityRef} className="relative">
+                    <div
+                      onClick={() => setVisibilityPopoverOpen(o => !o)}
+                      className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100 transition-colors">
+                          <Lock size={15} />
+                        </div>
+                        <div className="text-left">
+                          <div className="text-sm font-semibold text-gray-800">Private Board</div>
+                          <div className="text-xs text-gray-400">
+                            Only invited collaborators can view and edit this board.
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200 shadow-sm">
+                          <Lock size={10} className="text-gray-400" />
+                          <span>Private</span>
+                        </div>
+                        <ChevronRight size={15} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </div>
+                    {visibilityPopoverOpen && (
+                      <div className="absolute top-full left-0 mt-2 w-[320px] bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-[110] animate-in fade-in slide-in-from-top-1">
+                        <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Board Visibility</div>
+                        
+                        <button className="w-full text-left flex items-start gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-50 transition-colors cursor-default">
+                          <Lock size={16} className="text-indigo-600 mt-0.5 shrink-0" />
+                          <div>
+                            <div className="text-sm font-semibold text-indigo-900">Private</div>
+                            <div className="text-xs text-indigo-700/80 mt-0.5">Only invited collaborators can view and edit this board.</div>
+                          </div>
+                          <Check size={16} className="text-indigo-600 ml-auto mt-1" />
+                        </button>
+                        
+                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors opacity-50 cursor-not-allowed mt-1">
+                          <Globe size={16} className="text-gray-500 mt-0.5 shrink-0" />
+                          <div>
+                            <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">Public <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-gray-500">Coming Soon</span></div>
+                            <div className="text-xs text-gray-500 mt-0.5">Anyone on the internet can view.</div>
+                          </div>
+                        </button>
+                        
+                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors opacity-50 cursor-not-allowed mt-1">
+                          <Users size={16} className="text-gray-500 mt-0.5 shrink-0" />
+                          <div>
+                            <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">Organization <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-gray-500">Coming Soon</span></div>
+                            <div className="text-xs text-gray-500 mt-0.5">Anyone in your org can access.</div>
+                          </div>
+                        </button>
+                      </div>
                     )}
-                  </button>
-                  <button
-                    onClick={() => setShareOpen(false)}
-                    className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                  </div>
+
+                  {/* Collaborators Row */}
+                  <div 
+                    onClick={() => setView("collaborators")}
+                    className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group mt-1"
                   >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100 transition-colors">
+                        <Users size={15} />
+                      </div>
+                      <div className="text-left">
+                        <div className="text-sm font-semibold text-gray-800">Collaborators</div>
+                        <div className="text-xs text-gray-400">Manage members and permissions.</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center">
+                        <div className="flex mr-2">
+                          {collaborators.slice(0, 2).map((c: any, i: number) => {
+                            const initial = (c.email || c.user_id || "U").charAt(0).toUpperCase();
+                            return (
+                              <div key={i} className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-700 -ml-1.5 first:ml-0 z-[2] relative shadow-sm">
+                                {initial}
+                              </div>
+                            );
+                          })}
+                          {collaborators.length > 2 && (
+                            <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600 -ml-1.5 z-[1] relative shadow-sm">
+                              +{collaborators.length - 2}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-xs font-medium text-gray-500">
+                          {collaborators.length === 0 ? "Owner only" : collaborators.length === 1 ? "1 Member" : `${collaborators.length} Members`}
+                        </span>
+                      </div>
+                      <ChevronRight size={15} className={`text-gray-400 transition-transform group-hover:translate-x-0.5`} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800 animate-in slide-in-from-right-4 duration-200">
+                {/* Header for Panel */}
+                <div className="flex items-center gap-3 mb-5">
+                  <button onClick={() => setView("main")} className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors">
+                    <ChevronDown className="rotate-90" size={16} />
+                  </button>
+                  <h2 className="font-bold text-gray-900 text-lg flex-1">Collaborators</h2>
+                  <button onClick={() => setShareOpen(false)} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
                     <X size={18} />
                   </button>
                 </div>
+
+                {/* Email Input Invite */}
+                <div className="flex flex-col gap-2 mb-6">
+                  <div className="flex items-center gap-2.5">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        placeholder="Add comma separated emails to invite"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 focus:border-[#7B61FF] focus:ring-1 focus:ring-[#7B61FF] outline-none text-sm text-gray-800 placeholder-gray-400 transition-all"
+                        disabled={isInviting}
+                      />
+                    </div>
+                    <button
+                      onClick={handleInvite}
+                      disabled={!isInviteEnabled || isInviting}
+                      className={`h-10 px-5 rounded-xl text-sm font-bold transition-all ${isInviteEnabled && !isInviting
+                          ? "bg-[#7B61FF] text-white hover:bg-[#6B4FF0] active:scale-95 cursor-pointer"
+                          : "bg-[#E6E6E6] text-[#B3B3B3] cursor-not-allowed"
+                        }`}
+                    >
+                      {isInviting ? "Inviting..." : "Invite"}
+                    </button>
+                  </div>
+                  {inviteMessage && (
+                    <div className="text-xs font-semibold text-green-600 pl-1">{inviteMessage}</div>
+                  )}
+                  {inviteError && (
+                    <div className="text-xs font-semibold text-red-500 pl-1">{inviteError}</div>
+                  )}
+                </div>
+
+                {/* Dynamic Collaborators List */}
+                <div className="flex flex-col mt-2">
+                  {isLoadingCollaborators ? (
+                    <div className="py-8 flex justify-center items-center">
+                      <div className="w-6 h-6 border-2 border-purple-200 border-t-purple-600 rounded-full animate-spin"></div>
+                    </div>
+                  ) : collaborators.length === 0 ? (
+                    <div className="py-8 text-center text-sm font-semibold text-gray-400">No collaborators yet.</div>
+                  ) : (
+                    <>
+                      <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Members</div>
+                      {collaborators.map((user: any) => {
+                        const isOwner = user.role === "owner";
+                        const email = user.email || user.user_id || "unknown@example.com";
+                        const name = email.split('@')[0];
+                        const initial = name.charAt(0).toUpperCase();
+
+                        return (
+                          <div key={user.id || email} className={`flex items-center justify-between py-2.5 px-1.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors`}>
+                            <div className="flex items-center gap-3.5">
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${
+                                isOwner 
+                                  ? "bg-gradient-to-tr from-purple-500 to-pink-500 text-white" 
+                                  : "bg-indigo-50 text-indigo-600 border border-indigo-100"
+                              }`}>
+                                {initial}
+                              </div>
+                              <div className="text-left max-w-[200px] truncate">
+                                <div className="text-sm font-semibold text-gray-800 truncate" title={email}>
+                                  {name}
+                                </div>
+                                <div className="text-[11px] text-gray-500 truncate" title={email}>
+                                  {email}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {isOwner ? (
+                                <span className="text-xs font-medium text-gray-400 pr-1 px-2 py-1 rounded bg-gray-50 border border-gray-100">Owner</span>
+                              ) : (
+                                <select
+                                  value={user.role}
+                                  onChange={(e) => {
+                                    if (e.target.value === "remove") {
+                                      setCollaboratorToRemove(user);
+                                    } else {
+                                      handleRoleChange(user, e.target.value);
+                                    }
+                                  }}
+                                  disabled={isOwner}
+                                  className="bg-transparent border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 outline-none cursor-pointer pr-1 transition-colors shadow-sm"
+                                >
+                                  <option value="editor">Editor</option>
+                                  <option value="viewer">Viewer</option>
+                                  <option value="remove">Remove</option>
+                                </select>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
               </div>
+            )}
 
-              {/* Email Input Invite */}
-              <div className="flex items-center gap-2.5 mb-6">
-                <div className="relative flex-1">
-                  <input
-                    type="text"
-                    placeholder="Add comma separated emails to invite"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-                    className="w-full h-10 px-3.5 rounded-xl border border-gray-200 focus:border-[#7B61FF] focus:ring-1 focus:ring-[#7B61FF] outline-none text-sm text-gray-800 placeholder-gray-400 transition-all"
-                  />
+            {collaboratorToRemove && (
+              <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-[120] rounded-[24px] flex items-center justify-center p-6 animate-in fade-in duration-200">
+                <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-5 max-w-[300px] w-full text-center">
+                  <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Trash2 size={24} />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Collaborator?</h3>
+                  <p className="text-sm text-gray-500 mb-5">
+                    Are you sure you want to remove <strong>{collaboratorToRemove.email || collaboratorToRemove.user_id}</strong> from this board? They will lose access immediately.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setCollaboratorToRemove(null)}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleRoleChange(collaboratorToRemove, 'remove');
+                        setCollaboratorToRemove(null);
+                      }}
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors"
+                    >
+                      Remove
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={handleInvite}
-                  disabled={!isInviteEnabled}
-                  className={`h-10 px-5 rounded-xl text-sm font-bold transition-all ${isInviteEnabled
-                      ? "bg-[#7B61FF] text-white hover:bg-[#6B4FF0] active:scale-95 cursor-pointer"
-                      : "bg-[#E6E6E6] text-[#B3B3B3] cursor-not-allowed"
-                    }`}
-                >
-                  Invite
-                </button>
               </div>
-
-              {/* Who has access */}
-              <div className="flex flex-col">
-                <h3 className="text-gray-500 font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
-
-                {/* Lock Row */}
-                <div
-                  onClick={() => setLinkAccess(p => p === "invited" ? "anyone" : "invited")}
-                  className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100">
-                      <Lock size={15} />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-sm font-semibold text-gray-800">Only invited people</div>
-                      <div className="text-xs text-gray-400">
-                        {linkAccess === "invited" ? "Private board" : "Anyone with access can join"}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    {linkAccess === "invited" && (
-                      <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-0.5 rounded">Active</span>
-                    )}
-                    <ChevronRight size={15} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                </div>
-
-                {/* Team Project Row */}
-                <div className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100">
-                      <Folder size={15} />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-sm font-semibold text-gray-800">Anyone in Team project</div>
-                      <div className="text-xs text-gray-400">Can view all project boards</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500">1 person</span>
-                    <ChevronRight size={15} className="text-gray-400 group-hover:translate-x-0.5 transition-transform" />
-                  </div>
-                </div>
-
-                {/* Owner Row */}
-                <div className="flex items-center justify-between py-3 px-1.5 mt-1 border-t border-gray-50">
-                  <div className="flex items-center gap-3.5">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-bold shadow-sm">
-                      A
-                    </div>
-                    <div className="text-left">
-                      <div className="text-sm font-semibold text-gray-800">aries02 <span className="text-gray-400 font-normal">(you)</span></div>
-                      <div className="text-xs text-gray-400">owner@figjam.clone</div>
-                    </div>
-                  </div>
-                  <span className="text-xs font-medium text-gray-400 pr-1">owner</span>
-                </div>
-
-                {/* Invited Users Rows */}
-                {invitedUsers.map((user) => (
-                  <div key={user.email} className="flex items-center justify-between py-2.5 px-1.5 border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
-                    <div className="flex items-center gap-3.5">
-                      <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-xs font-bold">
-                        {user.email.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="text-left max-w-[200px] truncate">
-                        <div className="text-sm font-semibold text-gray-800 truncate" title={user.email}>
-                          {user.email.split('@')[0]}
-                        </div>
-                        <div className="text-xs text-gray-400 truncate" title={user.email}>
-                          {user.email}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={user.role}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          if (val === "remove") {
-                            setInvitedUsers(prev => prev.filter(u => u.email !== user.email));
-                          } else {
-                            setInvitedUsers(prev => prev.map(u => u.email === user.email ? { ...u, role: val as "edit" | "view" } : u));
-                          }
-                        }}
-                        className="bg-transparent border-none text-xs font-medium text-gray-500 hover:text-gray-800 outline-none cursor-pointer pr-1"
-                      >
-                        <option value="edit">can edit</option>
-                        <option value="view">can view</option>
-                        <option value="remove">remove</option>
-                      </select>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            )}
 
             {/* Card 2: Classroom, Meet, Session */}
             <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
 
               {/* Classroom */}
               <div
-                onClick={() => {
-                  setClassroomShared(true);
-                  setTimeout(() => setClassroomShared(false), 3000);
-                }}
+                onClick={handleClassroomShare}
                 className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
               >
                 <div className="flex items-center gap-3.5">
@@ -613,27 +807,144 @@ function TopBar({
                   </div>
                   <ChevronRight size={15} className={`text-gray-400 group-hover:translate-x-0.5 transition-transform ${showMoreOptions ? "rotate-90" : ""}`} />
                 </div>
+                
                 {showMoreOptions && (
-                  <div className="grid grid-cols-2 gap-2 mt-2 p-2 bg-gray-50 rounded-xl animate-in slide-in-from-top-2 duration-150">
-                    <button
-                      onClick={() => {
-                        alert("Exporting project package... Saved to Downloads.");
-                        setShowMoreOptions(false);
-                      }}
-                      className="text-left px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg transition-colors border border-transparent hover:border-gray-100"
-                    >
-                      📥 Export CSV
-                    </button>
-                    <button
-                      onClick={() => {
-                        alert("Embedding iframe link copied to clipboard!");
-                        navigator.clipboard.writeText(`<iframe src="${window.location.href}" width="800" height="600"></iframe>`);
-                        setShowMoreOptions(false);
-                      }}
-                      className="text-left px-3 py-2 text-xs font-semibold text-gray-600 hover:bg-white hover:text-gray-800 rounded-lg transition-colors border border-transparent hover:border-gray-100"
-                    >
-                      🔗 Embed board iframe
-                    </button>
+                  <div className="mt-2 p-1 bg-gray-50/50 rounded-xl animate-in slide-in-from-top-2 duration-150 flex flex-col gap-1 relative">
+                    
+                    {/* Export Group */}
+                    <div className="mb-1">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">📄 Export</div>
+                      
+                      {/* Export Board Submenu Trigger */}
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowExportMenu(!showExportMenu)}
+                          className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all flex items-center justify-between group"
+                        >
+                          <span>Export Board</span>
+                          <ChevronRight size={14} className={`text-gray-400 group-hover:text-gray-600 transition-transform ${showExportMenu ? "rotate-90" : ""}`} />
+                        </button>
+                        
+                        {showExportMenu && (
+                          <div className="absolute right-full top-0 mr-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-1.5 z-[120] animate-in fade-in slide-in-from-right-2">
+                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-50 rounded-lg flex items-center justify-between cursor-not-allowed">
+                              <span>Export as PNG</span>
+                              <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                            </button>
+                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-50 rounded-lg flex items-center justify-between cursor-not-allowed">
+                              <span>Export as PDF</span>
+                              <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const board = boards.find(b => b.id === currentBoardId);
+                                if (!board) return;
+                                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(board.els));
+                                const a = document.createElement('a');
+                                a.href = dataStr;
+                                a.download = `${board.name || 'board'}_data.json`;
+                                a.click();
+                                setShowExportMenu(false);
+                                if (showToast) showToast("Board exported successfully!", "success");
+                              }}
+                              className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 rounded-lg transition-colors"
+                            >
+                              Export as JSON
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if (showToast) showToast("Mermaid export requires generating a flowchart first. (Coming Soon)", "info");
+                                setShowExportMenu(false);
+                              }}
+                              className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 rounded-lg transition-colors"
+                            >
+                              Export as Mermaid
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-gray-200/50 mx-2" />
+
+                    {/* Sharing Group */}
+                    <div className="my-1">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">🔗 Sharing</div>
+                      <button 
+                        onClick={handleCopyLink}
+                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all"
+                      >
+                        Copy Share Link
+                      </button>
+                      
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowEmbedInfo(!showEmbedInfo)}
+                          className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all flex items-center justify-between group"
+                        >
+                          <span>Embed Board</span>
+                          <ChevronRight size={14} className={`text-gray-400 group-hover:text-gray-600 transition-transform ${showEmbedInfo ? "rotate-90" : ""}`} />
+                        </button>
+                        
+                        {showEmbedInfo && (
+                          <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 p-3 z-[120] animate-in fade-in slide-in-from-top-2">
+                            <p className="text-[10px] font-medium text-gray-500 mb-2">Generate an iframe snippet to embed this board anywhere.</p>
+                            <div className="bg-gray-50 rounded-lg border border-gray-200 p-2 text-[10px] font-mono text-gray-600 break-all mb-2 select-all">
+                              {`<iframe src="${window.location.origin}/board/${currentBoardId}" width="100%" height="600px" style="border:none;"></iframe>`}
+                            </div>
+                            <button 
+                              onClick={() => {
+                                navigator.clipboard.writeText(`<iframe src="${window.location.origin}/board/${currentBoardId}" width="100%" height="600px" style="border:none;"></iframe>`);
+                                if (showToast) showToast("Embed code copied!", "success");
+                                setShowEmbedInfo(false);
+                              }}
+                              className="w-full bg-[#7B61FF] hover:bg-[#6B4FF0] text-white text-xs font-bold py-1.5 rounded-lg transition-colors"
+                            >
+                              Copy Code
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="h-px bg-gray-200/50 mx-2" />
+
+                    {/* Board Group */}
+                    <div className="mt-1">
+                      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">⚙ Board</div>
+                      <button 
+                        onClick={() => {
+                          const newName = window.prompt("Rename Board", boardName);
+                          if (newName !== null && newName.trim() !== "") {
+                            onRenameBoard(newName);
+                          }
+                        }}
+                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all"
+                      >
+                        Rename Board
+                      </button>
+                      <button 
+                        onClick={() => {}}
+                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-400 hover:bg-gray-50 rounded-lg flex items-center justify-between cursor-not-allowed"
+                        disabled
+                      >
+                        <span>Duplicate Board</span>
+                        <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                      </button>
+                      <button 
+                        onClick={() => {
+                          if (onDeleteBoard && window.confirm("Are you sure you want to delete this board? This action cannot be undone.")) {
+                            onDeleteBoard();
+                            setShareOpen(false);
+                          }
+                        }}
+                        disabled={!onDeleteBoard}
+                        className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
+                      >
+                        Delete Board
+                      </button>
+                    </div>
+                    
                   </div>
                 )}
               </div>
@@ -643,6 +954,6 @@ function TopBar({
       )}
     </div>
   );
-}
+});
 
 export default TopBar;

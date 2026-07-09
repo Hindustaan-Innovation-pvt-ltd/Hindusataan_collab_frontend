@@ -24,10 +24,9 @@ function figmaAssetResolver() {
 
 export default defineConfig({
   server: {
-    port: 8080,
+    port: 5173,
     proxy: {
       '/api': 'http://127.0.0.1:8000',
-      '/board': 'http://127.0.0.1:8000',
       '/generate-flowchart': 'http://127.0.0.1:8000',
       '/generate-graph': 'http://127.0.0.1:8000'
     }

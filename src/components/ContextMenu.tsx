@@ -15,9 +15,9 @@ interface ContextMenuProps {
   onClose: () => void;
 }
 
-function ContextMenu({
+const ContextMenu = React.memo(({
   x, y, id, selIds, els, clipboardRef, setEls, setSelIds, onClose
-}: ContextMenuProps) {
+}: ContextMenuProps) => {
   return (
     <div
       className="absolute z-[100] bg-white rounded-lg shadow-xl border border-gray-100 py-1 min-w-[150px]"
@@ -141,6 +141,6 @@ function ContextMenu({
       )}
     </div>
   );
-}
+});
 
 export default ContextMenu;

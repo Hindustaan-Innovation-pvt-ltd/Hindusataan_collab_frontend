@@ -42,8 +42,12 @@ export interface Peer {
   color: string;
   x: number;
   y: number;
-  tx: number;
-  ty: number;
+  tx?: number;
+  ty?: number;
+  selIds?: string[];
+  isTyping?: boolean;
+  editingId?: string | null;
+  lastUpdate?: number;
 }
 
 export interface Comment {

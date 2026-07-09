@@ -37,7 +37,7 @@ interface AIDialogProps {
   onAIAction?: (action: string, data: any) => void;
 }
 
-function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: AIDialogProps) {
+export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: AIDialogProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: msgId(),
@@ -56,11 +56,14 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
     if (!file) return;
     
     setIsTyping(true);
-    const userMsg: ChatMessage = { id: msgId(), role: "user", content: `Uploading file: ${file.name}...` };
+    const userMsgId = msgId();
+    const userMsg: ChatMessage = { id: userMsgId, role: "user", content: `Uploading file: ${file.name}... (0%)` };
     setMessages(p => [...p, userMsg]);
     
     try {
-      const taskId = await chatService.uploadFile(file);
+      const taskId = await chatService.uploadFile(file, (progress: number) => {
+        setMessages(p => p.map(m => m.id === userMsgId ? { ...m, content: `Uploading file: ${file.name}... (${progress}%)` } : m));
+      });
       const assistantId = msgId();
       setMessages(p => [...p, { id: assistantId, role: "assistant", content: "Processing file, please wait..." }]);
       
@@ -137,19 +140,14 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
                   setTimeout(checkStatus, 2000);
                 } else if (status.status === "Ready") {
                   setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Reading handwriting...\n\n" } : m));
-                  await chatService.askDocumentStream(
-                    text,
-                    (chunk: string) => setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: m.content + chunk, streaming: true } : m)),
-                    () => {
-                      setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false } : m));
-                      setIsTyping(false);
-                    },
-                    (err: any) => {
-                      console.error(err);
-                      setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: m.content + "\n\n(Error: Unable to reach vision backend)" } : m));
-                      setIsTyping(false);
-                    }
-                  );
+                  try {
+                    const answer = await chatService.searchDocument(boardId || "", text);
+                    setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "Reading handwriting...\n\n" + answer } : m));
+                  } catch (err) {
+                    console.error(err);
+                    setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: m.content + "\n\n(Error: Unable to reach vision backend)" } : m));
+                  }
+                  setIsTyping(false);
                 } else {
                   setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Error processing handwriting." } : m));
                   setIsTyping(false);
@@ -172,19 +170,46 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
         if (text.startsWith("/doc")) {
           prompt = text.replace("/doc", "").trim() || "Summarize the document";
         }
-        await chatService.askDocumentStream(
-          prompt,
-          (chunk) => setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: m.content + chunk } : m)),
-          () => {
-            setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false } : m));
-            setIsTyping(false);
-          },
-          (err) => {
-            console.error(err);
-            setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: m.content + "\n\n(Error: Unable to reach document backend)" } : m));
-            setIsTyping(false);
-          }
-        );
+        try {
+          const answer = await chatService.searchDocument(boardId || "", prompt);
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: answer } : m));
+        } catch (err) {
+          console.error(err);
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "\n\n(Error: Unable to reach document backend)" } : m));
+        }
+        setIsTyping(false);
+        return;
+      }
+
+      const isFlowchart = text.startsWith("/flowchart");
+      if (isFlowchart) {
+        let prompt = text.replace("/flowchart", "").trim() || "Generate a flowchart";
+        setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Generating flowchart..." } : m));
+        try {
+          const mermaid = await chatService.generateFlowchart(prompt);
+          if (onAIAction) onAIAction("create_flowchart", { mermaid });
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "I've created the flowchart on the board for you!" } : m));
+        } catch (err) {
+          console.error(err);
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "\n\n(Error: Unable to generate flowchart)" } : m));
+        }
+        setIsTyping(false);
+        return;
+      }
+
+      const isGraph = text.startsWith("/graph");
+      if (isGraph) {
+        let prompt = text.replace("/graph", "").trim() || "Generate a graph";
+        setMessages(p => p.map(m => m.id === assistantId ? { ...m, content: "Generating graph..." } : m));
+        try {
+          const graphData = await chatService.generateGraph(prompt, boardId);
+          if (onAIAction) onAIAction("create_graph", graphData);
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "I've created the graph on the board for you!" } : m));
+        } catch (err) {
+          console.error(err);
+          setMessages(p => p.map(m => m.id === assistantId ? { ...m, streaming: false, content: "\n\n(Error: Unable to generate graph)" } : m));
+        }
+        setIsTyping(false);
         return;
       }
 
@@ -201,18 +226,20 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
             const msg = finalMsgs.find(m => m.id === assistantId);
             if (msg) {
               msg.streaming = false;
+              console.log("Raw AI stream response:", msg.content);
               let hasAction = false;
               
               // We parse out JSON action blocks
-              const regex = /```json\s*(\{[\s\S]*?\})\s*```/g;
+              // First look for markdown-wrapped JSON
+              const mdRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/ig;
               let match;
-              while ((match = regex.exec(msg.content)) !== null) {
+              let foundMd = false;
+
+              const parseAndDispatch = (jsonStr: string) => {
                 let actionObj = null;
-                const jsonStr = match[1].trim();
                 try {
                   actionObj = JSON.parse(jsonStr);
                 } catch (e) {
-                  // Auto-fix LLM formatting issues (missing closing braces)
                   const fixes = ["}", "}}", "]}", "]}}", "}]}", "}]}}"];
                   for (const fix of fixes) {
                     try {
@@ -224,14 +251,32 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
                 }
                 
                 if (actionObj && onAIAction && actionObj.action) {
+                  console.log("Dispatching AI Action:", actionObj.action, actionObj.data);
                   onAIAction(actionObj.action, actionObj.data);
-                  hasAction = true;
+                  return true;
+                }
+                return false;
+              };
+
+              while ((match = mdRegex.exec(msg.content)) !== null) {
+                foundMd = true;
+                if (parseAndDispatch(match[1].trim())) hasAction = true;
+              }
+
+              // If no markdown block found, check if the entire message (or part of it) is a raw JSON object
+              if (!foundMd) {
+                const rawRegex = /\{[\s\S]*"action"\s*:\s*"[^"]+"[\s\S]*\}/g;
+                while ((match = rawRegex.exec(msg.content)) !== null) {
+                  if (parseAndDispatch(match[0].trim())) hasAction = true;
                 }
               }
 
               // Strip JSON block from chat display so it just shows the text part
               if (hasAction) {
-                msg.content = msg.content.replace(/```json\s*\{[\s\S]*?\}\s*```/g, "").trim();
+                msg.content = msg.content
+                  .replace(/```(?:json)?\s*\{[\s\S]*?\}\s*```/ig, "")
+                  .replace(/\{[\s\S]*"action"\s*:\s*"[^"]+"[\s\S]*\}/g, "")
+                  .trim();
                 if (!msg.content) msg.content = "I've created that on the board for you!";
               }
             }
@@ -390,6 +435,6 @@ function AIDialog({ open, onClose, boardId, boardName, els = [], onAIAction }: A
       </div>
     </div>
   );
-}
+});
 
 export default AIDialog;

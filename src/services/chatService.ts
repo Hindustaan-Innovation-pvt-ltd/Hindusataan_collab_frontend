@@ -1,4 +1,5 @@
 import type { El } from "../types";
+import api from "./api";
 
 export interface ChatRequest {
   message: string;
@@ -10,7 +11,7 @@ export interface ChatRequest {
   };
 }
 
-const API_URL = import.meta.env.VITE_API_URL || "";
+
 
 export const chatService = {
   async askStream(
@@ -28,108 +29,72 @@ export const chatService = {
         context: boardContext,
       };
 
-      const response = await fetch(`${API_URL}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      let lastIndex = 0;
+      await api.post("/chat", payload, {
+        responseType: "text",
+        onDownloadProgress: (progressEvent: any) => {
+          const xhr = progressEvent.event?.target;
+          if (xhr && xhr.responseText) {
+            const chunkStr = xhr.responseText.substring(lastIndex);
+            lastIndex = xhr.responseText.length;
+            onChunk(chunkStr);
+          }
         },
-        body: JSON.stringify(payload),
       });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.statusText}`);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder("utf-8");
-
-      if (!reader) {
-        throw new Error("Streaming not supported by response");
-      }
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          onDone();
-          break;
-        }
-        if (value) {
-          const chunkStr = decoder.decode(value, { stream: true });
-          onChunk(chunkStr);
-        }
-      }
+      onDone();
     } catch (err) {
       console.error("Chat error:", err);
       onError(err);
     }
   },
-  async askDocumentStream(
-    message: string,
-    onChunk: (chunk: string) => void,
-    onDone: () => void,
-    onError: (err: any) => void
-  ) {
-    try {
-      const response = await fetch(`${API_URL}/board/search-document-stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: message, document_mode: true }),
-      });
-      if (!response.ok) throw new Error(`API error: ${response.statusText}`);
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder("utf-8");
-      if (!reader) throw new Error("Streaming not supported");
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) { onDone(); break; }
-        if (value) {
-          const chunkStr = decoder.decode(value, { stream: true });
-          onChunk(chunkStr);
-        }
-      }
-    } catch (err) {
-      onError(err);
-    }
+  async searchDocument(boardId: string, query: string): Promise<string> {
+    const response = await api.post("/search", {
+      board_id: boardId,
+      query: query
+    });
+    return response.data.answer;
   },
 
-  async uploadFile(file: File): Promise<string> {
+
+
+  async uploadFile(file: File, onProgress?: (percent: number) => void): Promise<string> {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("skip_ocr", "false");
     formData.append("skip_summary", "false");
-    const response = await fetch(`${API_URL}/board/upload-file`, {
-      method: "POST",
-      body: formData,
+    
+    const response = await api.post("/board/upload-file", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          if (onProgress) {
+            onProgress(percentCompleted);
+          }
+        }
+      },
     });
-    if (!response.ok) throw new Error(`Upload error: ${response.statusText}`);
-    const data = await response.json();
-    return data.task_id;
+    
+    return response.data.task_id;
   },
 
   async checkFileStatus(taskId: string): Promise<any> {
-    const response = await fetch(`${API_URL}/board/status/${taskId}`);
-    if (!response.ok) throw new Error(`Status error: ${response.statusText}`);
-    return response.json();
+    const response = await api.get(`/board/status/${taskId}`);
+    return response.data;
   },
 
   async generateFlowchart(prompt: string): Promise<string> {
-    const response = await fetch(`${API_URL}/generate-flowchart`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!response.ok) throw new Error(`Flowchart error: ${response.statusText}`);
-    const data = await response.json();
-    return data.mermaid;
+    const response = await api.post("/diagram/generate-flowchart", { prompt });
+    return response.data.mermaid;
   },
 
   async generateGraph(prompt: string, boardId?: string): Promise<any> {
-    const response = await fetch(`${API_URL}/generate-graph`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt, board_id: boardId }),
+    const response = await api.post("/diagram/generate-graph", {
+      prompt,
+      board_id: boardId
     });
-    if (!response.ok) throw new Error(`Graph error: ${response.statusText}`);
-    return response.json();
+    return response.data;
   }
 };

@@ -30,6 +30,7 @@ createRoot(document.getElementById("root")!).render(
   <BrowserRouter>
     <Routes>
       <Route path="/" element={<ProtectedApp />} />
+      <Route path="/board/:boardId/:boardName?" element={<ProtectedApp />} />
       <Route
         path="/signup"
         element={

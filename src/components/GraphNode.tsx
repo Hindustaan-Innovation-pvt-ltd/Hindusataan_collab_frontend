@@ -9,7 +9,7 @@ interface GraphNodeProps {
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
-function GraphNode({ el, selected }: GraphNodeProps) {
+const GraphNode = React.memo(({ el, selected }: GraphNodeProps) => {
   const { w, h, graphData } = el;
   const sel = selected ? "#3742FA" : "transparent";
 
@@ -37,7 +37,7 @@ function GraphNode({ el, selected }: GraphNodeProps) {
             <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                     <Pie data={pieData} cx="50%" cy="50%" outerRadius={h/3} dataKey="value" label>
-                        {pieData.map((entry: any, index: number) => (
+                        {pieData.map((_entry: any, index: number) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                     </Pie>
@@ -99,6 +99,6 @@ function GraphNode({ el, selected }: GraphNodeProps) {
       </div>
     </div>
   );
-}
+});
 
 export default GraphNode;
