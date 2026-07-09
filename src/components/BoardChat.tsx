@@ -65,19 +65,7 @@ export function BoardChat({
   };
 
   if (!isOpen) {
-    return (
-      <button 
-        onClick={onToggle}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-[#7B61FF] hover:bg-[#6B4FF0] rounded-full shadow-xl flex items-center justify-center text-white transition-transform hover:scale-105 z-50"
-      >
-        <MessageSquare size={24} />
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center border-2 border-white">
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </span>
-        )}
-      </button>
-    );
+    return null;
   }
 
   return (

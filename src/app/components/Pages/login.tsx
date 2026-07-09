@@ -197,7 +197,7 @@ export default function Login() {
         
         if (response.data?.user && (response.data?.access_token || response.data?.token)) {
           setSession(response.data.user);
-          localStorage.setItem("figjam_token", response.data.access_token || response.data.token);
+          localStorage.setItem("token", response.data.access_token || response.data.token);
           if (!remember) {
              sessionStorage.setItem("figjam_ephemeral", "1");
           } else {

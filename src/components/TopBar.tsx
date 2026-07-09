@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import {
   ChevronDown, Palette, Disc3, Music, Calendar,
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
-  Lock, Folder, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut
+  Lock, Folder, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, MessageSquare
 } from "lucide-react";
 import type { Board } from "../types";
 import { ShareBoardModal } from "./ShareBoardModal";
@@ -17,13 +17,19 @@ interface TopBarProps {
   onChangeBg: (bg: "white" | "black" | "green") => void;
   onlineUsers?: any[];
   role?: "owner" | "editor" | "viewer";
+  chatOpen?: boolean;
+  onToggleChat?: () => void;
+  chatUnreadCount?: number;
 }
 
 function TopBar({
   currentBoardId, boardName, onRenameBoard,
   boardBg, onChangeBg,
   onlineUsers = [],
-  role = "owner"
+  role = "owner",
+  chatOpen = false,
+  onToggleChat = () => {},
+  chatUnreadCount = 0
 }: TopBarProps) {
   const [seconds, setSeconds] = useState(3 * 60);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -378,6 +384,24 @@ function TopBar({
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="w-px h-5 bg-gray-200" />
+
+          {/* Chat Toggle */}
+          <div className="relative">
+            <button
+              onClick={onToggleChat}
+              title="Board Chat"
+              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${chatOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-gray-500 hover:bg-[#f2efff] hover:text-[#7B61FF]"}`}
+            >
+              <MessageSquare size={16} />
+              {chatUnreadCount > 0 && !chatOpen && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full h-4 w-4 flex items-center justify-center border border-white">
+                  {chatUnreadCount > 99 ? '99+' : chatUnreadCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 

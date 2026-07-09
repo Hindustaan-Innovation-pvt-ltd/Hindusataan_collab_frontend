@@ -1419,6 +1419,12 @@ export default function App({ initialBoardId, initialName, initialEls, initialCa
         onRenameBoard={(name) => setBoardName(name)}
         role={role}
         onlineUsers={onlineUsers}
+        chatOpen={isChatOpen}
+        onToggleChat={() => {
+          setIsChatOpen(prev => !prev);
+          setChatUnreadCount(0);
+        }}
+        chatUnreadCount={chatUnreadCount}
       />
 
       {/* Real-time Multiplayer Cursors */}
@@ -1452,6 +1458,15 @@ export default function App({ initialBoardId, initialName, initialEls, initialCa
           currentUserId={onlineUsers.find(u => u.name === getSessionUser())?.user_id || ""}
           typingUsers={liveChatTypingUsers}
           onSendMessage={(message) => {
+            const currentUserId = onlineUsers.find(u => u.name === getSessionUser())?.user_id || "";
+            const optimisticMsg: LiveChatMessage = {
+              board_id: currentBoardId,
+              user_id: currentUserId,
+              username: getSessionUser(),
+              message,
+              timestamp: new Date().toISOString()
+            };
+            setLiveChatMessages(prev => [...prev, optimisticMsg]);
             websocketService.send("chat_message", { message });
           }}
           onTyping={(isTyping) => {
