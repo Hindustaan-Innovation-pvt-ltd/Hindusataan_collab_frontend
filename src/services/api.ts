@@ -42,6 +42,7 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       localStorage.removeItem("figjam_token");
       localStorage.removeItem("token");
+      localStorage.removeItem("figjam_session");
       window.location.href = "/login";
     }
     return Promise.reject(error);
