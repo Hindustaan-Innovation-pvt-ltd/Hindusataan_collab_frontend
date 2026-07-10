@@ -1,6 +1,7 @@
 import { fetchWithAuth } from './api';
 
 export interface LiveChatMessage {
+  message_id?: string;
   board_id: string;
   user_id: string;
   username: string;

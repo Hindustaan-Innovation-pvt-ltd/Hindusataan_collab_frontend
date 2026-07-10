@@ -30,16 +30,14 @@ export function useLiveCollaboration({
     if (!force && now - lastPresenceTime.current < 50) return; // 50ms throttle
     lastPresenceTime.current = now;
 
-    websocketService.send("presence", {
+    websocketService.send("cursor_update", {
       id: mySessionId,
-      name: "You", // fallback
-      color: myColor,
       x, y,
       selIds: selIdsRef.current,
       isTyping: !!editIdRef.current,
       editingId: editIdRef.current
     });
-  }, [currentBoardId, mySessionId, myColor, selIdsRef]);
+  }, [currentBoardId, mySessionId, selIdsRef]);
 
   // Connect to WebSocket on board change
   useEffect(() => {

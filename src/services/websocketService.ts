@@ -29,7 +29,7 @@ class WebSocketService {
     const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
     const apiHost = import.meta.env.VITE_API_URL 
       ? new URL(import.meta.env.VITE_API_URL).host
-      : window.location.host;
+      : (import.meta.env.DEV ? "127.0.0.1:8000" : window.location.host);
     
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     let wsUrl = `${protocol}//${apiHost}/ws/board/${boardId}`;

@@ -84,6 +84,14 @@ export default function App() {
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const [peers, setPeers] = useState<Peer[]>([]);
 
+  useEffect(() => {
+    const int = setInterval(() => {
+      const now = Date.now();
+      setPeers(prev => prev.filter(p => p.lastUpdate && (now - p.lastUpdate < 10000)));
+    }, 5000);
+    return () => clearInterval(int);
+  }, []);
+
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string | null } | null>(null);
 
   const [history, setHistory] = useState<El[][]>([INIT_ELS]);
@@ -204,17 +212,50 @@ export default function App() {
       } else if (msg.type === "cursor_update" && msg.payload) {
         setPeers(prev => {
           const idx = prev.findIndex(p => p.id === msg.payload.user_id);
+          const now = Date.now();
           if (idx !== -1) {
             const next = [...prev];
-            next[idx] = { ...next[idx], tx: msg.payload.x, ty: msg.payload.y };
+            next[idx] = { 
+              ...next[idx], 
+              tx: msg.payload.x, 
+              ty: msg.payload.y,
+              lastUpdate: now,
+              selIds: msg.payload.selIds || [],
+              isTyping: msg.payload.isTyping,
+              editingId: msg.payload.editingId
+            };
             return next;
           }
-          return prev;
+          return [...prev, {
+            id: msg.payload.user_id,
+            name: msg.payload.name || "Collaborator",
+            color: msg.payload.color || "#1ABCFE",
+            x: msg.payload.x,
+            y: msg.payload.y,
+            tx: msg.payload.x,
+            ty: msg.payload.y,
+            lastUpdate: now,
+            selIds: msg.payload.selIds || [],
+            isTyping: msg.payload.isTyping,
+            editingId: msg.payload.editingId
+          }];
         });
+      } else if (msg.type === "chat_history") {
+        setLiveChatMessages(msg.payload);
       } else if (msg.type === "presence") {
         setOnlineUsers(msg.online_users || []);
       } else if (msg.type === "chat_message") {
-        setLiveChatMessages(prev => [...prev, msg.payload]);
+        setLiveChatMessages(prev => {
+          if (msg.payload.message_id) {
+            const existsIdx = prev.findIndex(m => m.message_id === msg.payload.message_id);
+            if (existsIdx !== -1) {
+              const next = [...prev];
+              next[existsIdx] = msg.payload;
+              return next;
+            }
+          }
+          return [...prev, msg.payload];
+        });
         if (!isChatOpen) {
           setChatUnreadCount(prev => prev + 1);
         }
@@ -667,8 +708,6 @@ export default function App() {
     
     // Broadcast presence coordinates
     broadcastPresence(w.x, w.y);
-    // Also send via WebSocket for real-time cursors
-    websocketService.send("cursor_update", w);
 
     if (panRef.current) {
       const { px, py, cx, cy } = panRef.current;
@@ -1575,15 +1614,20 @@ export default function App() {
           typingUsers={liveChatTypingUsers}
           onSendMessage={(message) => {
             const currentUserId = onlineUsers.find(u => u.name === getSessionUser())?.user_id || "";
+            const msgId = uid();
             const optimisticMsg: LiveChatMessage = {
+              message_id: msgId,
               board_id: currentBoardId,
               user_id: currentUserId,
               username: getSessionUser(),
               message,
               timestamp: new Date().toISOString()
             };
-            setLiveChatMessages(prev => [...prev, optimisticMsg]);
-            websocketService.send("chat_message", { message });
+            setLiveChatMessages(prev => {
+              if (prev.some(m => m.message_id === msgId)) return prev;
+              return [...prev, optimisticMsg];
+            });
+            websocketService.send("chat_message", { message_id: msgId, message });
           }}
           onTyping={(isTyping) => {
             websocketService.send(isTyping ? "typing_start" : "typing_stop", {});
