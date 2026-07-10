@@ -794,22 +794,103 @@ export default function App() {
 
     let newEls: El[] = [];
 
-    if (action === "create_flowchart" && data.mermaid) {
-      console.log("Handling create_flowchart with mermaid data");
-      newEls = parseMermaidToElements(data.mermaid, startX, startY);
-      console.log("Created mermaid nodes:", newEls);
-      setEls(p => [...p, ...newEls]);
+    if (action === "create_flowchart" || action === "flowchart") {
+      if (data && data.nodes && Array.isArray(data.nodes)) {
+        console.log("Handling create_flowchart with JSON nodes data");
+        const NODE_W = 160;
+        const NODE_H = 80;
+        const GAP_X = 80;
+        const GAP_Y = 100;
+        
+        // simple grid layout
+        let currY = startY;
+        const nodeEls: any[] = [];
+        const edgesEls: any[] = [];
+        
+        const nodeIds = data.nodes.map(() => uid());
+        
+        data.nodes.forEach((n: any, i: number) => {
+          nodeEls.push({
+            id: nodeIds[i],
+            type: "shape",
+            kind: "rect",
+            w: NODE_W, 
+            h: NODE_H,
+            color: "#3742FA",
+            x: startX - (NODE_W / 2),
+            y: currY + i * (NODE_H + GAP_Y),
+            text: n.text || `Node ${i+1}`
+          });
+        });
+        
+        if (data.edges && Array.isArray(data.edges)) {
+          data.edges.forEach((e: any) => {
+            const sourceId = typeof e.source === 'number' ? nodeIds[e.source] : nodeIds.find((_, i) => data.nodes[i].id === e.source || data.nodes[i].text === e.source);
+            const targetId = typeof e.target === 'number' ? nodeIds[e.target] : nodeIds.find((_, i) => data.nodes[i].id === e.target || data.nodes[i].text === e.target);
+            if (sourceId && targetId) {
+              edgesEls.push({
+                id: uid(),
+                type: "connection",
+                from: sourceId,
+                to: targetId,
+                color: "#1C1B1F",
+                x: 0, y: 0
+              });
+            }
+          });
+        }
+        
+        newEls = [...nodeEls, ...edgesEls];
+        setEls(p => [...p, ...newEls]);
+        return;
+      }
+
+      // Small models often hallucinate the JSON structure, so we look for the mermaid string wherever it is
+      let mermaidStr = (data && data.mermaid) ? data.mermaid : (typeof data === "string" ? data : null);
+      if (typeof mermaidStr !== "string") {
+        mermaidStr = typeof data === "object" ? JSON.stringify(data) : null;
+      }
+      
+      if (mermaidStr) {
+        console.log("Handling create_flowchart with mermaid data");
+        try {
+          newEls = parseMermaidToElements(mermaidStr, startX, startY);
+        } catch (err) {
+          console.error("Failed to parse mermaid:", err);
+          newEls = [];
+        }
+        
+        if (newEls.length === 0) {
+          // Failsafe: if the parser fails to extract any nodes, drop the raw code in a sticky note
+          newEls = [{
+            id: uid(), type: "sticky", w: 300, h: 300, x: startX - 150, y: startY - 150,
+            color: "#FFEB3B", text: "Could not render flowchart. Raw code:\n\n" + mermaidStr
+          } as StickyEl];
+        }
+        
+        console.log("Created mermaid nodes:", newEls);
+        setEls(p => [...p, ...newEls]);
+      } else {
+        // AI didn't provide any data string
+        const fallbackNote: StickyEl = {
+          id: uid(), type: "sticky", w: 300, h: 300, x: startX - 150, y: startY - 150,
+          color: "#FFEB3B", text: "AI didn't provide valid flowchart data.\nReceived: " + JSON.stringify(data)
+        };
+        setEls(p => [...p, fallbackNote]);
+      }
     } 
-    else if (action === "create_graph" && data.chartType) {
-      const newGraph: GraphEl = {
-        id: uid(),
-        type: "graph",
-        w: 400, h: 300,
-        x: startX - 200, y: startY - 150,
-        color: "#ffffff",
-        graphData: data
-      };
-      setEls(p => [...p, newGraph]);
+    else if (action === "create_graph" || action === "graph") {
+      if (data && data.chartType) {
+        const newGraph: GraphEl = {
+          id: uid(),
+          type: "graph",
+          w: 400, h: 300,
+          x: startX - 200, y: startY - 150,
+          color: "#ffffff",
+          graphData: data
+        };
+        setEls(p => [...p, newGraph]);
+      }
     }
     else if (action === "create_sticky_notes" && data.notes) {
       const newEls: StickyEl[] = data.notes.map((n: any, i: number) => ({

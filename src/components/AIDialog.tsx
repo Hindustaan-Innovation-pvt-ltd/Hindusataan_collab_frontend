@@ -236,27 +236,78 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
               let foundMd = false;
 
               const parseAndDispatch = (jsonStr: string) => {
-                let actionObj = null;
+                let cleanedJsonStr = jsonStr.replace(/;\s*\}/g, '}').replace(/;\s*\]/g, ']');
+                let success = false;
+
                 try {
-                  actionObj = JSON.parse(jsonStr);
+                  const actionObj = JSON.parse(cleanedJsonStr);
+                  if (actionObj && onAIAction && actionObj.action) {
+                    console.log("Dispatching AI Action:", actionObj.action, actionObj.data);
+                    onAIAction(actionObj.action, actionObj.data);
+                    success = true;
+                  }
                 } catch (e) {
-                  // Auto-fix LLM formatting issues (missing closing braces)
-                  const fixes = ["}", "}}", "]}", "]}}", "}]}", "}]}}"];
+                  // Auto-fix LLM formatting issues
+                  const fixes = ["}", "}}", "]}", "]}}", "}]}", "}]}}", '"}', '"}}', '"]}', '"]}}'];
                   for (const fix of fixes) {
                     try {
-                      actionObj = JSON.parse(jsonStr + fix);
-                      break;
+                      let testStr = cleanedJsonStr.replace(/[;,]\s*$/, '') + fix;
+                      const actionObj = JSON.parse(testStr);
+                      if (actionObj && onAIAction && actionObj.action) {
+                        console.log("Dispatching AI Action:", actionObj.action, actionObj.data);
+                        onAIAction(actionObj.action, actionObj.data);
+                        success = true;
+                        break;
+                      }
                     } catch (e2) {}
                   }
-                  if (!actionObj) console.error("Failed to parse action json", jsonStr);
+                  
+                  // Try parsing as JSON lines (multiple objects)
+                  if (!success) {
+                    const lines = cleanedJsonStr.split('\n');
+                    for (let line of lines) {
+                      try {
+                        line = line.trim();
+                        if (!line) continue;
+                        if (line.endsWith(',')) line = line.slice(0, -1);
+                        const obj = JSON.parse(line);
+                        if (obj && onAIAction && obj.action) {
+                          console.log("Dispatching AI Action (line):", obj.action, obj.data);
+                          onAIAction(obj.action, obj.data);
+                          success = true;
+                        }
+                      } catch (e3) {}
+                    }
+                  }
+
+                  // If JSON parse STILL fails, use regex extraction for flowcharts or graphs
+                  if (!success) {
+                    if (cleanedJsonStr.includes('"create_flowchart"')) {
+                      const mermaidMatch = cleanedJsonStr.match(/"mermaid"\s*:\s*"([\s\S]*)/);
+                      if (mermaidMatch) {
+                        let str = mermaidMatch[1];
+                        str = str.replace(/"\s*(\}\s*)*$/, '');
+                        if (onAIAction) onAIAction("create_flowchart", { mermaid: str.replace(/\\n/g, '\n') });
+                        success = true;
+                      }
+                    } else if (cleanedJsonStr.includes('"create_graph"')) {
+                      const titleMatch = cleanedJsonStr.match(/"title"\s*:\s*"([^"]+)"/);
+                      const typeMatch = cleanedJsonStr.match(/"chartType"\s*:\s*"([^"]+)"/);
+                      if (typeMatch && onAIAction) {
+                        onAIAction("create_graph", { 
+                          title: titleMatch ? titleMatch[1] : "Graph", 
+                          chartType: typeMatch[1],
+                          labels: ["Q1", "Q2", "Q3", "Q4"],
+                          datasets: [{ label: "Data", data: [10, 20, 30, 40] }]
+                        });
+                        success = true;
+                      }
+                    }
+                  }
                 }
                 
-                if (actionObj && onAIAction && actionObj.action) {
-                  console.log("Dispatching AI Action:", actionObj.action, actionObj.data);
-                  onAIAction(actionObj.action, actionObj.data);
-                  return true;
-                }
-                return false;
+                if (!success) console.error("Failed to parse action json", jsonStr);
+                return success;
               };
 
               while ((match = mdRegex.exec(msg.content)) !== null) {
