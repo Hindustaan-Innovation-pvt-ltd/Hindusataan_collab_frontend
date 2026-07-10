@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router";
 import {
   ChevronDown, Palette, Disc3, Music, Calendar,
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
@@ -265,7 +264,7 @@ export const TopBar = React.memo(function TopBar({
                 <div 
                   key={board.id}
                   className={`flex items-center justify-between px-2.5 h-9 rounded-lg group transition-colors ${board.id === currentBoardId ? 'bg-indigo-50/50' : 'hover:bg-gray-50 cursor-pointer'}`}
-                  onClick={(e) => {
+                  onClick={() => {
                     if (renamingBoardId === board.id) return;
                     if (board.id !== currentBoardId) {
                       onChangeBoard?.(board.id);
@@ -1091,7 +1090,7 @@ export const TopBar = React.memo(function TopBar({
                         onClick={() => {
                           const newName = window.prompt("Rename Board", boardName);
                           if (newName !== null && newName.trim() !== "") {
-                            onRenameBoard(newName);
+                            onRenameBoard(currentBoardId, newName);
                           }
                         }}
                         className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all"
@@ -1107,7 +1106,7 @@ export const TopBar = React.memo(function TopBar({
                         <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                       </button>
                       <button 
-                        onClick={confirmDeleteBoard}
+                        onClick={() => confirmDeleteBoard(currentBoardId)}
                         disabled={!onDeleteBoard}
                         className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
                       >

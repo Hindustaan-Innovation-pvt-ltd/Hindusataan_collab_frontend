@@ -32,12 +32,13 @@ export function useLiveCollaboration({
 
     websocketService.send("cursor_update", {
       id: mySessionId,
+      color: myColor,
       x, y,
       selIds: selIdsRef.current,
       isTyping: !!editIdRef.current,
       editingId: editIdRef.current
     });
-  }, [currentBoardId, mySessionId, selIdsRef]);
+  }, [currentBoardId, mySessionId, selIdsRef, myColor]);
 
   // Connect to WebSocket on board change
   useEffect(() => {

@@ -61,14 +61,20 @@ export function useShareDialog(currentBoardId: string, boardName: string, showTo
     setInviteError(null);
     
     try {
-      await Promise.all(
+      const results = await Promise.all(
         emails.map(email => collaborationService.inviteCollaborator(currentBoardId, email, "editor"))
       );
 
       await fetchCollaborators();
       
       setInviteEmail("");
-      setInviteMessage("Invitation sent successfully!");
+      
+      const anyEmailSent = results.some((res: any) => res?.email_sent || res?.data?.email_sent);
+      if (anyEmailSent) {
+        setInviteMessage("Invitation sent successfully. An email has also been sent.");
+      } else {
+        setInviteMessage("Invitation sent successfully.");
+      }
     } catch (error: any) {
       console.error("Invite error:", error);
       setInviteError(error.response?.data?.message || error.message || "Failed to send invitation.");
