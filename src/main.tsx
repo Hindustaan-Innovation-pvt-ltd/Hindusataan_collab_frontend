@@ -7,6 +7,8 @@ import Welcome from "./app/components/Pages/welcome.tsx";
 import Signup from "./app/components/Pages/signup.tsx";
 import Login from "./app/components/Pages/login.tsx";
 import OauthCallback from "./app/components/Pages/oauth-callback.tsx";
+import ProfilePage from "./app/components/Pages/ProfilePage.tsx";
+import SettingsPage from "./app/components/Pages/SettingsPage.tsx";
 import "./styles/index.css";
 import axios from "axios";
 
@@ -41,6 +43,8 @@ createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="/" element={<ProtectedApp><App /></ProtectedApp>} />
         <Route path="/board/:boardId/:boardName?" element={<ProtectedApp><App /></ProtectedApp>} />
+        <Route path="/profile" element={<ProtectedApp><ProfilePage /></ProtectedApp>} />
+        <Route path="/settings" element={<ProtectedApp><SettingsPage /></ProtectedApp>} />
         <Route
           path="/welcome"
           element={

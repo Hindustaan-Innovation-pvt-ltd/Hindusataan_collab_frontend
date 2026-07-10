@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router";
 import {
   ChevronDown, Palette, Disc3, Music, Calendar,
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
-  Link as LinkIcon, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search, MessageSquare
+  Link as LinkIcon, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search, MessageSquare, User, Settings
 } from "lucide-react";
 import type { Board } from "../types";
 import { useShareDialog } from "../hooks/useShareDialog";
@@ -37,6 +38,11 @@ export const TopBar = React.memo(function TopBar({
   const [seconds, setSeconds] = useState(3 * 60);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userName, setUserName] = useState("Guest");
+  const [userEmail, setUserEmail] = useState("");
+  const [userAvatar, setUserAvatar] = useState("");
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  
+  const navigate = useNavigate();
 
   useEffect(() => {
     try {
@@ -51,12 +57,19 @@ export const TopBar = React.memo(function TopBar({
         if (parsed && parsed.name) {
           setUserName(parsed.name);
         }
+        if (parsed && parsed.email) {
+          setUserEmail(parsed.email);
+        }
+        if (parsed && parsed.avatar) {
+          setUserAvatar(parsed.avatar);
+        }
       }
     } catch (e) {}
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("figjam_token");
     localStorage.removeItem("figjam_session");
     window.location.href = "/login";
   };
@@ -109,9 +122,23 @@ export const TopBar = React.memo(function TopBar({
         setBoardSelectorOpen(false);
         setRenamingBoardId(null);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
     };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setUserMenuOpen(false);
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   const filteredSearchBoards = boards.filter(b => 
@@ -357,45 +384,75 @@ export const TopBar = React.memo(function TopBar({
       {/* RIGHT: Top Bar tools */}
       <div className="flex items-center gap-2 pointer-events-auto">
         <div className="flex items-center gap-1 bg-white rounded-2xl px-2 py-1.5 shadow-lg border border-black/[0.06]">
-          {/* Avatar */}
-          <div className="relative">
+          {/* Avatar / User Menu */}
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-1 pl-1 pr-2 h-8 rounded-xl hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-1 pl-1 pr-2 h-8 rounded-xl hover:bg-gray-100 transition-colors focus:outline-none"
+              aria-label="User profile menu"
+              aria-expanded={userMenuOpen}
             >
-              <div className="w-6 h-6 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-xs font-bold uppercase">
-                {userName.charAt(0)}
+              <div className="w-6 h-6 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-xs font-bold uppercase shadow-sm overflow-hidden">
+                {userAvatar ? (
+                  <img src={userAvatar.startsWith('http') ? userAvatar : `http://127.0.0.1:8000${userAvatar}`} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  userName.charAt(0)
+                )}
               </div>
-              <ChevronDown size={13} className="text-gray-400" />
+              <ChevronDown size={13} className={`text-gray-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
             </button>
+            
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-black/[0.06] p-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="px-3 py-2 border-b border-black/[0.04]">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Logged in as</p>
-                  <p className="text-xs font-bold text-gray-700 truncate">{userName}</p>
+              <div className="absolute right-0 mt-2 w-[260px] bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-lg font-bold uppercase shadow-sm shrink-0 overflow-hidden">
+                    {userAvatar ? (
+                      <img src={userAvatar.startsWith('http') ? userAvatar : `http://127.0.0.1:8000${userAvatar}`} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      userName.charAt(0)
+                    )}
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-bold text-gray-800 truncate">{userName}</p>
+                    <p className="text-xs text-gray-500 truncate">{userEmail || "user@email.com"}</p>
+                  </div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#FF4757] font-bold hover:bg-red-50 rounded-lg transition-colors mt-1"
-                >
-                  <LogOut size={12} />
-                  Log Out
-                </button>
+                
+                <div className="p-1.5">
+                  <button 
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      navigate("/profile");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-gray-700 font-medium hover:bg-gray-50 hover:text-indigo-600 rounded-lg transition-colors"
+                  >
+                    <User size={16} />
+                    My Profile
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      navigate("/settings");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-gray-700 font-medium hover:bg-gray-50 hover:text-indigo-600 rounded-lg transition-colors"
+                  >
+                    <Settings size={16} />
+                    Settings
+                  </button>
+                </div>
+                
+                <div className="p-1.5 border-t border-gray-50 bg-gray-50/50">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-red-600 font-semibold hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Log Out
+                  </button>
+                </div>
               </div>
             )}
           </div>
-
-          <div className="w-px h-5 bg-gray-200" />
-
-          {/* Layout icon */}
-          <button className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-          </button>
 
           <div className="w-px h-5 bg-gray-200" />
 
