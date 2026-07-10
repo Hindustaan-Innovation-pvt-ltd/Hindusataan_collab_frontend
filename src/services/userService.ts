@@ -61,5 +61,10 @@ export const userService = {
   updateSettings: async (data: any): Promise<any> => {
     const response = await api.put("/api/user/settings", data);
     return response.data;
+  },
+
+  deleteAvatar: async (): Promise<any> => {
+    const response = await api.delete("/api/user/avatar");
+    return response.data;
   }
 };

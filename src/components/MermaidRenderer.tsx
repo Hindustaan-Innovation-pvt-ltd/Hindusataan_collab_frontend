@@ -52,7 +52,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ chart }) => {
   return (
     <div 
       ref={containerRef}
-      className="mermaid-wrapper w-full overflow-x-auto flex justify-center py-2 bg-white rounded-lg shadow-sm border border-gray-100 my-2"
+      className="mermaid-wrapper w-full overflow-x-auto flex justify-center py-2 bg-card rounded-lg shadow-sm border border-border my-2"
       dangerouslySetInnerHTML={{ __html: svgContent }} 
     />
   );

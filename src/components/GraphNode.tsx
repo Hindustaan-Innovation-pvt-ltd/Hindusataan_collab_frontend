@@ -83,13 +83,13 @@ const GraphNode = React.memo(({ el, selected }: GraphNodeProps) => {
   };
 
   return (
-    <div data-el-id={el.id} className="absolute group bg-white rounded-lg shadow-sm border border-gray-200" style={{ left: el.x, top: el.y, width: w, height: h, cursor: "grab" }}>
+    <div data-el-id={el.id} className="absolute group bg-card rounded-lg shadow-sm border border-border" style={{ left: el.x, top: el.y, width: w, height: h, cursor: "grab" }}>
       {selected && (
         <div className="absolute inset-0 pointer-events-none rounded-lg" style={{ border: `2px dashed ${sel}`, margin: "-2px" }} />
       )}
       
       {/* Title Bar */}
-      <div className="h-8 border-b border-gray-100 flex items-center justify-center bg-gray-50 rounded-t-lg font-semibold text-gray-700 text-sm">
+      <div className="h-8 border-b border-border flex items-center justify-center bg-background rounded-t-lg font-semibold text-foreground text-sm">
          {graphData?.title || "Generated Graph"}
       </div>
 

@@ -16,7 +16,7 @@ export default function Welcome() {
         }}
       />
       
-      <div className="relative z-10 w-full max-w-md px-6 py-12 bg-white rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.08)] flex flex-col items-center text-center">
+      <div className="relative z-10 w-full max-w-md px-6 py-12 bg-card rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.08)] flex flex-col items-center text-center">
         <div
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-semibold mb-6 shadow-md"
           style={{ background: "linear-gradient(135deg, #3742FA 0%, #7B61FF 100%)" }}

@@ -20,13 +20,13 @@ const ContextMenu = React.memo(({
 }: ContextMenuProps) => {
   return (
     <div
-      className="absolute z-[100] bg-white rounded-lg shadow-xl border border-gray-100 py-1 min-w-[150px]"
+      className="absolute z-[100] bg-card rounded-lg shadow-xl border border-border py-1 min-w-[150px]"
       style={{ top: y, left: x }}
       onPointerDown={e => e.stopPropagation()}
     >
       {id && (
         <button
-          className="w-full text-left px-4 py-1.5 text-sm text-gray-700 hover:bg-[#3742FA] hover:text-white transition-colors"
+          className="w-full text-left px-4 py-1.5 text-sm text-foreground hover:bg-[#3742FA] hover:text-white transition-colors"
           onClick={() => {
             if (selIds.length > 0) {
               clipboardRef.current = els.filter(ex => selIds.includes(ex.id));
@@ -39,7 +39,7 @@ const ContextMenu = React.memo(({
       )}
 
       <button
-        className="w-full text-left px-4 py-1.5 text-sm text-gray-700 hover:bg-[#3742FA] hover:text-white transition-colors"
+        className="w-full text-left px-4 py-1.5 text-sm text-foreground hover:bg-[#3742FA] hover:text-white transition-colors"
         onClick={() => {
           if (clipboardRef.current.length > 0) {
             const newEls = clipboardRef.current.map(el => {
@@ -62,7 +62,7 @@ const ContextMenu = React.memo(({
       {selIds.length > 0 && (
         <>
           <button
-            className="w-full text-left px-4 py-1.5 text-sm text-gray-700 hover:bg-[#3742FA] hover:text-white transition-colors"
+            className="w-full text-left px-4 py-1.5 text-sm text-foreground hover:bg-[#3742FA] hover:text-white transition-colors"
             onClick={() => {
               setEls(p => {
                 const otherEls = p.filter(el => !selIds.includes(el.id));
@@ -76,7 +76,7 @@ const ContextMenu = React.memo(({
           </button>
 
           <button
-            className="w-full text-left px-4 py-1.5 text-sm text-gray-700 hover:bg-[#3742FA] hover:text-white transition-colors"
+            className="w-full text-left px-4 py-1.5 text-sm text-foreground hover:bg-[#3742FA] hover:text-white transition-colors"
             onClick={() => {
               setEls(p => {
                 const otherEls = p.filter(el => !selIds.includes(el.id));
@@ -90,7 +90,7 @@ const ContextMenu = React.memo(({
           </button>
 
           <button
-            className="w-full text-left px-4 py-1.5 text-sm text-gray-700 hover:bg-[#3742FA] hover:text-white transition-colors"
+            className="w-full text-left px-4 py-1.5 text-sm text-foreground hover:bg-[#3742FA] hover:text-white transition-colors"
             onClick={() => {
               setEls(p => p.map(el => selIds.includes(el.id) ? { ...el, locked: !el.locked } : el));
               onClose();
@@ -112,10 +112,10 @@ const ContextMenu = React.memo(({
             Delete
           </button>
 
-          <div className="w-full h-px bg-gray-100 my-1" />
+          <div className="w-full h-px bg-muted my-1" />
 
           <button
-            className="w-full text-left px-4 py-1.5 text-sm text-gray-700 hover:bg-[#3742FA] hover:text-white transition-colors"
+            className="w-full text-left px-4 py-1.5 text-sm text-foreground hover:bg-[#3742FA] hover:text-white transition-colors"
             onClick={async () => {
               const node = document.querySelector(`[data-el-id="${id}"]`) as HTMLElement;
               if (node) {
