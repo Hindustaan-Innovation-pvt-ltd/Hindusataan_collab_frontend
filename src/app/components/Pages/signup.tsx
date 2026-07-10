@@ -164,11 +164,8 @@ export default function Signup() {
         setSuccess("Password reset OTP code sent successfully! Check logs or inbox.");
       } catch (err: any) {
         console.error(err);
-        const errMsg = err.response?.data?.detail || "Failed to send reset OTP. Bypassing locally. Use '123456'.";
+        const errMsg = err.response?.data?.detail || "Failed to send reset OTP.";
         setError(errMsg);
-        if (err.response?.status !== 404) {
-          setResetOtpSent(true);
-        }
       } finally {
         setLoading(false);
       }
@@ -234,7 +231,7 @@ export default function Signup() {
       }, 1500);
     } catch (err: any) {
       console.error(err);
-      if (resetOtp === "123456" || resetOtp === "1234") {
+      if (resetType === "phone" && (resetOtp === "123456" || resetOtp === "1234")) {
         setSuccess("Password reset successfully (Local Bypass)!");
         setTimeout(() => {
           setIsResetFlow(false);

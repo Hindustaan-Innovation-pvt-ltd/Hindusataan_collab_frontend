@@ -93,11 +93,8 @@ export default function Login() {
         setSuccess("Password reset OTP code sent successfully! Check logs or inbox.");
       } catch (err: any) {
         console.error(err);
-        const errMsg = err.response?.data?.detail || "Failed to send reset OTP. Bypassing locally. Use '123456'.";
+        const errMsg = err.response?.data?.detail || "Failed to send reset OTP.";
         setError(errMsg);
-        if (err.response?.status !== 404) {
-          setResetOtpSent(true);
-        }
       } finally {
         setLoading(false);
       }
@@ -162,7 +159,7 @@ export default function Login() {
       }, 1500);
     } catch (err: any) {
       console.error(err);
-      if (resetOtp === "123456" || resetOtp === "1234") {
+      if (resetType === "phone" && (resetOtp === "123456" || resetOtp === "1234")) {
         setSuccess("Password reset successfully (Local Bypass)!");
         setTimeout(() => {
           resetState("password");
@@ -193,9 +190,8 @@ export default function Login() {
       setSuccess("OTP code sent successfully! Check logs or inbox.");
     } catch (err: any) {
       console.error(err);
-      const errMsg = err.response?.data?.detail || "Failed to send OTP. Bypassing locally. Use '123456'.";
+      const errMsg = err.response?.data?.detail || "Failed to send OTP.";
       setError(errMsg);
-      setOtpSent(true);
     } finally {
       setLoading(false);
     }
@@ -267,10 +263,10 @@ export default function Login() {
       }
     } catch (err: any) {
       console.error(err);
-      if (otp === "123456" || otp === "1234") {
+      if (flow === "phone-otp" && (otp === "123456" || otp === "1234")) {
         setSuccess("OTP verified successfully (Local Bypass)!");
-        const displayName = email ? email.split("@")[0] : phone;
-        setSession({ name: "User " + displayName, email: email || phone });
+        const displayName = phone;
+        setSession({ name: "User " + displayName, email: phone });
         setTimeout(() => navigate("/", { replace: true }), 400);
       } else {
         const errMsg = err.response?.data?.detail || "Invalid OTP code.";
