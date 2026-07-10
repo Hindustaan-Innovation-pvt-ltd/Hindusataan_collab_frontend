@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
+// @ts-ignore
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
@@ -23,13 +24,19 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  base: './',
   server: {
-    port: 8080,
+    port: 5173,
     proxy: {
       '/api': 'http://127.0.0.1:8000',
-      '/board': 'http://127.0.0.1:8000',
+      '/boards': 'http://127.0.0.1:8000',
+      '/board/upload': 'http://127.0.0.1:8000',
+      '/board/upload-file': 'http://127.0.0.1:8000',
+      '/board/search-document-stream': 'http://127.0.0.1:8000',
+      '/board/status': 'http://127.0.0.1:8000',
       '/generate-flowchart': 'http://127.0.0.1:8000',
-      '/generate-graph': 'http://127.0.0.1:8000'
+      '/generate-graph': 'http://127.0.0.1:8000',
+      '/auth': 'http://127.0.0.1:8000'
     }
   },
   plugins: [
