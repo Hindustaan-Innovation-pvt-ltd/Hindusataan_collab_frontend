@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import * as LucideIcons from "lucide-react";
-import { Trash2, Minus, Plus, Pencil, Brush, Highlighter, Search, X } from "lucide-react";
+import { 
+  Trash2, Minus, Plus, Pencil, Brush, Highlighter, Search, X, Smile
+} from "lucide-react";
 
 import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
@@ -67,6 +69,28 @@ function Toolbar({
   const [iconSearchOpen, setIconSearchOpen] = useState(false);
   const [iconQuery, setIconQuery] = useState("");
   const { layout } = useWorkspaceTheme();
+  const toolbarRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+        setIconSearchOpen(false);
+        setToolMenuOpen(false);
+      }
+    };
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIconSearchOpen(false);
+        setToolMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [setToolMenuOpen]);
 
   const palette =
     tool === "sticky" ? { colors: STICKY_COLORS, active: stickyColor, set: setStickyColor } :
@@ -99,7 +123,7 @@ function Toolbar({
   }
 
   return (
-    <div className={containerClass}>
+    <div ref={toolbarRef} className={containerClass}>
       <div className={innerClass}>
         {/* Pen picker */}
         {tool === "pen" && toolMenuOpen && (
@@ -175,6 +199,7 @@ function Toolbar({
           </div>
         )}
 
+
         {/* Icon search picker — searches the full lucide-react library */}
         {iconSearchOpen && (
           <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border w-80 mb-1">
@@ -227,6 +252,7 @@ function Toolbar({
             )}
           </div>
         )}
+
       </div>
 
       <div className={itemGroupClass}>
@@ -262,7 +288,7 @@ function Toolbar({
 
         {/* Icon search toggle button */}
         <button
-          title="Search icons"
+          title="Insert icon"
           onClick={() => {
             setIconSearchOpen((prev) => !prev);
             setToolMenuOpen(false);
@@ -272,7 +298,7 @@ function Toolbar({
               : "text-[#4B5563] hover:bg-muted hover:text-foreground"
             }`}
         >
-          <Search size={18} />
+          <Smile size={18} />
         </button>
 
         <div className={dividerClass} />

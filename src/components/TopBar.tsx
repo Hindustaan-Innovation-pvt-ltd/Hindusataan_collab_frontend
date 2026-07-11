@@ -34,7 +34,7 @@ export const TopBar = React.memo(function TopBar({
   boardBg, onChangeBg,
   showToast,
   onlineUsers = [], role = "owner",
-  chatOpen = false, onToggleChat = () => {}, chatUnreadCount = 0
+  chatOpen = false, onToggleChat = () => { }, chatUnreadCount = 0
 }: TopBarProps) {
   const { layout, setLayout } = useWorkspaceTheme();
   const [seconds, setSeconds] = useState(3 * 60);
@@ -43,7 +43,7 @@ export const TopBar = React.memo(function TopBar({
   const [userEmail, setUserEmail] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
   const userMenuRef = useRef<HTMLDivElement>(null);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,7 +53,7 @@ export const TopBar = React.memo(function TopBar({
         setUserName("Guest");
         return;
       }
-      const s = localStorage.getItem("figjam_session");
+      const s = localStorage.getItem("HIXCanvas_session");
       if (s) {
         const parsed = JSON.parse(s);
         if (parsed && parsed.name) {
@@ -66,20 +66,20 @@ export const TopBar = React.memo(function TopBar({
           setUserAvatar(parsed.avatar);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }, []);
 
   useEffect(() => {
     const handleSessionUpdate = () => {
       try {
-        const s = localStorage.getItem("figjam_session");
+        const s = localStorage.getItem("HIXCanvas_session");
         if (s) {
           const parsed = JSON.parse(s);
           if (parsed && parsed.name) setUserName(parsed.name);
           if (parsed && parsed.email) setUserEmail(parsed.email);
           setUserAvatar(parsed && parsed.avatar ? parsed.avatar : "");
         }
-      } catch (e) {}
+      } catch (e) { }
     };
 
     window.addEventListener("sessionUpdated", handleSessionUpdate);
@@ -88,8 +88,8 @@ export const TopBar = React.memo(function TopBar({
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-    localStorage.removeItem("figjam_token");
-    localStorage.removeItem("figjam_session");
+    localStorage.removeItem("HIXCanvas_token");
+    localStorage.removeItem("HIXCanvas_session");
     window.location.href = "/login";
   };
   const [running, setRunning] = useState(false);
@@ -165,7 +165,7 @@ export const TopBar = React.memo(function TopBar({
     };
   }, []);
 
-  const filteredSearchBoards = boards.filter(b => 
+  const filteredSearchBoards = boards.filter(b =>
     (b.name || "Untitled Board").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -289,175 +289,175 @@ export const TopBar = React.memo(function TopBar({
       {/* LEFT: Board Selector and Search */}
       <div className="flex items-start gap-2 pointer-events-auto">
         <div className="flex flex-col gap-2 relative" ref={boardSelectorRef}>
-        <div 
-          onClick={() => setBoardSelectorOpen(!boardSelectorOpen)}
-          className="flex items-center justify-between gap-2 bg-card rounded-xl px-3 h-10 shadow-lg border border-border hover:bg-background cursor-pointer min-w-[200px] transition-colors"
-        >
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-foreground truncate max-w-[150px]">
-              {boardName}
+          <div
+            onClick={() => setBoardSelectorOpen(!boardSelectorOpen)}
+            className="flex items-center justify-between gap-2 bg-card rounded-xl px-3 h-10 shadow-lg border border-border hover:bg-background cursor-pointer min-w-[200px] transition-colors"
+          >
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-foreground truncate max-w-[150px]">
+                {boardName}
+              </span>
+            </div>
+            <ChevronDown size={16} className={`text-gray-400 transition-transform ${boardSelectorOpen ? 'rotate-180' : ''}`} />
+          </div>
+
+          {/* Save indicator pill */}
+          <div className="absolute top-11 left-0 flex items-center bg-card/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-border opacity-80 pointer-events-none">
+            <span className="text-[10px] font-medium text-muted-foreground">
+              {saveState === "saving" && "Saving..."}
+              {saveState === "saved" && "Saved to cloud"}
+              {saveState === "error" && <span className="text-red-500">Error saving</span>}
+              {saveState === "idle" && "All changes saved"}
             </span>
           </div>
-          <ChevronDown size={16} className={`text-gray-400 transition-transform ${boardSelectorOpen ? 'rotate-180' : ''}`} />
-        </div>
-        
-        {/* Save indicator pill */}
-        <div className="absolute top-11 left-0 flex items-center bg-card/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-border opacity-80 pointer-events-none">
-          <span className="text-[10px] font-medium text-muted-foreground">
-            {saveState === "saving" && "Saving..."}
-            {saveState === "saved" && "Saved to cloud"}
-            {saveState === "error" && <span className="text-red-500">Error saving</span>}
-            {saveState === "idle" && "All changes saved"}
-          </span>
-        </div>
 
-        {/* Dropdown Menu */}
-        {boardSelectorOpen && (
-          <div className="absolute top-12 left-0 w-64 bg-card rounded-xl shadow-2xl border border-border overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="max-h-[300px] overflow-y-auto p-1.5 flex flex-col gap-0.5 custom-scrollbar">
-              {boards.map(board => (
-                <div 
-                  key={board.id}
-                  className={`flex items-center justify-between px-2.5 h-9 rounded-lg group transition-colors ${board.id === currentBoardId ? 'bg-indigo-50/50' : 'hover:bg-background cursor-pointer'}`}
-                  onClick={() => {
-                    if (renamingBoardId === board.id) return;
-                    if (board.id !== currentBoardId) {
-                      onChangeBoard?.(board.id);
-                      setBoardSelectorOpen(false);
-                    }
-                  }}
-                >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    {board.id === currentBoardId ? (
-                      <Check size={14} className="text-indigo-600 shrink-0" />
-                    ) : (
-                      <div className="w-3.5 shrink-0" /> // Spacer for alignment
-                    )}
-                    
-                    {renamingBoardId === board.id ? (
-                      <input
-                        autoFocus
-                        value={renamingBoardName}
-                        onChange={(e) => setRenamingBoardName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+          {/* Dropdown Menu */}
+          {boardSelectorOpen && (
+            <div className="absolute top-12 left-0 w-64 bg-card rounded-xl shadow-2xl border border-border overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="max-h-[300px] overflow-y-auto p-1.5 flex flex-col gap-0.5 custom-scrollbar">
+                {boards.map(board => (
+                  <div
+                    key={board.id}
+                    className={`flex items-center justify-between px-2.5 h-9 rounded-lg group transition-colors ${board.id === currentBoardId ? 'bg-indigo-50/50' : 'hover:bg-background cursor-pointer'}`}
+                    onClick={() => {
+                      if (renamingBoardId === board.id) return;
+                      if (board.id !== currentBoardId) {
+                        onChangeBoard?.(board.id);
+                        setBoardSelectorOpen(false);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      {board.id === currentBoardId ? (
+                        <Check size={14} className="text-indigo-600 shrink-0" />
+                      ) : (
+                        <div className="w-3.5 shrink-0" /> // Spacer for alignment
+                      )}
+
+                      {renamingBoardId === board.id ? (
+                        <input
+                          autoFocus
+                          value={renamingBoardName}
+                          onChange={(e) => setRenamingBoardName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              onRenameBoard(board.id, renamingBoardName);
+                              setRenamingBoardId(null);
+                            } else if (e.key === 'Escape') {
+                              setRenamingBoardId(null);
+                            }
+                          }}
+                          onBlur={() => {
                             onRenameBoard(board.id, renamingBoardName);
                             setRenamingBoardId(null);
-                          } else if (e.key === 'Escape') {
-                            setRenamingBoardId(null);
-                          }
-                        }}
-                        onBlur={() => {
-                          onRenameBoard(board.id, renamingBoardName);
-                          setRenamingBoardId(null);
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        className="text-sm text-foreground bg-card border border-indigo-300 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 w-full"
-                      />
-                    ) : (
-                      <span className={`text-sm truncate ${board.id === currentBoardId ? 'font-semibold text-indigo-900' : 'font-medium text-foreground'}`}>
-                        {board.name}
-                      </span>
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-sm text-foreground bg-card border border-indigo-300 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 w-full"
+                        />
+                      ) : (
+                        <span className={`text-sm truncate ${board.id === currentBoardId ? 'font-semibold text-indigo-900' : 'font-medium text-foreground'}`}>
+                          {board.name}
+                        </span>
+                      )}
+                    </div>
+
+                    {renamingBoardId !== board.id && (
+                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRenamingBoardId(board.id);
+                            setRenamingBoardName(board.name);
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
+                          title="Rename"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (board.id === currentBoardId) {
+                              showToast?.("Switch to another board first to delete this one.", "info");
+                            } else {
+                              confirmDeleteBoard(board.id);
+                            }
+                          }}
+                          className={`p-1.5 rounded-md transition-colors ${board.id === currentBoardId ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+                          title={board.id === currentBoardId ? "Active board cannot be deleted" : "Delete"}
+                        >
+                          <Trash2 size={12} strokeWidth={2.5} />
+                        </button>
+                      </div>
                     )}
                   </div>
+                ))}
+              </div>
 
-                  {renamingBoardId !== board.id && (
-                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setRenamingBoardId(board.id);
-                          setRenamingBoardName(board.name);
-                        }}
-                        className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors"
-                        title="Rename"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (board.id === currentBoardId) {
-                            showToast?.("Switch to another board first to delete this one.", "info");
-                          } else {
-                            confirmDeleteBoard(board.id);
-                          }
-                        }}
-                        className={`p-1.5 rounded-md transition-colors ${board.id === currentBoardId ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
-                        title={board.id === currentBoardId ? "Active board cannot be deleted" : "Delete"}
-                      >
-                        <Trash2 size={12} strokeWidth={2.5} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            <div className="p-1.5 border-t border-border bg-background/50">
-              <button 
-                onClick={() => {
-                  onCreateBoard?.();
-                  setBoardSelectorOpen(false);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
-              >
-                <span className="text-lg leading-none mb-0.5">+</span> New Board
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Board Search */}
-      <div ref={searchContainerRef} className="relative">
-        <button
-          onClick={() => setIsSearchOpen(!isSearchOpen)}
-          className={`flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg border border-border transition-colors ${isSearchOpen ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
-          title="Search Boards"
-        >
-          <Search size={16} className="text-gray-600" />
-        </button>
-        
-        {/* Dropdown */}
-        {isSearchOpen && (
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
-            <div className="px-3 pb-2 pt-1 border-b border-gray-100">
-              <div className="relative">
-                <Search size={14} className="text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  autoFocus
-                  placeholder="Search boards..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm text-gray-700 pl-8 pr-3 py-1.5 focus:border-[#7B61FF]"
-                />
+              <div className="p-1.5 border-t border-border bg-background/50">
+                <button
+                  onClick={() => {
+                    onCreateBoard?.();
+                    setBoardSelectorOpen(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                >
+                  <span className="text-lg leading-none mb-0.5">+</span> New Board
+                </button>
               </div>
             </div>
-            <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-1 mt-1">
-              {filteredSearchBoards.length > 0 ? (
-                filteredSearchBoards.map(board => (
-                  <button
-                    key={board.id}
-                    onClick={() => handleSelectSearchedBoard(board)}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex flex-col rounded-md"
-                  >
-                    <span className="font-medium truncate">{board.name || "Untitled Board"}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="px-3 py-4 text-xs text-center text-gray-400">
-                  No boards found
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </div>
 
-    {/* RIGHT: Top Bar tools */}
+        {/* Board Search */}
+        <div ref={searchContainerRef} className="relative">
+          <button
+            onClick={() => setIsSearchOpen(!isSearchOpen)}
+            className={`flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg border border-border transition-colors ${isSearchOpen ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+            title="Search Boards"
+          >
+            <Search size={16} className="text-gray-600" />
+          </button>
+
+          {/* Dropdown */}
+          {isSearchOpen && (
+            <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+              <div className="px-3 pb-2 pt-1 border-b border-gray-100">
+                <div className="relative">
+                  <Search size={14} className="text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Search boards..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm text-gray-700 pl-8 pr-3 py-1.5 focus:border-[#7B61FF]"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-1 mt-1">
+                {filteredSearchBoards.length > 0 ? (
+                  filteredSearchBoards.map(board => (
+                    <button
+                      key={board.id}
+                      onClick={() => handleSelectSearchedBoard(board)}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex flex-col rounded-md"
+                    >
+                      <span className="font-medium truncate">{board.name || "Untitled Board"}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-3 py-4 text-xs text-center text-gray-400">
+                    No boards found
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT: Top Bar tools */}
       <div className="flex items-center gap-2 pointer-events-auto">
         <div className="flex items-center gap-1 bg-card rounded-2xl px-2 py-1.5 shadow-lg border border-border">
           {/* Avatar / User Menu */}
@@ -477,7 +477,7 @@ export const TopBar = React.memo(function TopBar({
               </div>
               <ChevronDown size={13} className={`text-gray-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
             </button>
-            
+
             {userMenuOpen && (
               <div className="absolute right-0 mt-2 w-[260px] bg-card rounded-xl shadow-xl border border-border overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
                 <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-3">
@@ -493,9 +493,9 @@ export const TopBar = React.memo(function TopBar({
                     <p className="text-xs text-muted-foreground truncate">{userEmail || "user@email.com"}</p>
                   </div>
                 </div>
-                
+
                 <div className="p-1.5">
-                  <button 
+                  <button
                     onClick={() => {
                       setUserMenuOpen(false);
                       navigate("/profile");
@@ -505,7 +505,7 @@ export const TopBar = React.memo(function TopBar({
                     <User size={16} />
                     My Profile
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       setUserMenuOpen(false);
                       navigate("/settings");
@@ -516,7 +516,7 @@ export const TopBar = React.memo(function TopBar({
                     Settings
                   </button>
                 </div>
-                
+
                 <div className="p-1.5 border-t border-gray-50 bg-background/50">
                   <button
                     onClick={handleLogout}
@@ -544,7 +544,7 @@ export const TopBar = React.memo(function TopBar({
             </button>
             {bgMenuOpen && (
               <div className="absolute top-10 right-0 bg-card rounded-xl shadow-xl border border-border p-3 flex flex-col gap-4 z-50 w-64 animate-in fade-in zoom-in duration-200">
-                
+
                 {/* Layout Theme Section */}
                 <div className="flex flex-col gap-2">
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Workspace Layout</span>
@@ -746,14 +746,13 @@ export const TopBar = React.memo(function TopBar({
           <div className="relative" ref={onlinePanelRef}>
             <button
               onClick={() => setIsOnlinePanelOpen(!isOnlinePanelOpen)}
-              className={`flex items-center ml-2 px-1 py-0.5 rounded-full transition-colors ${
-                isOnlinePanelOpen ? "bg-gray-100" : "hover:bg-gray-50"
-              }`}
+              className={`flex items-center ml-2 px-1 py-0.5 rounded-full transition-colors ${isOnlinePanelOpen ? "bg-gray-100" : "hover:bg-gray-50"
+                }`}
               title={`${onlineUsers.length} online`}
             >
               <div className="flex items-center relative">
                 {onlineUsers.slice(0, 3).map((u, i) => (
-                  <div 
+                  <div
                     key={`${u.user_id || 'user'}-${i}`}
                     className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-md -ml-2 first:ml-0"
                     style={{ backgroundColor: u.color || "#7B61FF", zIndex: 10 - i }}
@@ -786,7 +785,7 @@ export const TopBar = React.memo(function TopBar({
                     return (
                       <div key={`${u.user_id || 'user'}-${i}`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
                         <div className="relative">
-                          <div 
+                          <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
                             style={{ backgroundColor: u.color || "#7B61FF" }}
                           >
@@ -838,9 +837,8 @@ export const TopBar = React.memo(function TopBar({
                     <button
                       onClick={handleCopyLink}
                       disabled={!currentBoardId}
-                      className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${
-                        !currentBoardId ? "text-gray-400 cursor-not-allowed" : "text-[#7B61FF] hover:text-[#6B4FF0]"
-                      }`}
+                      className={`flex items-center gap-1.5 text-sm font-semibold transition-colors ${!currentBoardId ? "text-gray-400 cursor-not-allowed" : "text-[#7B61FF] hover:text-[#6B4FF0]"
+                        }`}
                     >
                       {copyStatus === "Copied!" ? (
                         <>
@@ -895,7 +893,7 @@ export const TopBar = React.memo(function TopBar({
                     {visibilityPopoverOpen && (
                       <div className="mt-1 w-full bg-card rounded-xl shadow-sm border border-border p-2 animate-in fade-in slide-in-from-top-1 duration-200">
                         <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Board Visibility</div>
-                        
+
                         <button className="w-full text-left flex items-start gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-50 transition-colors cursor-default">
                           <Lock size={16} className="text-indigo-600 mt-0.5 shrink-0" />
                           <div>
@@ -904,7 +902,7 @@ export const TopBar = React.memo(function TopBar({
                           </div>
                           <Check size={16} className="text-indigo-600 ml-auto mt-1" />
                         </button>
-                        
+
                         <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-background transition-colors opacity-50 cursor-not-allowed mt-1">
                           <Globe size={16} className="text-muted-foreground mt-0.5 shrink-0" />
                           <div>
@@ -912,7 +910,7 @@ export const TopBar = React.memo(function TopBar({
                             <div className="text-xs text-muted-foreground mt-0.5">Anyone on the internet can view.</div>
                           </div>
                         </button>
-                        
+
                         <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-background transition-colors opacity-50 cursor-not-allowed mt-1">
                           <Users size={16} className="text-muted-foreground mt-0.5 shrink-0" />
                           <div>
@@ -925,7 +923,7 @@ export const TopBar = React.memo(function TopBar({
                   </div>
 
                   {/* Collaborators Row */}
-                  <div 
+                  <div
                     onClick={() => setView("collaborators")}
                     className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-background cursor-pointer transition-colors group mt-1"
                   >
@@ -996,8 +994,8 @@ export const TopBar = React.memo(function TopBar({
                       onClick={handleInvite}
                       disabled={!isInviteEnabled || isInviting}
                       className={`h-10 px-5 rounded-xl text-sm font-bold transition-all ${isInviteEnabled && !isInviting
-                          ? "bg-[#7B61FF] text-white hover:bg-[#6B4FF0] active:scale-95 cursor-pointer"
-                          : "bg-[#E6E6E6] text-[#B3B3B3] cursor-not-allowed"
+                        ? "bg-[#7B61FF] text-white hover:bg-[#6B4FF0] active:scale-95 cursor-pointer"
+                        : "bg-[#E6E6E6] text-[#B3B3B3] cursor-not-allowed"
                         }`}
                     >
                       {isInviting ? "Inviting..." : "Invite"}
@@ -1031,11 +1029,10 @@ export const TopBar = React.memo(function TopBar({
                         return (
                           <div key={`${user.id || email}-${idx}`} className={`flex items-center justify-between py-2.5 px-1.5 border-b border-gray-50 last:border-0 hover:bg-background/50 transition-colors`}>
                             <div className="flex items-center gap-3.5">
-                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${
-                                isOwner 
-                                  ? "bg-gradient-to-tr from-purple-500 to-pink-500 text-white" 
+                              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${isOwner
+                                  ? "bg-gradient-to-tr from-purple-500 to-pink-500 text-white"
                                   : "bg-indigo-50 text-indigo-600 border border-indigo-100"
-                              }`}>
+                                }`}>
                                 {initial}
                               </div>
                               <div className="text-left max-w-[200px] truncate">
@@ -1200,24 +1197,24 @@ export const TopBar = React.memo(function TopBar({
                   </div>
                   <ChevronRight size={15} className={`text-gray-400 group-hover:translate-x-0.5 transition-transform ${showMoreOptions ? "rotate-90" : ""}`} />
                 </div>
-                
+
                 {showMoreOptions && (
                   <div className="mt-2 p-1 bg-background/50 rounded-xl animate-in slide-in-from-top-2 duration-150 flex flex-col gap-1 relative">
-                    
+
                     {/* Export Group */}
                     <div className="mb-1">
                       <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">📄 Export</div>
-                      
+
                       {/* Export Board Submenu Trigger */}
                       <div className="flex flex-col">
-                        <button 
+                        <button
                           onClick={() => setShowExportMenu(!showExportMenu)}
                           className="w-full text-left px-2 py-1.5 text-xs font-semibold text-foreground hover:bg-card hover:shadow-sm rounded-lg transition-all flex items-center justify-between group"
                         >
                           <span>Export Board</span>
                           <ChevronRight size={14} className={`text-gray-400 transition-transform duration-200 ${showExportMenu ? "rotate-90" : "group-hover:translate-x-0.5"}`} />
                         </button>
-                        
+
                         {showExportMenu && (
                           <div className="mt-1 w-full bg-card rounded-xl shadow-sm border border-border p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
                             <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-background rounded-lg flex items-center justify-between cursor-not-allowed">
@@ -1228,7 +1225,7 @@ export const TopBar = React.memo(function TopBar({
                               <span>Export as PDF</span>
                               <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                             </button>
-                            <button 
+                            <button
                               onClick={() => {
                                 const board = boards.find(b => b.id === currentBoardId);
                                 if (!board) return;
@@ -1244,7 +1241,7 @@ export const TopBar = React.memo(function TopBar({
                             >
                               Export as JSON
                             </button>
-                            <button 
+                            <button
                               onClick={() => {
                                 if (showToast) showToast("Mermaid export requires generating a flowchart first. (Coming Soon)", "info");
                                 setShowExportMenu(false);
@@ -1263,7 +1260,7 @@ export const TopBar = React.memo(function TopBar({
                     {/* Board Group */}
                     <div className="mt-1">
                       <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">⚙ Board</div>
-                      <button 
+                      <button
                         onClick={() => {
                           const newName = window.prompt("Rename Board", boardName);
                           if (newName !== null && newName.trim() !== "") {
@@ -1274,8 +1271,8 @@ export const TopBar = React.memo(function TopBar({
                       >
                         Rename Board
                       </button>
-                      <button 
-                        onClick={() => {}}
+                      <button
+                        onClick={() => { }}
                         className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-400 hover:bg-background rounded-lg flex items-center justify-between cursor-not-allowed"
                         disabled
                       >
@@ -1283,7 +1280,7 @@ export const TopBar = React.memo(function TopBar({
                         <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                       </button>
                       {role === "owner" && (
-                        <button 
+                        <button
                           onClick={() => confirmDeleteBoard(currentBoardId)}
                           disabled={!onDeleteBoard}
                           className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
@@ -1292,7 +1289,7 @@ export const TopBar = React.memo(function TopBar({
                         </button>
                       )}
                     </div>
-                    
+
                   </div>
                 )}
               </div>
@@ -1305,9 +1302,9 @@ export const TopBar = React.memo(function TopBar({
       {deleteConfirmOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto">
           {/* Backdrop */}
-          <div 
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
-            onClick={handleCancelDelete} 
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            onClick={handleCancelDelete}
           />
           {/* Modal */}
           <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -1324,14 +1321,14 @@ export const TopBar = React.memo(function TopBar({
               <p className="text-sm font-semibold text-foreground mt-2">
                 This action cannot be undone.
               </p>
-              
+
               {deleteError && (
                 <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs font-medium text-red-600">
                   {deleteError}
                 </div>
               )}
             </div>
-            
+
             <div className="px-6 py-4 bg-background flex items-center justify-end gap-3 rounded-b-2xl">
               <button
                 onClick={handleCancelDelete}

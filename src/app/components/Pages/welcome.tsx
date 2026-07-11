@@ -15,23 +15,23 @@ export default function Welcome() {
           backgroundSize: "24px 24px",
         }}
       />
-      
+
       <div className="relative z-10 w-full max-w-md px-6 py-12 bg-card rounded-3xl shadow-[0_12px_40px_rgba(0,0,0,0.08)] flex flex-col items-center text-center">
         <div
           className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-white text-sm font-semibold mb-6 shadow-md"
           style={{ background: "linear-gradient(135deg, #3742FA 0%, #7B61FF 100%)" }}
         >
           <Sparkles size={16} />
-          Hindustaan Collab
+          HIXCanvas
         </div>
-        
+
         <h1 className="text-3xl font-bold text-foreground leading-tight mb-3">
-          Welcome to Hindustaan Collab
+          Welcome to HIXCanvas
         </h1>
         <p className="text-muted-foreground text-sm mb-10 px-4">
           Where teams think, plan & create together. Choose how you want to proceed.
         </p>
-        
+
         <div className="w-full space-y-4">
           <Link to="/signup" className="block w-full">
             <Button
@@ -43,7 +43,7 @@ export default function Welcome() {
               Registration
             </Button>
           </Link>
-          
+
           <Link to="/login" className="block w-full">
             <Button
               type="button"

@@ -13,6 +13,7 @@ import TextNode from "../components/TextNode";
 import ShapeNode from "../components/ShapeNode";
 import TableNode from "../components/TableNode";
 import GraphNode from "../components/GraphNode";
+import DeviceFrameNode from "../components/DeviceFrameNode";
 import AIDialog from "../components/AIDialog";
 import Toolbar from "../components/Toolbar";
 import { boardService } from "../services/boardService";
@@ -34,7 +35,7 @@ const getSessionUser = () => {
   try {
     const token = localStorage.getItem("token");
     if (!token) return "Guest";
-    const s = localStorage.getItem("figjam_session");
+    const s = localStorage.getItem("HIXCanvas_session");
     if (s) {
       const parsed = JSON.parse(s);
       if (parsed && parsed.name) return parsed.name;
@@ -49,7 +50,7 @@ export default function App() {
   const { boardId: urlBoardId } = useParams();
   const navigate = useNavigate();
   const [tool, setTool] = useState<Tool>("select");
-  
+
   const { toast, showToast } = useToast();
 
   const [comments, setComments] = useState<Comment[]>([]);
@@ -80,6 +81,7 @@ export default function App() {
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const [livePts, setLivePts] = useState<Pt[]>([]);
   const [liveArrow, setLiveArrow] = useState<{ start: Pt, end: Pt } | null>(null);
+  const [marquee, setMarquee] = useState<{ start: Pt, end: Pt } | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
@@ -188,14 +190,15 @@ export default function App() {
     toolRef.current = tool;
   }, [penColor, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
-  
+
   // Interaction state refs
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
-  const dragRef = useRef<{ id: string; ox: number; oy: number }[] | null>(null);
+  const dragRef = useRef<{ startW: Pt; originalEls: El[] } | null>(null);
   const hasDraggedRef = useRef(false);
   const clickEditRef = useRef<string | null>(null);
   const drawRef = useRef<Pt[]>([]);
   const arrowRef = useRef<{ id: string; start: Pt } | null>(null);
+  const marqueeStartRef = useRef<Pt | null>(null);
   const loadingBoardIdRef = useRef<string | null>(null);
 
   const isRemoteUpdateRef = useRef(false);
@@ -230,9 +233,9 @@ export default function App() {
           const now = Date.now();
           if (idx !== -1) {
             const next = [...prev];
-            next[idx] = { 
-              ...next[idx], 
-              tx: msg.payload.x, 
+            next[idx] = {
+              ...next[idx],
+              tx: msg.payload.x,
               ty: msg.payload.y,
               lastUpdate: now,
               selIds: msg.payload.selIds || [],
@@ -291,7 +294,7 @@ export default function App() {
   // Send websocket updates (debounced)
   useEffect(() => {
     if (!currentBoardId) return;
-    
+
     if (isRemoteUpdateRef.current) {
       isRemoteUpdateRef.current = false;
       return;
@@ -306,7 +309,7 @@ export default function App() {
 
   // Load comments
   useEffect(() => {
-    const saved = localStorage.getItem("figjam-comments");
+    const saved = localStorage.getItem("HIXCanvas-comments");
     if (saved) {
       try {
         setComments(JSON.parse(saved));
@@ -316,7 +319,7 @@ export default function App() {
 
   // Save comments
   useEffect(() => {
-    localStorage.setItem("figjam-comments", JSON.stringify(comments));
+    localStorage.setItem("HIXCanvas-comments", JSON.stringify(comments));
   }, [comments]);
 
   // Cursor Interpolation Loop
@@ -421,6 +424,27 @@ export default function App() {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
+        if (selIdsRef.current.length > 0) {
+          const newEls = elsRef.current.filter(ex => selIdsRef.current.includes(ex.id)).map(el => {
+            const newEl = { ...el, id: uid() };
+            if ('x' in newEl) newEl.x += 20;
+            if ('y' in newEl) newEl.y += 20;
+            return newEl;
+          });
+          setEls(p => [...p, ...newEls]);
+          setSelIds(newEls.map(e => e.id));
+        }
+        e.preventDefault();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+        setSelIds(elsRef.current.map(el => el.id));
+        e.preventDefault();
+        return;
+      }
+
       const toolMap: Record<string, Tool> = {
         v: "select", h: "hand", s: "sticky", t: "text", r: "shape", p: "pen", e: "eraser", a: "arrow", l: "table", c: "comment"
       };
@@ -477,7 +501,7 @@ export default function App() {
     if (e.button === 2) return; // Right click
 
     if (editIdRef.current) return;
-    
+
     const isPan = toolRef.current === "hand" || spaceRef.current;
 
     if (isPan) {
@@ -540,7 +564,7 @@ export default function App() {
         clickEditRef.current = wasAlreadySelected && found.type === "sticky" ? id : null;
         hasDraggedRef.current = false;
 
-        if (e.shiftKey) {
+        if (e.shiftKey || e.ctrlKey || e.metaKey) {
           if (newSel.includes(id)) newSel = newSel.filter(x => x !== id);
           else newSel = [...newSel, id];
         } else {
@@ -550,10 +574,10 @@ export default function App() {
         selIdsRef.current = newSel;
         broadcastPresence(w.x, w.y, true);
 
-        dragRef.current = newSel.map(sid => {
-          const sEl = elsRef.current.find(x => x.id === sid);
-          return sEl ? { id: sid, ox: w.x - sEl.x, oy: w.y - sEl.y } : null;
-        }).filter(Boolean) as { id: string, ox: number, oy: number }[];
+        dragRef.current = {
+          startW: w,
+          originalEls: newSel.map(sid => elsRef.current.find(x => x.id === sid)).filter(Boolean) as El[]
+        };
 
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       }
@@ -562,13 +586,47 @@ export default function App() {
 
     // Clicked empty canvas
     if (toolRef.current === "select") {
-      if (!e.shiftKey) {
+      const rect = getRect();
+      const startW = worldPt(e.clientX, e.clientY, rect, camRef.current);
+      
+      let clickedInsideGroup = false;
+      if (selIdsRef.current.length > 1 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        selIdsRef.current.forEach(id => {
+          const el = elsRef.current.find(x => x.id === id);
+          if (!el) return;
+          const box = getElementBox(el);
+          if (box) {
+            minX = Math.min(minX, box.cx - box.w / 2);
+            minY = Math.min(minY, box.cy - box.h / 2);
+            maxX = Math.max(maxX, box.cx + box.w / 2);
+            maxY = Math.max(maxY, box.cy + box.h / 2);
+          }
+        });
+        if (minX !== Infinity) {
+          if (startW.x >= minX && startW.x <= maxX && startW.y >= minY && startW.y <= maxY) {
+            clickedInsideGroup = true;
+          }
+        }
+      }
+
+      if (clickedInsideGroup) {
+        dragRef.current = {
+          startW,
+          originalEls: selIdsRef.current.map(sid => elsRef.current.find(x => x.id === sid)).filter(Boolean) as El[]
+        };
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        return;
+      }
+      
+      if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
         setSelIds([]);
         selIdsRef.current = [];
-        const rect = getRect();
-        const w = worldPt(e.clientX, e.clientY, rect, camRef.current);
-        broadcastPresence(w.x, w.y, true);
+        broadcastPresence(startW.x, startW.y, true);
       }
+      
+      marqueeStartRef.current = startW;
+      setMarquee({ start: startW, end: startW });
       return;
     }
 
@@ -720,7 +778,7 @@ export default function App() {
   const onPtrMove = useCallback((e: React.PointerEvent) => {
     const rect = getRect();
     const w = worldPt(e.clientX, e.clientY, rect, camRef.current);
-    
+
     // Broadcast presence coordinates
     broadcastPresence(w.x, w.y);
 
@@ -730,12 +788,46 @@ export default function App() {
       return;
     }
 
+    if (marqueeStartRef.current) {
+      const start = marqueeStartRef.current;
+      setMarquee({ start, end: w });
+      
+      const mx = Math.min(start.x, w.x);
+      const my = Math.min(start.y, w.y);
+      const mw = Math.abs(start.x - w.x);
+      const mh = Math.abs(start.y - w.y);
+
+      const newSelIds: string[] = [];
+      elsRef.current.forEach((el) => {
+        if (el.locked) return;
+        const box = getElementBox(el);
+        if (box) {
+          const bx = box.cx - box.w / 2;
+          const by = box.cy - box.h / 2;
+          if (bx < mx + mw && bx + box.w > mx && by < my + mh && by + box.h > my) {
+            newSelIds.push(el.id);
+          }
+        }
+      });
+      setSelIds(newSelIds);
+      selIdsRef.current = newSelIds;
+      return;
+    }
+
     if (dragRef.current) {
       hasDraggedRef.current = true;
-      const dr = dragRef.current;
+      const { startW, originalEls } = dragRef.current;
+      const dx = w.x - startW.x;
+      const dy = w.y - startW.y;
+
       setEls(p => p.map(el => {
-        const d = dr.find(x => x.id === el.id);
-        return d ? { ...el, x: w.x - d.ox, y: w.y - d.oy } : el;
+        const orig = originalEls.find(x => x.id === el.id);
+        if (!orig) return el;
+        
+        if (orig.type === "path") {
+           return { ...orig, pts: orig.pts.map(pt => ({ x: pt.x + dx, y: pt.y + dy })) };
+        }
+        return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy };
       }));
       return;
     }
@@ -748,6 +840,11 @@ export default function App() {
 
   const onPtrUp = useCallback((_e: React.PointerEvent) => {
     panRef.current = null;
+
+    if (marqueeStartRef.current) {
+      marqueeStartRef.current = null;
+      setMarquee(null);
+    }
 
     if (dragRef.current) {
       if (!hasDraggedRef.current && clickEditRef.current) {
@@ -803,7 +900,7 @@ export default function App() {
     console.log("handleAIAction called with action:", action, "data:", data);
     const cx = (window.innerWidth / 2 - camRef.current.x) / camRef.current.z;
     const cy = (window.innerHeight / 2 - camRef.current.y) / camRef.current.z;
-    
+
     const startX = cx;
     const startY = cy;
 
@@ -815,28 +912,28 @@ export default function App() {
         const NODE_W = 160;
         const NODE_H = 80;
         const GAP_Y = 100;
-        
+
         // simple grid layout
         let currY = startY;
         const nodeEls: any[] = [];
         const edgesEls: any[] = [];
-        
+
         const nodeIds = data.nodes.map(() => uid());
-        
+
         data.nodes.forEach((n: any, i: number) => {
           nodeEls.push({
             id: nodeIds[i],
             type: "shape",
             kind: "rect",
-            w: NODE_W, 
+            w: NODE_W,
             h: NODE_H,
             color: "#3742FA",
             x: startX - (NODE_W / 2),
             y: currY + i * (NODE_H + GAP_Y),
-            text: n.text || `Node ${i+1}`
+            text: n.text || `Node ${i + 1}`
           });
         });
-        
+
         if (data.edges && Array.isArray(data.edges)) {
           data.edges.forEach((e: any) => {
             const sourceId = typeof e.source === 'number' ? nodeIds[e.source] : nodeIds.find((_: string, i: number) => data.nodes[i].id === e.source || data.nodes[i].text === e.source);
@@ -853,7 +950,7 @@ export default function App() {
             }
           });
         }
-        
+
         newEls = [...nodeEls, ...edgesEls];
         setEls(p => [...p, ...newEls]);
         return;
@@ -864,7 +961,7 @@ export default function App() {
       if (typeof mermaidStr !== "string") {
         mermaidStr = typeof data === "object" ? JSON.stringify(data) : null;
       }
-      
+
       if (mermaidStr) {
         console.log("Handling create_flowchart with mermaid data");
         try {
@@ -873,7 +970,7 @@ export default function App() {
           console.error("Failed to parse mermaid:", err);
           newEls = [];
         }
-        
+
         if (newEls.length === 0) {
           // Failsafe: if the parser fails to extract any nodes, drop the raw code in a sticky note
           newEls = [{
@@ -881,7 +978,7 @@ export default function App() {
             color: "#FFEB3B", text: "Could not render flowchart. Raw code:\n\n" + mermaidStr
           } as StickyEl];
         }
-        
+
         console.log("Created mermaid nodes:", newEls);
         setEls(p => [...p, ...newEls]);
       } else {
@@ -892,7 +989,7 @@ export default function App() {
         };
         setEls(p => [...p, fallbackNote]);
       }
-    } 
+    }
     else if (action === "create_graph" || action === "graph") {
       if (data && data.chartType) {
         const newGraph: GraphEl = {
@@ -934,7 +1031,7 @@ export default function App() {
         tasks.forEach((task: any, j: number) => {
           newEls.push({
             id: uid(), type: "sticky",
-            w: 240, h: 100, color: STICKY_COLORS[Math.floor(Math.random()*STICKY_COLORS.length)],
+            w: 240, h: 100, color: STICKY_COLORS[Math.floor(Math.random() * STICKY_COLORS.length)],
             x: colX + 20, y: colY + 60 + (j * 120),
             text: task.text
           });
@@ -1049,11 +1146,26 @@ export default function App() {
   }, []);
 
   const onInsertIcon = useCallback((iconName: string) => {
-    // Place the new icon at the current center of the visible canvas
+    // Place the new item at the current center of the visible canvas
     const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const centerWorld = worldPt(centerScreen.x, centerScreen.y, getRect(), camRef.current);
 
     const id = uid();
+
+    if (iconName.startsWith("device-frame:")) {
+      const kind = iconName.replace("device-frame:", "") as "browser" | "phone";
+      setEls(p => [...p, {
+        id, type: "device_frame",
+        kind,
+        x: centerWorld.x - (kind === "browser" ? 400 : 150),
+        y: centerWorld.y - (kind === "browser" ? 300 : 300),
+        w: kind === "browser" ? 800 : 300,
+        h: kind === "browser" ? 600 : 600,
+        color: "#1C1B1F",
+      }]);
+      return;
+    }
+
     const size = 48;
     setEls(p => [...p, {
       id, type: "icon",
@@ -1070,18 +1182,18 @@ export default function App() {
     if (id === currentBoardId) {
       setBoardName(name);
     }
-    
+
     // Optimistically update the boards list
     setBoards(prev => prev.map(b => b.id === id ? { ...b, name } : b));
-    
+
     try {
       await boardService.updateBoard(id, name);
     } catch (e: any) {
       console.error("Failed to rename board", e);
       showToast(e.response?.data?.message || "Failed to rename board", "error");
-      
+
       // Revert optimism by refetching boards
-      boardService.getBoards().then(setBoards).catch(() => {});
+      boardService.getBoards().then(setBoards).catch(() => { });
     }
   }, [currentBoardId, setBoardName, showToast, setBoards]);
 
@@ -1091,7 +1203,7 @@ export default function App() {
         await boardService.deleteBoard(id);
         const remaining = boards.filter(b => b.id !== id);
         setBoards(remaining);
-        
+
         // Only redirect or recreate if we deleted the currently active board
         if (id === currentBoardId) {
           if (remaining.length > 0) {
@@ -1148,7 +1260,7 @@ export default function App() {
     try {
       const board = await boardService.getBoard(id);
       if (loadingBoardIdRef.current !== id) return;
-      
+
       if (board) {
         setCurrentBoardId(board.id);
         setBoardName(board.name);
@@ -1157,7 +1269,7 @@ export default function App() {
         try {
           const content = await boardService.getBoardContent(board.id);
           if (loadingBoardIdRef.current !== id) return;
-          
+
           const newEls = content.els && content.els.length > 0 ? content.els : INIT_ELS;
           setEls(newEls);
           setHistory([newEls]);
@@ -1222,7 +1334,7 @@ export default function App() {
 
       {/* Canvas event capture */}
       <div
-        id="figjam-board-capture"
+        id="HIXCanvas-board-capture"
         ref={wrapRef}
         className="absolute inset-0"
         onPointerDown={onPtrDown}
@@ -1237,177 +1349,212 @@ export default function App() {
         >
           {/* Main elements loop */}
           {els.map(el => {
-            if (el.type === "sticky") {
-              return (
-                <StickyNote
-                  key={el.id} el={el}
-                  selected={selIds.includes(el.id)} editing={editId === el.id}
-                  zoom={cam.z}
-                  onBlur={onBlur} onDblClick={onElDblClick}
-                  onStartConnect={onStartConnect}
-                  onUpdate={onUpdateEl}
-                />
-              );
+            const selected = selIds.includes(el.id);
+            const editing = editId === el.id;
+
+            const onResizeShape = (id: string, partial: any) => {
+              setEls(p => p.map(e => e.id === id ? Object.assign({}, e, partial) as any : e));
+            };
+
+            switch (el.type) {
+              case "sticky":
+                return (
+                  <StickyNote
+                    key={el.id} el={el}
+                    selected={selected} editing={editing}
+                    zoom={cam.z}
+                    onBlur={onBlur} onDblClick={onElDblClick}
+                    onStartConnect={onStartConnect}
+                    onUpdate={onUpdateEl}
+                  />
+                );
+              case "text":
+                return (
+                  <TextNode
+                    key={el.id} el={el}
+                    selected={selected} editing={editing}
+                    onBlur={onBlur} onDblClick={onElDblClick}
+                  />
+                );
+              case "shape":
+                return (
+                  <ShapeNode
+                    key={el.id} el={el as ShapeEl}
+                    selected={selected}
+                    onStartConnect={onStartConnect}
+                    editing={editing}
+                    onResize={onResizeShape}
+                    onDblClick={(id) => setEditId(id)}
+                    onBlur={(id, text) => {
+                      setEls((current) =>
+                        current.map((item) =>
+                          item.id === id ? (Object.assign({}, item, { text }) as any) : item
+                        ) as El[]
+                      );
+                      setEditId(null);
+                    }}
+                  />
+                );
+              case "device_frame":
+                return (
+                  <DeviceFrameNode
+                    key={el.id} el={el as any} selected={selected}
+                    onResize={onResizeShape}
+                  />
+                );
+              case "table":
+                return (
+                  <TableNode
+                    key={el.id} el={el as any}
+                    selected={selected}
+                    editingId={editId}
+                    zoom={cam.z}
+                    onBlur={onBlur}
+                    onDblClick={onElDblClick}
+                    onUpdate={onUpdateEl}
+                  />
+                );
+              case "icon":
+                return (
+                  <IconNode
+                    key={el.id} el={el as any}
+                    selected={selected}
+                    onResize={(id, size) => onUpdateEl(id, { size })}
+                  />
+                );
+              case "connection":
+                const c = el as ConnectionEl;
+                const fromEl = els.find(x => x.id === c.from);
+                const toEl = els.find(x => x.id === c.to);
+                if (!fromEl || !toEl) return null;
+
+                const box1 = getElementBox(fromEl);
+                const box2 = getElementBox(toEl);
+                if (!box1 || !box2) return null;
+
+                const pt1 = getBoundaryPt(box1.cx, box1.cy, box1.w, box1.h, box2.cx, box2.cy);
+                const pt2 = getBoundaryPt(box2.cx, box2.cy, box2.w, box2.h, box1.cx, box1.cy);
+
+                return (
+                  <svg key={c.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
+                    <defs>
+                      <marker id={`arrowhead-${c.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
+                      </marker>
+                    </defs>
+                    <g data-el-id={c.id}>
+                      <line
+                        x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
+                        stroke="transparent" strokeWidth="20"
+                        style={{ pointerEvents: "stroke", cursor: tool === "select" ? "pointer" : undefined }}
+                      />
+                      <line
+                        x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
+                        stroke={c.color} strokeWidth="3" markerEnd={`url(#arrowhead-${c.id})`}
+                        style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
+                      />
+                    </g>
+                  </svg>
+                );
+              case "free_arrow":
+                const fa = el as FreeArrowEl;
+                const fpt1 = { x: fa.x, y: fa.y };
+                const fpt2 = { x: fa.x + fa.dx, y: fa.y + fa.dy };
+                return (
+                  <svg key={fa.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
+                    <defs>
+                      <marker id={`arrowhead-${fa.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                        <polygon points="0 0, 10 3.5, 0 7" fill={fa.color} />
+                      </marker>
+                    </defs>
+                    <g data-el-id={fa.id}>
+                      <line
+                        x1={fpt1.x} y1={fpt1.y} x2={fpt2.x} y2={fpt2.y}
+                        stroke="transparent" strokeWidth="20"
+                        style={{ pointerEvents: "stroke", cursor: tool === "select" ? "pointer" : undefined }}
+                      />
+                      <line
+                        x1={fpt1.x} y1={fpt1.y} x2={fpt2.x} y2={fpt2.y}
+                        stroke={fa.color} strokeWidth="3" markerEnd={`url(#arrowhead-${fa.id})`}
+                        style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
+                      />
+                    </g>
+                  </svg>
+                );
+              case "path":
+                const p = el as PathEl;
+                const isHighlighter = p.penType === "highlighter";
+                return (
+                  <svg key={p.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
+                    <g data-el-id={p.id}>
+                      <path
+                        d={pathD(p.pts)} stroke="transparent" strokeWidth={Math.max(20, p.sw + 10)} fill="none" strokeLinecap="round" strokeLinejoin="round"
+                        style={{ pointerEvents: "stroke", cursor: tool === "select" ? "grab" : undefined }}
+                      />
+                      <path
+                        d={pathD(p.pts)} stroke={p.color} strokeWidth={p.sw} fill="none" strokeLinecap="round" strokeLinejoin="round"
+                        style={{ pointerEvents: "none", opacity: isHighlighter ? 0.3 : 1, mixBlendMode: isHighlighter ? "multiply" : undefined, filter: selected ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
+                      />
+                    </g>
+                  </svg>
+                );
+              case "graph":
+                return (
+                  <GraphNode
+                    key={el.id} el={el as any}
+                    selected={selected}
+                  />
+                );
+              default:
+                return null;
             }
-            if (el.type === "text") {
-              return (
-                <TextNode
-                  key={el.id} el={el}
-                  selected={selIds.includes(el.id)} editing={editId === el.id}
-                  onBlur={onBlur} onDblClick={onElDblClick}
-                />
-              );
-            }
-            // if (el.type === "shape") {
-            //   return <ShapeNode key={el.id} el={el} selected={selIds.includes(el.id)} onStartConnect={onStartConnect} />;
-            // }
-            if (el.type === "shape") {
-              return (
-                <ShapeNode
-                  key={el.id}
-                  el={el as ShapeEl}
-                  selected={selIds.includes(el.id)}
-                  onStartConnect={onStartConnect}
-                  editing={editId === el.id}
-
-                  // Fixed: Using Object.assign to bypass type union spreading errors
-                  onResize={(id, partial) => {
-                    setEls((current) =>
-                      current.map((item) =>
-                        item.id === id ? (Object.assign({}, item, partial) as any) : item
-                      ) as El[]
-                    );
-                  }}
-
-                  onDblClick={(id) => setEditId(id)}
-
-                  onBlur={(id, text) => {
-                    setEls((current) =>
-                      current.map((item) =>
-                        item.id === id ? (Object.assign({}, item, { text }) as any) : item
-                      ) as El[]
-                    );
-                    setEditId(null);
-                  }}
-                />
-              );
-            }
-
-
-
-            if (el.type === "table") {
-              return (
-                <TableNode
-                  key={el.id} el={el}
-                  selected={selIds.includes(el.id)}
-                  editingId={editId}
-                  zoom={cam.z}
-                  onBlur={onBlur}
-                  onDblClick={onElDblClick}
-                  onUpdate={onUpdateEl}
-                />
-              );
-            }
-            if (el.type === "icon") {
-              return (
-                <IconNode
-                  key={el.id}
-                  el={el}
-                  selected={selIds.includes(el.id)}
-                  onResize={(id, size) => onUpdateEl(id, { size })}
-                />
-              );
-            }
-
-            if (el.type === "connection") {
-              const c = el as ConnectionEl;
-              const fromEl = els.find(x => x.id === c.from);
-              const toEl = els.find(x => x.id === c.to);
-              if (!fromEl || !toEl) return null;
-
-              const box1 = getElementBox(fromEl);
-              const box2 = getElementBox(toEl);
-              if (!box1 || !box2) return null;
-
-              const pt1 = getBoundaryPt(box1.cx, box1.cy, box1.w, box1.h, box2.cx, box2.cy);
-              const pt2 = getBoundaryPt(box2.cx, box2.cy, box2.w, box2.h, box1.cx, box1.cy);
-
-              return (
-                <svg key={c.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
-                  <defs>
-                    <marker id={`arrowhead-${c.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
-                    </marker>
-                  </defs>
-                  <g data-el-id={c.id}>
-                    <line
-                      x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
-                      stroke="transparent" strokeWidth="20"
-                      style={{ pointerEvents: "stroke", cursor: tool === "select" ? "pointer" : undefined }}
-                    />
-                    <line
-                      x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
-                      stroke={c.color} strokeWidth="3" markerEnd={`url(#arrowhead-${c.id})`}
-                      style={{ pointerEvents: "none", filter: selIds.includes(c.id) ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
-                    />
-                  </g>
-                </svg>
-              );
-            }
-            if (el.type === "free_arrow") {
-              const fa = el as FreeArrowEl;
-              const pt1 = { x: fa.x, y: fa.y };
-              const pt2 = { x: fa.x + fa.dx, y: fa.y + fa.dy };
-              return (
-                <svg key={fa.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
-                  <defs>
-                    <marker id={`arrowhead-${fa.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" fill={fa.color} />
-                    </marker>
-                  </defs>
-                  <g data-el-id={fa.id}>
-                    <line
-                      x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
-                      stroke="transparent" strokeWidth="20"
-                      style={{ pointerEvents: "stroke", cursor: tool === "select" ? "pointer" : undefined }}
-                    />
-                    <line
-                      x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
-                      stroke={fa.color} strokeWidth="3" markerEnd={`url(#arrowhead-${fa.id})`}
-                      style={{ pointerEvents: "none", filter: selIds.includes(fa.id) ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
-                    />
-                  </g>
-                </svg>
-              );
-            }
-            if (el.type === "path") {
-              const p = el as PathEl;
-              const isHighlighter = p.penType === "highlighter";
-              return (
-                <svg key={p.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
-                  <g data-el-id={p.id}>
-                    <path
-                      d={pathD(p.pts)} stroke="transparent" strokeWidth={Math.max(20, p.sw + 10)} fill="none" strokeLinecap="round" strokeLinejoin="round"
-                      style={{ pointerEvents: "stroke", cursor: tool === "select" ? "grab" : undefined }}
-                    />
-                    <path
-                      d={pathD(p.pts)} stroke={p.color} strokeWidth={p.sw} fill="none" strokeLinecap="round" strokeLinejoin="round"
-                      style={{ pointerEvents: "none", opacity: isHighlighter ? 0.3 : 1, mixBlendMode: isHighlighter ? "multiply" : undefined, filter: selIds.includes(p.id) ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
-                    />
-                  </g>
-                </svg>
-              );
-            }
-            if (el.type === "graph") {
-              return (
-                <GraphNode
-                  key={el.id} el={el as any}
-                  selected={selIds.includes(el.id)}
-                />
-              );
-            }
-            return null;
           })}
+
+          {/* Group Bounding Box Overlay */}
+          {selIds.length > 1 && (() => {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            selIds.forEach(id => {
+              const el = els.find(x => x.id === id);
+              if (!el) return;
+              const box = getElementBox(el);
+              if (box) {
+                minX = Math.min(minX, box.cx - box.w / 2);
+                minY = Math.min(minY, box.cy - box.h / 2);
+                maxX = Math.max(maxX, box.cx + box.w / 2);
+                maxY = Math.max(maxY, box.cy + box.h / 2);
+              }
+            });
+            if (minX === Infinity) return null;
+            return (
+              <div
+                className="absolute border-2 border-[#3742FA] pointer-events-none rounded-sm"
+                style={{
+                  left: minX - 8,
+                  top: minY - 8,
+                  width: (maxX - minX) + 16,
+                  height: (maxY - minY) + 16,
+                  zIndex: 40
+                }}
+              >
+                <div className="absolute -top-7 left-0 bg-[#3742FA] text-white text-[11px] font-bold px-2 py-1 rounded shadow-sm whitespace-nowrap">
+                  {selIds.length} items selected
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Marquee Selection Box */}
+          {marquee && (
+            <div
+              className="absolute bg-[#3742FA]/10 border border-[#3742FA] pointer-events-none z-50"
+              style={{
+                left: Math.min(marquee.start.x, marquee.end.x),
+                top: Math.min(marquee.start.y, marquee.end.y),
+                width: Math.abs(marquee.start.x - marquee.end.x),
+                height: Math.abs(marquee.start.y - marquee.end.y),
+              }}
+            />
+          )}
 
           {/* Live drawing preview */}
           {(livePts.length > 1 || liveArrow) && (
@@ -1438,7 +1585,7 @@ export default function App() {
             return p.selIds.map(sid => {
               const el = els.find(e => e.id === sid);
               if (!el) return null;
-              
+
               const box = getElementBox(el);
               if (!box) return null;
 
@@ -1455,7 +1602,7 @@ export default function App() {
                     zIndex: 50
                   }}
                 >
-                  <div 
+                  <div
                     className="absolute -top-5 left-[-2px] px-1.5 py-0.5 text-[10px] text-white font-bold whitespace-nowrap shadow-sm"
                     style={{ backgroundColor: p.color }}
                   >

@@ -17,7 +17,7 @@ import axios from "axios";
 // Configure global Axios settings
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? "http://127.0.0.1:8000" : "https://apijam.allindiahub.com");
 
-const SESSION_KEY = "figjam_session";
+const SESSION_KEY = "HIXCanvas_session";
 
 function isAuthenticated() {
   return !!localStorage.getItem(SESSION_KEY);

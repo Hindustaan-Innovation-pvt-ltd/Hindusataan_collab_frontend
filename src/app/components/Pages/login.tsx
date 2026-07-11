@@ -7,8 +7,8 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
 
-const USERS_KEY = "figjam_users";
-const SESSION_KEY = "figjam_session";
+const USERS_KEY = "HIXCanvas_users";
+const SESSION_KEY = "HIXCanvas_session";
 
 interface StoredUser {
   name: string;
@@ -31,7 +31,7 @@ function setSession(user: Omit<StoredUser, "password">) {
 export default function Login() {
   const navigate = useNavigate();
   const [flow, setFlow] = useState<"initial" | "email-otp" | "phone-otp" | "password" | "forgot-password-request">("initial");
-  
+
   const [resetType, setResetType] = useState<"email" | "phone">("email");
   const [resetEmail, setResetEmail] = useState("");
   const [resetPhone, setResetPhone] = useState("");
@@ -40,7 +40,7 @@ export default function Login() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [resetOtpSent, setResetOtpSent] = useState(false);
-  
+
   const [email, setEmail] = useState("");
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [phone, setPhone] = useState("");
@@ -48,7 +48,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
-  
+
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -209,7 +209,7 @@ export default function Login() {
 
     setLoading(true);
     const sanitizedContact = (countryCode + phone).replace(/\s+/g, "");
-    
+
     try {
       await axios.post("/auth/send-otp", { phone: sanitizedContact });
       setOtpSent(true);
@@ -228,20 +228,20 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setSuccess("");
-    
+
     if (!otp) {
       setError("Please enter OTP.");
       return;
     }
-    
+
     const sanitizedOtp = otp.trim();
     if (!/^\d{6}$/.test(sanitizedOtp)) {
       setError(sanitizedOtp.length !== 6 ? "OTP must contain exactly 6 digits." : "Invalid OTP format.");
       return;
     }
-    
-    let sanitizedContact = flow === "phone-otp" 
-      ? (countryCode + phone).replace(/\s+/g, "") 
+
+    let sanitizedContact = flow === "phone-otp"
+      ? (countryCode + phone).replace(/\s+/g, "")
       : email.trim().toLowerCase();
 
     setLoading(true);
@@ -256,7 +256,7 @@ export default function Login() {
 
       if (response.data?.user && (response.data?.access_token || response.data?.token)) {
         setSession(response.data.user);
-        localStorage.setItem("figjam_token", response.data.access_token || response.data.token);
+        localStorage.setItem("HIXCanvas_token", response.data.access_token || response.data.token);
         setTimeout(() => navigate("/", { replace: true }), 400);
       } else {
         throw new Error("No user data in response");
@@ -305,14 +305,14 @@ export default function Login() {
       setLoading(true);
       try {
         const response = await axios.post("/auth/login", { email: emailOrPhone.trim().toLowerCase(), password });
-        
+
         if (response.data?.user && (response.data?.access_token || response.data?.token)) {
           setSession(response.data.user);
           localStorage.setItem("token", response.data.access_token || response.data.token);
           if (!remember) {
-             sessionStorage.setItem("figjam_ephemeral", "1");
+            sessionStorage.setItem("HIXCanvas_ephemeral", "1");
           } else {
-             sessionStorage.removeItem("figjam_ephemeral");
+            sessionStorage.removeItem("HIXCanvas_ephemeral");
           }
           navigate("/", { replace: true });
         } else {
@@ -354,7 +354,7 @@ export default function Login() {
             style={{ background: "linear-gradient(135deg, #3742FA 0%, #7B61FF 100%)" }}
           >
             <Sparkles size={16} />
-            Hindustaan Collab
+            HIXCanvas
           </div>
           <h1 className="text-4xl font-bold text-foreground leading-tight mb-4">
             Pick up right where you left off
@@ -426,7 +426,7 @@ export default function Login() {
                 </div>
                 Continue with GitHub
               </Button>
-              
+
               <div className="relative flex py-2 items-center my-4">
                 <div className="flex-grow border-t border-border"></div>
                 <span className="flex-shrink mx-4 text-muted-foreground text-xs font-semibold uppercase tracking-wider">or</span>

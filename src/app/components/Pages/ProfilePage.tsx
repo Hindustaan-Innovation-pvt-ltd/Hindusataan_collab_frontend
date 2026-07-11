@@ -14,13 +14,13 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const hasChanges = profile ? (formData.name !== profile.name || formData.bio !== (profile.bio || "")) : false;
   const [error, setError] = useState<string | null>(null);
-  
+
   // Avatar states
   const [stagedAvatar, setStagedAvatar] = useState<File | null>(null);
   const [stagedAvatarUrl, setStagedAvatarUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -32,14 +32,14 @@ export default function ProfilePage() {
       const data = await userService.getProfile();
       setProfile(data);
       setFormData({ name: data.name, bio: data.bio || "" });
-      
+
       // Update session storage for TopBar avatar
-      const s = localStorage.getItem("figjam_session");
+      const s = localStorage.getItem("HIXCanvas_session");
       if (s) {
         const parsed = JSON.parse(s);
         parsed.name = data.name;
         parsed.avatar = data.avatar;
-        localStorage.setItem("figjam_session", JSON.stringify(parsed));
+        localStorage.setItem("HIXCanvas_session", JSON.stringify(parsed));
       }
     } catch (e: any) {
       console.error(e);
@@ -65,7 +65,7 @@ export default function ProfilePage() {
     e.preventDefault();
     const trimmedName = formData.name.trim();
     const trimmedBio = formData.bio.trim();
-    
+
     if (!trimmedName) {
       toast.error("Name cannot be empty");
       return;
@@ -82,7 +82,7 @@ export default function ProfilePage() {
       toast.error("Bio must be less than 300 characters");
       return;
     }
-    
+
     setIsSaving(true);
     try {
       await userService.updateProfile({ name: trimmedName, bio: trimmedBio });
@@ -100,7 +100,7 @@ export default function ProfilePage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     // Validate size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File is too large (max 5MB).");
@@ -125,15 +125,15 @@ export default function ProfilePage() {
       const response = await userService.uploadAvatar(stagedAvatar);
       toast.success("Profile picture updated");
       const newAvatarUrl = response.avatar_url;
-      
+
       setProfile({ ...profile, avatar: newAvatarUrl });
-      
+
       // Update session storage
-      const s = localStorage.getItem("figjam_session");
+      const s = localStorage.getItem("HIXCanvas_session");
       if (s) {
         const parsed = JSON.parse(s);
         parsed.avatar = newAvatarUrl;
-        localStorage.setItem("figjam_session", JSON.stringify(parsed));
+        localStorage.setItem("HIXCanvas_session", JSON.stringify(parsed));
         window.dispatchEvent(new Event("sessionUpdated"));
       }
 
@@ -161,15 +161,15 @@ export default function ProfilePage() {
     try {
       await userService.deleteAvatar();
       toast.success("Profile picture removed");
-      
+
       setProfile({ ...profile, avatar: "" });
-      
+
       // Update session storage
-      const s = localStorage.getItem("figjam_session");
+      const s = localStorage.getItem("HIXCanvas_session");
       if (s) {
         const parsed = JSON.parse(s);
         parsed.avatar = "";
-        localStorage.setItem("figjam_session", JSON.stringify(parsed));
+        localStorage.setItem("HIXCanvas_session", JSON.stringify(parsed));
         window.dispatchEvent(new Event("sessionUpdated"));
       }
     } catch (e) {
@@ -197,7 +197,7 @@ export default function ProfilePage() {
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">Oops! Something went wrong</h2>
           <p className="text-sm text-muted-foreground mb-6">{error}</p>
-          <button 
+          <button
             onClick={() => { setError(null); setIsLoading(true); fetchProfile(); }}
             className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-sm"
           >
@@ -215,7 +215,7 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center gap-4">
-          <button 
+          <button
             onClick={() => navigate("/")}
             className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors text-muted-foreground"
           >
@@ -226,7 +226,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 mt-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Left Column: Profile Card */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-card rounded-2xl shadow-sm border border-border/60 overflow-hidden">
@@ -241,7 +241,7 @@ export default function ProfilePage() {
                       {profile.name.charAt(0)}
                     </div>
                   )}
-                  
+
                   {isUploading && (
                     <div className="absolute inset-0 bg-card/70 flex items-center justify-center z-10">
                       <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
@@ -249,7 +249,7 @@ export default function ProfilePage() {
                   )}
 
                   {!stagedAvatarUrl && !isUploading && (
-                    <div 
+                    <div
                       onClick={() => fileInputRef.current?.click()}
                       className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white"
                       title="Upload Photo"
@@ -258,10 +258,10 @@ export default function ProfilePage() {
                     </div>
                   )}
                 </div>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  className="hidden" 
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
                   accept="image/jpeg, image/png, image/webp"
                   onChange={handleFileChange}
                 />
@@ -270,14 +270,14 @@ export default function ProfilePage() {
               {/* Avatar Controls */}
               {stagedAvatarUrl ? (
                 <div className="flex justify-center gap-2 mb-4">
-                  <button 
+                  <button
                     onClick={handleCancelAvatar}
                     disabled={isUploading}
                     className="px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={handleSaveAvatar}
                     disabled={isUploading}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50"
@@ -288,7 +288,7 @@ export default function ProfilePage() {
                 </div>
               ) : (
                 <div className="flex justify-center gap-2 mb-4">
-                  <button 
+                  <button
                     onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-foreground bg-background hover:bg-muted border border-border rounded-lg transition-colors shadow-sm"
                   >
@@ -296,7 +296,7 @@ export default function ProfilePage() {
                     Upload Photo
                   </button>
                   {profile.avatar && (
-                    <button 
+                    <button
                       onClick={handleRemoveAvatar}
                       disabled={isRemoving}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shadow-sm disabled:opacity-50"
@@ -307,10 +307,10 @@ export default function ProfilePage() {
                   )}
                 </div>
               )}
-              
+
               <h2 className="text-xl font-bold text-foreground truncate">{profile.name}</h2>
               <p className="text-sm text-muted-foreground font-medium truncate mb-4">{profile.email}</p>
-              
+
               <div className="flex flex-wrap justify-center gap-2 mb-6">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold">
                   <Shield size={12} /> {profile.role}
@@ -319,8 +319,8 @@ export default function ProfilePage() {
                   <Clock size={12} /> Joined {new Date(profile.created_at).toLocaleDateString()}
                 </span>
               </div>
-              
-              <button 
+
+              <button
                 onClick={() => setIsEditing(true)}
                 className="w-full py-2 px-4 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
               >
@@ -333,22 +333,22 @@ export default function ProfilePage() {
 
         {/* Right Column: Details & Recent Boards */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Details / Edit Form */}
           <div className="bg-card rounded-2xl shadow-sm border border-border/60 p-6 md:p-8">
             <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
               <UserIcon /> Personal Information
             </h3>
-            
+
             {isEditing ? (
               <form onSubmit={handleSave} className="space-y-5 animate-in fade-in duration-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-muted-foreground uppercase">Full Name</label>
-                    <input 
+                    <input
                       type="text"
                       value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-3.5 py-2 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-card transition-colors text-sm font-medium"
                       placeholder="Your name"
                       maxLength={100}
@@ -356,7 +356,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-muted-foreground uppercase">Email Address</label>
-                    <input 
+                    <input
                       type="email"
                       value={profile.email}
                       disabled
@@ -365,12 +365,12 @@ export default function ProfilePage() {
                     <p className="text-[10px] text-gray-400">Email cannot be changed.</p>
                   </div>
                 </div>
-                
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-muted-foreground uppercase">Bio</label>
-                  <textarea 
+                  <textarea
                     value={formData.bio}
-                    onChange={e => setFormData({...formData, bio: e.target.value})}
+                    onChange={e => setFormData({ ...formData, bio: e.target.value })}
                     className="w-full px-3.5 py-3 bg-background border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-card transition-colors text-sm font-medium resize-none"
                     placeholder="Tell us about yourself..."
                     rows={4}
@@ -378,9 +378,9 @@ export default function ProfilePage() {
                   ></textarea>
                   <div className="text-right text-[10px] text-gray-400">{formData.bio.length}/300</div>
                 </div>
-                
+
                 <div className="pt-4 flex items-center justify-end gap-3 border-t border-border">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => {
                       setIsEditing(false);
@@ -390,7 +390,7 @@ export default function ProfilePage() {
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     type="submit"
                     disabled={isSaving || !hasChanges}
                     className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-2 shadow-sm shadow-indigo-200 disabled:opacity-70"
@@ -419,7 +419,7 @@ export default function ProfilePage() {
                     </p>
                   </div>
                 </div>
-                
+
                 <div>
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-1">Bio</p>
                   <p className="text-sm text-foreground leading-relaxed bg-background p-4 rounded-xl border border-border min-h-[80px]">
@@ -434,20 +434,20 @@ export default function ProfilePage() {
           <div className="bg-card rounded-2xl shadow-sm border border-border/60 overflow-hidden">
             <div className="px-6 py-5 border-b border-border flex items-center justify-between">
               <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <LayoutDashboard size={18} className="text-indigo-500" /> 
+                <LayoutDashboard size={18} className="text-indigo-500" />
                 Recent Boards
               </h3>
               <span className="text-xs font-semibold text-muted-foreground bg-muted px-2 py-1 rounded-full">
                 Total: {profile.total_boards}
               </span>
             </div>
-            
+
             <div className="p-2">
               {profile.recent_boards && profile.recent_boards.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {profile.recent_boards.map(board => (
-                    <Link 
-                      to={`/board/${board.id}/${encodeURIComponent(board.name.replace(/\s+/g, "-"))}`} 
+                    <Link
+                      to={`/board/${board.id}/${encodeURIComponent(board.name.replace(/\s+/g, "-"))}`}
                       key={board.id}
                       className="group flex flex-col p-4 rounded-xl hover:bg-indigo-50 border border-transparent hover:border-indigo-100 transition-all"
                     >
@@ -476,7 +476,7 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-          
+
         </div>
       </div>
     </div>

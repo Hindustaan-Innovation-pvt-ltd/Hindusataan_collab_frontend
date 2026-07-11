@@ -1,4 +1,4 @@
-import type { Cam, El, Pt, ShapeKind, StickyEl, ShapeEl, TextEl } from "../types";
+import type { Cam, El, Pt, ShapeKind, StickyEl, ShapeEl, TextEl, TableEl, IconEl, FreeArrowEl, PathEl, GraphEl, DeviceFrameEl } from "../types";
 
 // ── ID Generator ───────────────────────────────────────────────────────────────
 
@@ -16,15 +16,40 @@ export function pathD(pts: Pt[]): string {
 }
 
 export function getElementBox(el: El): { cx: number; cy: number; w: number; h: number } | null {
-  if (el.type === "sticky" || el.type === "shape") {
-    const e = el as StickyEl | ShapeEl;
-    return { cx: e.x + e.w / 2, cy: e.y + e.h / 2, w: e.w, h: e.h };
+  if (el.type === "sticky" || el.type === "shape" || el.type === "device_frame" || el.type === "graph" || el.type === "icon") {
+    const e = el as StickyEl | ShapeEl | DeviceFrameEl | GraphEl | IconEl;
+    const w = "w" in e ? e.w : ("size" in e ? e.size : 100);
+    const h = "h" in e ? e.h : ("size" in e ? e.size : 100);
+    return { cx: e.x + w / 2, cy: e.y + h / 2, w, h };
   }
   if (el.type === "text") {
     const e = el as TextEl;
     const w = 120;
     const h = e.fontSize * 1.5;
     return { cx: e.x + w / 2, cy: e.y + h / 2, w, h };
+  }
+  if (el.type === "table") {
+    const e = el as TableEl;
+    const w = e.cols * e.cellW;
+    const h = e.rows * e.cellH;
+    return { cx: e.x + w / 2, cy: e.y + h / 2, w, h };
+  }
+  if (el.type === "path") {
+    const e = el as PathEl;
+    if (!e.pts || e.pts.length === 0) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    e.pts.forEach(p => {
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    });
+    return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: Math.max(maxX - minX, 10), h: Math.max(maxY - minY, 10) };
+  }
+  if (el.type === "free_arrow") {
+    const e = el as FreeArrowEl;
+    const x1 = e.x, y1 = e.y, x2 = e.x + e.dx, y2 = e.y + e.dy;
+    const minX = Math.min(x1, x2), minY = Math.min(y1, y2);
+    const maxX = Math.max(x1, x2), maxY = Math.max(y1, y2);
+    return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: Math.max(maxX - minX, 10), h: Math.max(maxY - minY, 10) };
   }
   return null;
 }

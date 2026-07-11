@@ -1,7 +1,7 @@
 
-  # FigJam clone
+  # HIXCanvas clone
 
-  This is a code bundle for FigJam clone. The original project is available at https://www.figma.com/design/SkxOAl75yUbJqQIYdhrUOQ/FigJam-clone.
+  This is a code bundle for HIXCanvas clone. The original project is available at https://www.figma.com/design/SkxOAl75yUbJqQIYdhrUOQ/HIXCanvas-clone.
 
   ## Running the code
 
