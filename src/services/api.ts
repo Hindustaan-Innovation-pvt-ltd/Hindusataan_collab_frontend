@@ -43,6 +43,8 @@ api.interceptors.response.use(
       localStorage.removeItem("HIXCanvas_token");
       localStorage.removeItem("token");
       localStorage.removeItem("HIXCanvas_session");
+      localStorage.removeItem("HIXCanvas_ephemeral");
+      sessionStorage.removeItem("HIXCanvas_session_active");
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -78,6 +80,8 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
     localStorage.removeItem("token");
     localStorage.removeItem("HIXCanvas_token");
     localStorage.removeItem("HIXCanvas_session");
+    localStorage.removeItem("HIXCanvas_ephemeral");
+    sessionStorage.removeItem("HIXCanvas_session_active");
     window.location.href = "/login";
   }
 

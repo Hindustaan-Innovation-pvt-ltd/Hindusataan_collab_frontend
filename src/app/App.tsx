@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Sparkles, X, MessageSquare } from "lucide-react";
 import { useParams, useNavigate } from "react-router";
 import IconNode from "../components/IconNode";
@@ -77,7 +77,9 @@ export default function App() {
   const [shapeKind, setShapeKind] = useState<ShapeKind>("rect");
   const [penColor, setPenColor] = useState(PEN_COLORS[0]);
   const [penType, setPenType] = useState<PenType>("pen");
-  const [penThickness, setPenThickness] = useState<PenThickness>("thin");
+  const [penThickness, setPenThickness] = useState<PenThickness>(3);
+  const [textFontSize, setTextFontSize] = useState<number>(20);
+  const [textFontFamily, setTextFontFamily] = useState<string>("sans-serif");
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const [livePts, setLivePts] = useState<Pt[]>([]);
   const [liveArrow, setLiveArrow] = useState<{ start: Pt, end: Pt } | null>(null);
@@ -191,6 +193,62 @@ export default function App() {
   }, [penColor, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
 
+  const textFontSizeRef = useRef(textFontSize);
+  const textFontFamilyRef = useRef(textFontFamily);
+  useEffect(() => {
+    textFontSizeRef.current = textFontSize;
+    textFontFamilyRef.current = textFontFamily;
+  }, [textFontSize, textFontFamily]);
+
+  // Sync selected text node font properties back to toolbar state
+  useEffect(() => {
+    if (selIds.length === 1) {
+      const selectedEl = els.find(e => e.id === selIds[0]);
+      if (selectedEl && selectedEl.type === "text") {
+        setTextFontSize(selectedEl.fontSize || 20);
+        setTextFontFamily(selectedEl.fontFamily || "sans-serif");
+      }
+    }
+  }, [selIds, els]);
+
+  const handleTextFontSizeChange = (size: number) => {
+    setTextFontSize(size);
+    if (selIdsRef.current.length > 0) {
+      setEls(p => p.map(el => {
+        if (selIdsRef.current.includes(el.id) && el.type === "text") {
+          return { ...el, fontSize: size };
+        }
+        return el;
+      }));
+    }
+  };
+
+  const handleTextFontFamilyChange = (family: string) => {
+    setTextFontFamily(family);
+    if (selIdsRef.current.length > 0) {
+      setEls(p => p.map(el => {
+        if (selIdsRef.current.includes(el.id) && el.type === "text") {
+          return { ...el, fontFamily: family };
+        }
+        return el;
+      }));
+    }
+  };
+
+  const handlePenTypeChange = (type: PenType) => {
+    setPenType(type);
+    if (type === "pen") setPenThickness(3);
+    else if (type === "marker") setPenThickness(10);
+    else if (type === "highlighter") setPenThickness(24);
+  };
+
+  const isEditingOrSelectedText = useMemo(() => {
+    if (tool === "text") return true;
+    if (selIds.length > 0) {
+      return els.some(el => selIds.includes(el.id) && el.type === "text");
+    }
+    return false;
+  }, [tool, selIds, els]);
   // Interaction state refs
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
   const dragRef = useRef<{ startW: Pt; originalEls: El[] } | null>(null);
@@ -653,7 +711,7 @@ export default function App() {
     if (toolRef.current === "text") {
       const id = uid();
       const textColor = boardBgRef.current === "white" ? "#1C1B1F" : "#FFFFFF";
-      setEls(p => [...p, { id, type: "text", x: w.x, y: w.y, text: "Text", fontSize: 20, color: textColor }]);
+      setEls(p => [...p, { id, type: "text", x: w.x, y: w.y, text: "Text", fontSize: textFontSizeRef.current, color: textColor, fontFamily: textFontFamilyRef.current }]);
       setSelIds([id]);
       setEditId(id);
       setTool("select");
@@ -702,9 +760,7 @@ export default function App() {
         if (drawRef.current.length > 1) {
           const pts = drawRef.current.slice();
           const id = uid();
-          const sw = penTypeRef.current === "highlighter" ? (penThicknessRef.current === "thick" ? 48 : 24) :
-            penTypeRef.current === "marker" ? (penThicknessRef.current === "thick" ? 16 : 8) :
-              (penThicknessRef.current === "thick" ? 6 : 2);
+          const sw = penThicknessRef.current;
           setEls(p => [...p, { id, type: "path", x: 0, y: 0, pts, color: penColorRef.current, sw, penType: penTypeRef.current }]);
         }
         drawRef.current = [];
@@ -1566,9 +1622,7 @@ export default function App() {
               </defs>
               {livePts.length > 1 && (() => {
                 const isHighlighter = penType === "highlighter";
-                const liveSw = isHighlighter ? (penThickness === "thick" ? 48 : 24) :
-                  penType === "marker" ? (penThickness === "thick" ? 16 : 8) :
-                    (penThickness === "thick" ? 6 : 2);
+                const liveSw = penThickness;
                 return (
                   <path d={pathD(livePts)} stroke={penColor} strokeWidth={liveSw} fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: isHighlighter ? 0.3 : 1, mixBlendMode: isHighlighter ? "multiply" : undefined }} />
                 );
@@ -1779,7 +1833,7 @@ export default function App() {
           setEls(p => p.map(el => selIds.includes(el.id) && el.type === "path" ? { ...el, color: c } : el));
         }}
         penType={penType}
-        setPenType={setPenType}
+        setPenType={handlePenTypeChange}
         penThickness={penThickness}
         setPenThickness={setPenThickness}
         toolMenuOpen={toolMenuOpen}
@@ -1787,6 +1841,11 @@ export default function App() {
         onDelete={onDelete}
         hasSelection={selIds.length > 0}
         onInsertIcon={onInsertIcon}
+        isEditingOrSelectedText={isEditingOrSelectedText}
+        textFontSize={textFontSize}
+        setTextFontSize={handleTextFontSizeChange}
+        textFontFamily={textFontFamily}
+        setTextFontFamily={handleTextFontFamilyChange}
       />
 
       {/* Toast Notification */}

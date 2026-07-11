@@ -310,9 +310,10 @@ export default function Login() {
           setSession(response.data.user);
           localStorage.setItem("token", response.data.access_token || response.data.token);
           if (!remember) {
-            sessionStorage.setItem("HIXCanvas_ephemeral", "1");
+             sessionStorage.setItem("HIXCanvas_session_active", "true");
+             localStorage.setItem("HIXCanvas_ephemeral", "true");
           } else {
-            sessionStorage.removeItem("HIXCanvas_ephemeral");
+             localStorage.removeItem("HIXCanvas_ephemeral");
           }
           navigate("/", { replace: true });
         } else {

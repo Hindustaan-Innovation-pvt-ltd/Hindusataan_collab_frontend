@@ -110,7 +110,7 @@ function TextNode({ el, selected, editing, onBlur, onDblClick }: TextNodeProps) 
           className="bg-transparent resize-none outline-none"
           style={{
             fontSize: el.fontSize, color: el.color,
-            fontFamily: "inherit", fontWeight: 600,
+            fontFamily: el.fontFamily || "sans-serif", fontWeight: 600,
             minWidth: 80, minHeight: el.fontSize * 1.6,
             lineHeight: 1.4,
           }}
@@ -120,7 +120,7 @@ function TextNode({ el, selected, editing, onBlur, onDblClick }: TextNodeProps) 
       ) : (
         <div
           className="font-semibold whitespace-pre"
-          style={{ fontSize: el.fontSize, color: el.color, lineHeight: 1.4 }}
+          style={{ fontSize: el.fontSize, color: el.color, lineHeight: 1.4, fontFamily: el.fontFamily || "sans-serif" }}
         >
           {el.text}
         </div>

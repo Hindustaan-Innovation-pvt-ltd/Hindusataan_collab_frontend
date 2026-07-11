@@ -28,9 +28,13 @@ interface ToolbarProps {
   setPenThickness: (t: PenThickness) => void;
   toolMenuOpen: boolean;
   setToolMenuOpen: (o: boolean) => void;
-  onDelete: () => void;
   hasSelection: boolean;
   onInsertIcon?: (iconName: string) => void;
+  isEditingOrSelectedText?: boolean;
+  textFontSize?: number;
+  setTextFontSize?: (size: number) => void;
+  textFontFamily?: string;
+  setTextFontFamily?: (family: string) => void;
 }
 
 // Exports from lucide-react that aren't actual icon components —
@@ -65,6 +69,11 @@ function Toolbar({
   toolMenuOpen, setToolMenuOpen,
   onDelete, hasSelection,
   onInsertIcon,
+  isEditingOrSelectedText = false,
+  textFontSize = 20,
+  setTextFontSize,
+  textFontFamily = "sans-serif",
+  setTextFontFamily,
 }: ToolbarProps) {
   const [iconSearchOpen, setIconSearchOpen] = useState(false);
   const [iconQuery, setIconQuery] = useState("");
@@ -151,21 +160,20 @@ function Toolbar({
               </div>
             </div>
             <div>
-              <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Thickness</div>
-              <div className="flex gap-1.5">
-                {[
-                  { thick: "thin", label: "Thin" },
-                  { thick: "thick", label: "Thick" },
-                ].map(t => (
-                  <button
-                    key={t.thick}
-                    onClick={() => setPenThickness(t.thick as PenThickness)}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${penThickness === t.thick ? "bg-gray-800 text-white" : "bg-muted text-muted-foreground hover:bg-gray-200"
-                      }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
+              <div className="text-[10px] font-bold text-gray-400 mb-1.5 px-1.5 uppercase tracking-wider flex justify-between items-center">
+                <span>Thickness</span>
+                <span className="font-bold text-foreground">{penThickness}px</span>
+              </div>
+              <div className="flex items-center gap-2 px-1.5 py-1">
+                <input
+                  type="range"
+                  min={1}
+                  max={penType === "highlighter" ? 60 : penType === "marker" ? 40 : 20}
+                  value={penThickness}
+                  onChange={(e) => setPenThickness(parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-[#3742FA]"
+                  style={{ accentColor: "#3742FA" }}
+                />
               </div>
             </div>
           </div>
@@ -199,6 +207,58 @@ function Toolbar({
           </div>
         )}
 
+        {isEditingOrSelectedText && toolMenuOpen && (
+          <div className="flex flex-col p-3 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border gap-2.5 mb-1 w-52 pointer-events-auto">
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 mb-1.5 px-1.5 uppercase tracking-wider">Font Family</div>
+              <div className="relative">
+                <select
+                  value={textFontFamily}
+                  onChange={(e) => setTextFontFamily?.(e.target.value)}
+                  className="w-full h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-[#3742FA] appearance-none cursor-pointer pr-8"
+                >
+                  <option value="sans-serif">Sans-Serif (Modern)</option>
+                  <option value="serif">Serif (Classic)</option>
+                  <option value="monospace">Monospace (Code)</option>
+                  <option value="cursive">Cursive (Handwritten)</option>
+                  <option value="'Outfit', sans-serif">Outfit (Geometric)</option>
+                  <option value="'Playfair Display', serif">Playfair Display (Elegant Serif)</option>
+                  <option value="'Poppins', sans-serif">Poppins (Clean Sans-Serif)</option>
+                  <option value="'Lobster', cursive">Lobster (Vintage/Bold)</option>
+                  <option value="'Pacifico', cursive">Pacifico (Smooth Handwriting)</option>
+                  <option value="'Caveat', cursive">Caveat (Natural Pen)</option>
+                  <option value="'Lora', serif">Lora (Classic Book Serif)</option>
+                </select>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[10px]">
+                  ▼
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] font-bold text-gray-400 mb-1.5 px-1.5 uppercase tracking-wider">Font Size</div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTextFontSize?.(Math.max(10, textFontSize - 2))}
+                  className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-foreground hover:bg-background border border-border font-bold text-sm"
+                >
+                  -
+                </button>
+                <input
+                  type="number"
+                  value={textFontSize}
+                  onChange={(e) => setTextFontSize?.(Math.max(8, parseInt(e.target.value) || 20))}
+                  className="w-16 h-8 text-center text-xs font-bold bg-card border border-border rounded-lg"
+                />
+                <button
+                  onClick={() => setTextFontSize?.(Math.min(120, textFontSize + 2))}
+                  className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-foreground hover:bg-background border border-border font-bold text-sm"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Icon search picker — searches the full lucide-react library */}
         {iconSearchOpen && (
@@ -265,7 +325,7 @@ function Toolbar({
                 setToolMenuOpen(!toolMenuOpen);
               } else {
                 setTool(id as Tool);
-                if (id === "pen" || id === "shape" || id === "sticky") {
+                if (id === "pen" || id === "shape" || id === "sticky" || id === "text") {
                   setToolMenuOpen(true);
                 } else {
                   setToolMenuOpen(false);

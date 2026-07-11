@@ -14,7 +14,7 @@ export type Tool =
   | "comment";
 
 export type PenType = "pen" | "marker" | "highlighter";
-export type PenThickness = "thin" | "thick";
+export type PenThickness = number;
 
 export interface Pt {
   x: number;
@@ -109,6 +109,7 @@ export interface TextEl extends BaseEl {
   text: string;
   fontSize: number;
   color: string;
+  fontFamily?: string;
 }
 
 export interface ShapeEl extends BaseEl {
