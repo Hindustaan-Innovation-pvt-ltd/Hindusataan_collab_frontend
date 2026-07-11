@@ -5,6 +5,7 @@ import { Trash2, Minus, Plus, Pencil, Brush, Highlighter, Search, X } from "luci
 import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
 import ColorPalette from "./ColorPalette";
+import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 
 interface ToolbarProps {
   tool: Tool;
@@ -65,6 +66,7 @@ function Toolbar({
 }: ToolbarProps) {
   const [iconSearchOpen, setIconSearchOpen] = useState(false);
   const [iconQuery, setIconQuery] = useState("");
+  const { layout } = useWorkspaceTheme();
 
   const palette =
     tool === "sticky" ? { colors: STICKY_COLORS, active: stickyColor, set: setStickyColor } :
@@ -78,9 +80,27 @@ function Toolbar({
     return matches.slice(0, MAX_RESULTS);
   }, [iconQuery]);
 
+  // Define layout styles
+  let containerClass = "";
+  let innerClass = "";
+  let itemGroupClass = "";
+  let dividerClass = "";
+
+  if (layout === "horizontal") {
+    containerClass = "absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none z-50";
+    innerClass = "flex flex-col gap-2 items-center pointer-events-auto";
+    itemGroupClass = "flex items-center gap-1.5 bg-card rounded-full px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border pointer-events-auto";
+    dividerClass = "w-px h-6 bg-gray-200 mx-2";
+  } else if (layout === "vertical") {
+    containerClass = "absolute left-4 top-1/2 -translate-y-1/2 flex flex-row-reverse items-center gap-2 pointer-events-none z-50";
+    innerClass = "flex flex-row-reverse gap-2 items-center pointer-events-auto";
+    itemGroupClass = "flex flex-col items-center gap-1.5 bg-card rounded-full px-2 py-3 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border pointer-events-auto";
+    dividerClass = "w-6 h-px bg-gray-200 my-2";
+  }
+
   return (
-    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none z-50">
-      <div className="flex flex-col gap-2 items-center pointer-events-auto">
+    <div className={containerClass}>
+      <div className={innerClass}>
         {/* Pen picker */}
         {tool === "pen" && toolMenuOpen && (
           <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border gap-2 mb-1">
@@ -97,8 +117,8 @@ function Toolbar({
                     title={t.label}
                     onClick={() => setPenType(t.type as PenType)}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${penType === t.type
-                        ? "bg-muted shadow-inner scale-95"
-                        : "hover:bg-background"
+                      ? "bg-muted shadow-inner scale-95"
+                      : "hover:bg-background"
                       } ${t.color}`}
                   >
                     {t.icon}
@@ -138,8 +158,8 @@ function Toolbar({
                   title={label}
                   onClick={() => setShapeKind(kind)}
                   className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${shapeKind === kind
-                      ? "bg-[#3742FA] text-white shadow-md scale-105"
-                      : "text-[#4B5563] hover:bg-muted hover:text-foreground"
+                    ? "bg-[#3742FA] text-white shadow-md scale-105"
+                    : "text-[#4B5563] hover:bg-muted hover:text-foreground"
                     }`}
                 >
                   {icon}
@@ -209,7 +229,7 @@ function Toolbar({
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 bg-card rounded-full px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border pointer-events-auto">
+      <div className={itemGroupClass}>
         {TOOLS.map(({ id, label, key, icon }) => (
           <button
             key={id}
@@ -238,7 +258,7 @@ function Toolbar({
           </button>
         ))}
 
-        <div className="w-px h-6 bg-gray-200 mx-2" />
+        <div className={dividerClass} />
 
         {/* Icon search toggle button */}
         <button
@@ -247,16 +267,15 @@ function Toolbar({
             setIconSearchOpen((prev) => !prev);
             setToolMenuOpen(false);
           }}
-          className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${
-            iconSearchOpen
+          className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${iconSearchOpen
               ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
               : "text-[#4B5563] hover:bg-muted hover:text-foreground"
-          }`}
+            }`}
         >
           <Search size={18} />
         </button>
 
-        <div className="w-px h-6 bg-gray-200 mx-2" />
+        <div className={dividerClass} />
 
         {hasSelection && (
           <>
@@ -267,7 +286,7 @@ function Toolbar({
             >
               <Trash2 size={18} />
             </button>
-            <div className="w-px h-6 bg-gray-200 mx-2" />
+            <div className={dividerClass} />
           </>
         )}
 

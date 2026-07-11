@@ -90,7 +90,7 @@ function TextNode({ el, selected, editing, onBlur, onDblClick }: TextNodeProps) 
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        e.preventDefault();                        // ⬅️ stop native word-select on dblclick
+        e.preventDefault();
         onDblClick(el.id);
       }}
       className="absolute"

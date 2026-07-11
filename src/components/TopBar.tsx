@@ -8,6 +8,7 @@ import {
 import type { Board } from "../types";
 import { useShareDialog } from "../hooks/useShareDialog";
 import { PendingInvitesPanel } from "./PendingInvitesPanel";
+import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 
 interface TopBarProps {
   currentBoardId: string;
@@ -35,6 +36,7 @@ export const TopBar = React.memo(function TopBar({
   onlineUsers = [], role = "owner",
   chatOpen = false, onToggleChat = () => {}, chatUnreadCount = 0
 }: TopBarProps) {
+  const { layout, setLayout } = useWorkspaceTheme();
   const [seconds, setSeconds] = useState(3 * 60);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userName, setUserName] = useState("Guest");
@@ -530,27 +532,57 @@ export const TopBar = React.memo(function TopBar({
 
           <div className="w-px h-5 bg-gray-200" />
 
-          {/* Background Color Popup */}
+          {/* Theme & Background Popup */}
           <div className="relative">
             <button
               disabled={role === "viewer"}
               onClick={() => setBgMenuOpen(o => !o)}
-              title="Board Background"
+              title="Theme & Background"
               className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all disabled:opacity-50 ${bgMenuOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-[#7B61FF] hover:bg-[#f2efff] hover:scale-105"}`}
             >
               <Palette size={18} />
             </button>
             {bgMenuOpen && (
-              <div className="absolute top-10 right-0 bg-card rounded-xl shadow-xl border border-border p-2 flex gap-1.5 z-50">
-                {(["white", "black", "green"] as const).map(c => (
-                  <button
-                    key={c}
-                    onClick={() => { onChangeBg(c); setBgMenuOpen(false); }}
-                    className={`w-6 h-6 rounded-full border transition-all ${boardBg === c ? "border-[#3742FA] scale-125 shadow-sm" : "border-black/10 hover:scale-110"}`}
-                    style={{ backgroundColor: c === "white" ? "#F5F5F5" : c === "black" ? "#1A1A1A" : "#1B4D3E" }}
-                    title={`${c.charAt(0).toUpperCase() + c.slice(1)} board`}
-                  />
-                ))}
+              <div className="absolute top-10 right-0 bg-card rounded-xl shadow-xl border border-border p-3 flex flex-col gap-4 z-50 w-64 animate-in fade-in zoom-in duration-200">
+                
+                {/* Layout Theme Section */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Workspace Layout</span>
+                  <div className="flex flex-col gap-1.5">
+                    {[
+                      { id: "horizontal", label: "Classic Horizontal" },
+                      { id: "vertical", label: "Sidebar Vertical" }
+                    ].map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => { setLayout(t.id as any); }}
+                        className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${layout === t.id ? "bg-[#3742FA] text-white shadow-sm" : "bg-muted/50 hover:bg-muted text-foreground"}`}
+                      >
+                        {t.label}
+                        {layout === t.id && <Check size={14} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="w-full h-px bg-border" />
+
+                {/* Background Color Section */}
+                <div className="flex flex-col gap-2">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Canvas Background</span>
+                  <div className="flex gap-2">
+                    {(["white", "black", "green"] as const).map(c => (
+                      <button
+                        key={c}
+                        onClick={() => { onChangeBg(c); }}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${boardBg === c ? "border-[#3742FA] scale-110 shadow-md" : "border-transparent hover:scale-110 shadow-sm"}`}
+                        style={{ backgroundColor: c === "white" ? "#F5F5F5" : c === "black" ? "#1A1A1A" : "#1B4D3E" }}
+                        title={`${c.charAt(0).toUpperCase() + c.slice(1)} board`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
               </div>
             )}
           </div>

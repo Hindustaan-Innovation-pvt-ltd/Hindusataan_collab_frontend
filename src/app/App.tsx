@@ -801,8 +801,8 @@ export default function App() {
   // ── AI Action Dispatcher ──────────────────────────────────────────────────
   const handleAIAction = useCallback((action: string, data: any) => {
     console.log("handleAIAction called with action:", action, "data:", data);
-    const cx = camRef.current.x > 0 ? (window.innerWidth / 2 - camRef.current.x) / camRef.current.z : window.innerWidth / 2;
-    const cy = camRef.current.y > 0 ? (window.innerHeight / 2 - camRef.current.y) / camRef.current.z : window.innerHeight / 2;
+    const cx = (window.innerWidth / 2 - camRef.current.x) / camRef.current.z;
+    const cy = (window.innerHeight / 2 - camRef.current.y) / camRef.current.z;
     
     const startX = cx;
     const startY = cy;
@@ -1202,7 +1202,7 @@ export default function App() {
 
   return (
     <div
-      className="w-full h-full relative overflow-hidden"
+      className="fixed inset-0 overflow-hidden w-full h-full"
       style={{ cursor, fontFamily: "'Plus Jakarta Sans', sans-serif", userSelect: "none" }}
     >
       {/* Dot grid */}
