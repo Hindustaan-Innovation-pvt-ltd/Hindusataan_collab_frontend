@@ -151,6 +151,8 @@ export interface FreeArrowEl extends BaseEl {
   dx: number;
   dy: number;
   color: string;
+  from?: string;
+  to?: string;
 }
 
 export interface PathEl extends BaseEl {

@@ -4,7 +4,7 @@ import * as collection from '@dicebear/collection';
 import { toBlob } from 'html-to-image';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../app/components/ui/dialog';
 import { Button } from '../app/components/ui/button';
-import { Dices, Search, Download } from 'lucide-react';
+import { Dices, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STYLES = {
