@@ -332,7 +332,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen w-full flex bg-white"
+      className="min-h-screen w-full flex bg-card"
       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
     >
       {/* Decorative panel */}
@@ -376,7 +376,7 @@ export default function Login() {
       </div>
 
       {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-10 bg-white">
+      <div className="flex-1 flex items-center justify-center px-6 py-10 bg-card">
         <div className="w-full max-w-[420px]">
           <Link to="/welcome" className="inline-flex items-center gap-1.5 text-xs text-[#3742FA] font-medium hover:underline mb-8">
             <ArrowLeft size={14} />
@@ -397,7 +397,7 @@ export default function Login() {
                 type="button"
                 disabled={loading}
                 onClick={() => resetState("email-otp")}
-                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-white text-[#1C1B1F] border border-black/[0.08] hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
+                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-[#1C1B1F] border border-black/[0.08] hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#F4F5FF] group-hover:bg-[#3742FA] group-hover:text-white flex items-center justify-center text-[#3742FA] transition-colors duration-300">
                   <Mail size={18} strokeWidth={2.5} />
@@ -408,7 +408,7 @@ export default function Login() {
                 type="button"
                 disabled={loading}
                 onClick={() => resetState("phone-otp")}
-                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-white text-[#1C1B1F] border border-black/[0.08] hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
+                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-[#1C1B1F] border border-black/[0.08] hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#F4F5FF] group-hover:bg-[#3742FA] group-hover:text-white flex items-center justify-center text-[#3742FA] transition-colors duration-300">
                   <Phone size={18} strokeWidth={2.5} />
@@ -419,7 +419,7 @@ export default function Login() {
                 type="button"
                 disabled={loading}
                 onClick={handleGithubLogin}
-                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-white text-[#1C1B1F] border border-black/[0.08] hover:border-[#24292e]/40 hover:shadow-[0_8px_24px_rgba(36,41,46,0.08)] hover:-translate-y-[2px] transition-all duration-300"
+                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-[#1C1B1F] border border-black/[0.08] hover:border-[#24292e]/40 hover:shadow-[0_8px_24px_rgba(36,41,46,0.08)] hover:-translate-y-[2px] transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#F6F8FA] group-hover:bg-[#24292e] group-hover:text-white flex items-center justify-center text-[#24292e] transition-colors duration-300">
                   <Github size={18} strokeWidth={2.5} />
@@ -536,7 +536,7 @@ export default function Login() {
                       <select
                         value={countryCode}
                         onChange={(e) => setCountryCode(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-black/[0.08] bg-white px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
+                        className="w-full h-11 rounded-xl border border-black/[0.08] bg-card px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
                       >
                         <option value="+91">+91 (IN)</option>
                         <option value="+1">+1 (US)</option>
@@ -711,18 +711,18 @@ export default function Login() {
               {!resetOtpSent ? (
                 <form onSubmit={handleSendForgotPasswordOtp} className="space-y-4">
                   {/* Selector tabs */}
-                  <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+                  <div className="flex bg-muted p-1 rounded-xl gap-1">
                     <button
                       type="button"
                       onClick={() => { setResetType("email"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-white text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
                     >
                       Email
                     </button>
                     <button
                       type="button"
                       onClick={() => { setResetType("phone"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-white text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
                     >
                       Phone Number
                     </button>
@@ -752,7 +752,7 @@ export default function Login() {
                           <select
                             value={resetCountryCode}
                             onChange={(e) => setResetCountryCode(e.target.value)}
-                            className="w-full h-11 rounded-xl border border-black/[0.08] bg-white px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
+                            className="w-full h-11 rounded-xl border border-black/[0.08] bg-card px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
                           >
                             <option value="+91">+91 (IN)</option>
                             <option value="+1">+1 (US)</option>

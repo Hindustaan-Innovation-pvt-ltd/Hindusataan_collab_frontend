@@ -10,7 +10,7 @@ interface ConnectionNodesProps {
 
 const ConnectionNodes = ({ id, w, h, selected, onStartConnect }: ConnectionNodesProps) => {
   if (!onStartConnect) return null;
-  const nodeClass = `absolute w-3 h-3 bg-white border-[2px] border-[#3742FA] rounded-full transition-opacity cursor-crosshair z-10 pointer-events-auto hover:scale-125 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`;
+  const nodeClass = `absolute w-3 h-3 bg-card border-[2px] border-[#3742FA] rounded-full transition-opacity cursor-crosshair z-10 pointer-events-auto hover:scale-125 ${selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`;
   return (
     <>
       <div className={nodeClass} style={{ top: -6, left: w / 2 - 6 }} onPointerDown={(e) => onStartConnect(e, id)} />

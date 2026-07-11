@@ -69,20 +69,20 @@ export function BoardChat({
   }
 
   return (
-    <div className="fixed bottom-6 right-6 w-80 h-[500px] max-h-[80vh] bg-white rounded-2xl shadow-2xl flex flex-col z-50 border border-gray-200 overflow-hidden font-sans animate-in slide-in-from-bottom-5">
+    <div className="fixed bottom-6 right-6 w-80 h-[500px] max-h-[80vh] bg-card rounded-2xl shadow-2xl flex flex-col z-50 border border-border overflow-hidden font-sans animate-in slide-in-from-bottom-5">
       {/* Header */}
       <div className="bg-[#7B61FF] px-4 py-3 flex justify-between items-center text-white">
         <div className="flex items-center gap-2">
           <MessageSquare size={18} />
           <h3 className="font-semibold">Board Chat</h3>
         </div>
-        <button onClick={onClose} className="hover:bg-white/20 p-1 rounded-lg transition-colors">
+        <button onClick={onClose} className="hover:bg-card/20 p-1 rounded-lg transition-colors">
           <X size={18} />
         </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 bg-gray-50 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto p-4 bg-background flex flex-col gap-3">
         {(messages || []).map((msg, i) => {
           const isMe = msg?.user_id === currentUserId;
           const showHeader = i === 0 || (messages[i-1] && messages[i-1].user_id !== msg?.user_id);
@@ -91,13 +91,13 @@ export function BoardChat({
           return (
             <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
               {showHeader && (
-                <span className="text-xs text-gray-500 mb-1 ml-1">{isMe ? 'You' : msg.username}</span>
+                <span className="text-xs text-muted-foreground mb-1 ml-1">{isMe ? 'You' : msg.username}</span>
               )}
               <div 
                 className={`px-4 py-2 rounded-2xl max-w-[85%] text-sm ${
                   isMe 
                     ? 'bg-[#7B61FF] text-white rounded-br-sm' 
-                    : 'bg-white text-gray-800 border border-gray-200 rounded-bl-sm shadow-sm'
+                    : 'bg-card text-foreground border border-border rounded-bl-sm shadow-sm'
                 }`}
                 style={{ wordBreak: 'break-word' }}
               >
@@ -113,7 +113,7 @@ export function BoardChat({
         })}
         
         {(typingUsers || []).length > 0 && (
-          <div className="text-xs text-gray-500 italic ml-1 animate-pulse">
+          <div className="text-xs text-muted-foreground italic ml-1 animate-pulse">
             {(typingUsers || []).join(', ')} {(typingUsers || []).length === 1 ? 'is' : 'are'} typing...
           </div>
         )}
@@ -121,13 +121,13 @@ export function BoardChat({
       </div>
 
       {/* Input */}
-      <div className="p-3 bg-white border-t border-gray-100 flex gap-2 items-end">
+      <div className="p-3 bg-card border-t border-border flex gap-2 items-end">
         <textarea
           value={inputText}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
-          className="flex-1 max-h-32 min-h-[40px] resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7B61FF] focus:border-transparent"
+          className="flex-1 max-h-32 min-h-[40px] resize-none rounded-xl border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#7B61FF] focus:border-transparent"
           rows={1}
         />
         <button 

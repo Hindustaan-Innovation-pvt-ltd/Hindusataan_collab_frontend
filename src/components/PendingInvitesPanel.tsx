@@ -52,7 +52,7 @@ export function PendingInvitesPanel() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors relative ${open ? "bg-amber-50 text-amber-500" : "text-gray-500 hover:bg-gray-100"}`}
+        className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors relative ${open ? "bg-amber-50 text-amber-500" : "text-muted-foreground hover:bg-muted"}`}
       >
         <Bell size={18} />
         {invites.length > 0 && !open && (
@@ -61,8 +61,8 @@ export function PendingInvitesPanel() {
       </button>
 
       {open && (
-        <div className="absolute top-10 right-0 bg-white rounded-xl shadow-xl border border-gray-100 p-3 w-72 z-50">
-          <h3 className="font-bold text-sm text-gray-800 mb-2 border-b border-gray-100 pb-2">Pending Invitations</h3>
+        <div className="absolute top-10 right-0 bg-card rounded-xl shadow-xl border border-border p-3 w-72 z-50">
+          <h3 className="font-bold text-sm text-foreground mb-2 border-b border-border pb-2">Pending Invitations</h3>
           
           {loading ? (
             <div className="text-center py-4 text-xs text-gray-400">Loading...</div>
@@ -71,12 +71,12 @@ export function PendingInvitesPanel() {
           ) : (
             <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
               {invites.map(inv => (
-                <div key={inv.id} className="p-2 bg-gray-50 rounded-lg border border-gray-100 flex flex-col gap-2">
-                  <div className="text-xs text-gray-700">
-                    <span className="font-semibold text-gray-900">Someone</span> invited you to a board.
+                <div key={inv.id} className="p-2 bg-background rounded-lg border border-border flex flex-col gap-2">
+                  <div className="text-xs text-foreground">
+                    <span className="font-semibold text-foreground">Someone</span> invited you to a board.
                   </div>
-                  <div className="text-[10px] text-gray-500 bg-white px-2 py-1 rounded border border-gray-100 inline-block">
-                    Role: <span className="font-bold uppercase text-gray-700">{inv.role}</span>
+                  <div className="text-[10px] text-muted-foreground bg-card px-2 py-1 rounded border border-border inline-block">
+                    Role: <span className="font-bold uppercase text-foreground">{inv.role}</span>
                   </div>
                   <div className="flex gap-2 mt-1">
                     <button
@@ -87,7 +87,7 @@ export function PendingInvitesPanel() {
                     </button>
                     <button
                       onClick={() => handleReject(inv.id!)}
-                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold py-1.5 rounded transition-colors"
+                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-foreground text-xs font-semibold py-1.5 rounded transition-colors"
                     >
                       Reject
                     </button>

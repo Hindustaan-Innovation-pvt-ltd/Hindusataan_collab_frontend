@@ -386,7 +386,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
           style={{ background: "linear-gradient(135deg, #3742FA 0%, #7B61FF 100%)" }}
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-full bg-card/20 flex items-center justify-center">
               <Sparkles size={14} className="text-white" />
             </div>
             <div>
@@ -396,7 +396,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-white transition-colors"
+            className="w-7 h-7 rounded-full bg-card/15 hover:bg-card/25 flex items-center justify-center text-white transition-colors"
           >
             <X size={14} />
           </button>
@@ -414,7 +414,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
                 }`}>
                 {msg.role === "assistant"
                   ? <Bot size={12} className="text-white" />
-                  : <User size={12} className="text-gray-600" />
+                  : <User size={12} className="text-muted-foreground" />
                 }
               </div>
 
@@ -422,7 +422,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
               <div
                 className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${msg.role === "user"
                   ? "bg-[#3742FA] text-white rounded-tr-sm"
-                  : "bg-gray-100 text-gray-800 rounded-tl-sm"
+                  : "bg-muted text-foreground rounded-tl-sm"
                   }`}
               >
                 <div className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -454,11 +454,11 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
 
         {/* Input */}
         <div className="px-4 pb-4 pt-2 shrink-0 border-t border-black/[0.06]">
-          <div className="flex items-end gap-2 bg-gray-100 rounded-xl px-3 py-2">
+          <div className="flex items-end gap-2 bg-muted rounded-xl px-3 py-2">
             <input type="file" ref={fileInputRef} hidden accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.pptx,.md" onChange={handleFileUpload} />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 mb-0.5 text-gray-400 hover:text-gray-600 hover:bg-gray-200"
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 mb-0.5 text-gray-400 hover:text-muted-foreground hover:bg-gray-200"
               title="Upload File (Image, PDF, Word, Excel, etc.)"
             >
               <Paperclip size={16} />
@@ -471,7 +471,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
               placeholder="Ask AI anything…"
               disabled={isTyping}
               rows={1}
-              className="flex-1 bg-transparent resize-none outline-none text-sm text-gray-800 placeholder-gray-400 leading-relaxed max-h-24"
+              className="flex-1 bg-transparent resize-none outline-none text-sm text-foreground placeholder-gray-400 leading-relaxed max-h-24"
               style={{ fontFamily: "inherit", scrollbarWidth: "none" }}
             />
             <button

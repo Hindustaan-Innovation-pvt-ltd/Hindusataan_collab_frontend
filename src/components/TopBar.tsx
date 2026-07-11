@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router";
 import {
   ChevronDown, Palette, Disc3, Music, Calendar,
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
-  Link as LinkIcon, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search, MessageSquare
+  Link as LinkIcon, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search, MessageSquare, User, Settings
 } from "lucide-react";
 import type { Board } from "../types";
 import { useShareDialog } from "../hooks/useShareDialog";
@@ -37,6 +38,11 @@ export const TopBar = React.memo(function TopBar({
   const [seconds, setSeconds] = useState(3 * 60);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [userName, setUserName] = useState("Guest");
+  const [userEmail, setUserEmail] = useState("");
+  const [userAvatar, setUserAvatar] = useState("");
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  
+  const navigate = useNavigate();
 
   useEffect(() => {
     try {
@@ -51,12 +57,36 @@ export const TopBar = React.memo(function TopBar({
         if (parsed && parsed.name) {
           setUserName(parsed.name);
         }
+        if (parsed && parsed.email) {
+          setUserEmail(parsed.email);
+        }
+        if (parsed && parsed.avatar) {
+          setUserAvatar(parsed.avatar);
+        }
       }
     } catch (e) {}
   }, []);
 
+  useEffect(() => {
+    const handleSessionUpdate = () => {
+      try {
+        const s = localStorage.getItem("figjam_session");
+        if (s) {
+          const parsed = JSON.parse(s);
+          if (parsed && parsed.name) setUserName(parsed.name);
+          if (parsed && parsed.email) setUserEmail(parsed.email);
+          setUserAvatar(parsed && parsed.avatar ? parsed.avatar : "");
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener("sessionUpdated", handleSessionUpdate);
+    return () => window.removeEventListener("sessionUpdated", handleSessionUpdate);
+  }, []);
+
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("figjam_token");
     localStorage.removeItem("figjam_session");
     window.location.href = "/login";
   };
@@ -109,9 +139,23 @@ export const TopBar = React.memo(function TopBar({
         setBoardSelectorOpen(false);
         setRenamingBoardId(null);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
     };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setUserMenuOpen(false);
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, []);
 
   const filteredSearchBoards = boards.filter(b => 
@@ -236,10 +280,10 @@ export const TopBar = React.memo(function TopBar({
       <div className="flex flex-col gap-2 pointer-events-auto relative" ref={boardSelectorRef}>
         <div 
           onClick={() => setBoardSelectorOpen(!boardSelectorOpen)}
-          className="flex items-center justify-between gap-2 bg-white rounded-xl px-3 h-10 shadow-lg border border-black/[0.06] hover:bg-gray-50 cursor-pointer min-w-[200px] transition-colors"
+          className="flex items-center justify-between gap-2 bg-card rounded-xl px-3 h-10 shadow-lg border border-black/[0.06] hover:bg-background cursor-pointer min-w-[200px] transition-colors"
         >
           <div className="flex flex-col">
-            <span className="text-sm font-bold text-gray-800 truncate max-w-[150px]">
+            <span className="text-sm font-bold text-foreground truncate max-w-[150px]">
               {boardName}
             </span>
           </div>
@@ -247,8 +291,8 @@ export const TopBar = React.memo(function TopBar({
         </div>
         
         {/* Save indicator pill */}
-        <div className="absolute top-11 left-0 flex items-center bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-black/[0.06] opacity-80 pointer-events-none">
-          <span className="text-[10px] font-medium text-gray-500">
+        <div className="absolute top-11 left-0 flex items-center bg-card/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-black/[0.06] opacity-80 pointer-events-none">
+          <span className="text-[10px] font-medium text-muted-foreground">
             {saveState === "saving" && "Saving..."}
             {saveState === "saved" && "Saved to cloud"}
             {saveState === "error" && <span className="text-red-500">Error saving</span>}
@@ -258,12 +302,12 @@ export const TopBar = React.memo(function TopBar({
 
         {/* Dropdown Menu */}
         {boardSelectorOpen && (
-          <div className="absolute top-12 left-0 w-64 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="absolute top-12 left-0 w-64 bg-card rounded-xl shadow-2xl border border-border overflow-hidden flex flex-col z-50 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="max-h-[300px] overflow-y-auto p-1.5 flex flex-col gap-0.5 custom-scrollbar">
               {boards.map(board => (
                 <div 
                   key={board.id}
-                  className={`flex items-center justify-between px-2.5 h-9 rounded-lg group transition-colors ${board.id === currentBoardId ? 'bg-indigo-50/50' : 'hover:bg-gray-50 cursor-pointer'}`}
+                  className={`flex items-center justify-between px-2.5 h-9 rounded-lg group transition-colors ${board.id === currentBoardId ? 'bg-indigo-50/50' : 'hover:bg-background cursor-pointer'}`}
                   onClick={() => {
                     if (renamingBoardId === board.id) return;
                     if (board.id !== currentBoardId) {
@@ -297,10 +341,10 @@ export const TopBar = React.memo(function TopBar({
                           setRenamingBoardId(null);
                         }}
                         onClick={(e) => e.stopPropagation()}
-                        className="text-sm text-gray-800 bg-white border border-indigo-300 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 w-full"
+                        className="text-sm text-foreground bg-card border border-indigo-300 rounded px-1.5 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 w-full"
                       />
                     ) : (
-                      <span className={`text-sm truncate ${board.id === currentBoardId ? 'font-semibold text-indigo-900' : 'font-medium text-gray-700'}`}>
+                      <span className={`text-sm truncate ${board.id === currentBoardId ? 'font-semibold text-indigo-900' : 'font-medium text-foreground'}`}>
                         {board.name}
                       </span>
                     )}
@@ -339,7 +383,7 @@ export const TopBar = React.memo(function TopBar({
               ))}
             </div>
             
-            <div className="p-1.5 border-t border-gray-100 bg-gray-50/50">
+            <div className="p-1.5 border-t border-border bg-background/50">
               <button 
                 onClick={() => {
                   onCreateBoard?.();
@@ -356,46 +400,76 @@ export const TopBar = React.memo(function TopBar({
 
       {/* RIGHT: Top Bar tools */}
       <div className="flex items-center gap-2 pointer-events-auto">
-        <div className="flex items-center gap-1 bg-white rounded-2xl px-2 py-1.5 shadow-lg border border-black/[0.06]">
-          {/* Avatar */}
-          <div className="relative">
+        <div className="flex items-center gap-1 bg-card rounded-2xl px-2 py-1.5 shadow-lg border border-black/[0.06]">
+          {/* Avatar / User Menu */}
+          <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-1 pl-1 pr-2 h-8 rounded-xl hover:bg-gray-100 transition-colors"
+              className="flex items-center gap-1 pl-1 pr-2 h-8 rounded-xl hover:bg-muted transition-colors focus:outline-none"
+              aria-label="User profile menu"
+              aria-expanded={userMenuOpen}
             >
-              <div className="w-6 h-6 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-xs font-bold uppercase">
-                {userName.charAt(0)}
+              <div className="w-6 h-6 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-xs font-bold uppercase shadow-sm overflow-hidden">
+                {userAvatar ? (
+                  <img src={userAvatar.startsWith('http') ? userAvatar : `http://127.0.0.1:8000${userAvatar}`} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  userName.charAt(0)
+                )}
               </div>
-              <ChevronDown size={13} className="text-gray-400" />
+              <ChevronDown size={13} className={`text-gray-400 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
             </button>
+            
             {userMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-black/[0.06] p-2 animate-in fade-in slide-in-from-top-1 duration-150">
-                <div className="px-3 py-2 border-b border-black/[0.04]">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Logged in as</p>
-                  <p className="text-xs font-bold text-gray-700 truncate">{userName}</p>
+              <div className="absolute right-0 mt-2 w-[260px] bg-card rounded-xl shadow-xl border border-border overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#1abc9c] flex items-center justify-center text-white text-lg font-bold uppercase shadow-sm shrink-0 overflow-hidden">
+                    {userAvatar ? (
+                      <img src={userAvatar.startsWith('http') ? userAvatar : `http://127.0.0.1:8000${userAvatar}`} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      userName.charAt(0)
+                    )}
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-bold text-foreground truncate">{userName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{userEmail || "user@email.com"}</p>
+                  </div>
                 </div>
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-[#FF4757] font-bold hover:bg-red-50 rounded-lg transition-colors mt-1"
-                >
-                  <LogOut size={12} />
-                  Log Out
-                </button>
+                
+                <div className="p-1.5">
+                  <button 
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      navigate("/profile");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground font-medium hover:bg-background hover:text-indigo-600 rounded-lg transition-colors"
+                  >
+                    <User size={16} />
+                    My Profile
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      navigate("/settings");
+                    }}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-foreground font-medium hover:bg-background hover:text-indigo-600 rounded-lg transition-colors"
+                  >
+                    <Settings size={16} />
+                    Settings
+                  </button>
+                </div>
+                
+                <div className="p-1.5 border-t border-gray-50 bg-background/50">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-2.5 py-2 text-sm text-red-600 font-semibold hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Log Out
+                  </button>
+                </div>
               </div>
             )}
           </div>
-
-          <div className="w-px h-5 bg-gray-200" />
-
-          {/* Layout icon */}
-          <button className="w-8 h-8 flex items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 transition-colors">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-              <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-            </svg>
-          </button>
 
           <div className="w-px h-5 bg-gray-200" />
 
@@ -410,7 +484,7 @@ export const TopBar = React.memo(function TopBar({
               <Palette size={18} />
             </button>
             {bgMenuOpen && (
-              <div className="absolute top-10 right-0 bg-white rounded-xl shadow-xl border border-gray-100 p-2 flex gap-1.5 z-50">
+              <div className="absolute top-10 right-0 bg-card rounded-xl shadow-xl border border-border p-2 flex gap-1.5 z-50">
                 {(["white", "black", "green"] as const).map(c => (
                   <button
                     key={c}
@@ -430,10 +504,10 @@ export const TopBar = React.memo(function TopBar({
           <button
             onClick={() => setRunning(r => !r)}
             title={running ? "Pause timer" : "Start timer"}
-            className="flex items-center gap-1.5 px-2 h-8 rounded-xl hover:bg-gray-100 transition-colors"
+            className="flex items-center gap-1.5 px-2 h-8 rounded-xl hover:bg-muted transition-colors"
           >
-            <Disc3 size={15} className="text-gray-500" />
-            <span className="text-sm font-semibold font-mono text-gray-700 tabular-nums">
+            <Disc3 size={15} className="text-muted-foreground" />
+            <span className="text-sm font-semibold font-mono text-foreground tabular-nums">
               {mm}:{ss}
             </span>
           </button>
@@ -445,14 +519,14 @@ export const TopBar = React.memo(function TopBar({
             <button
               onClick={() => setMusicOpen(o => !o)}
               title="Music Player"
-              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${musicOpen || isPlaying ? "bg-indigo-50 text-indigo-500" : "text-gray-500 hover:bg-indigo-50 hover:text-indigo-500"}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${musicOpen || isPlaying ? "bg-indigo-50 text-indigo-500" : "text-muted-foreground hover:bg-indigo-50 hover:text-indigo-500"}`}
             >
               <Music size={15} />
             </button>
             {musicOpen && (
-              <div className="absolute top-10 right-0 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden w-64 z-50 text-gray-800 p-4">
+              <div className="absolute top-10 right-0 bg-card rounded-2xl shadow-xl border border-border overflow-hidden w-64 z-50 text-foreground p-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-bold text-sm text-gray-800">Local Music</h3>
+                  <h3 className="font-bold text-sm text-foreground">Local Music</h3>
                   <button onClick={() => fileInputRef.current?.click()} className="text-indigo-500 hover:bg-indigo-50 p-1.5 rounded-lg transition-colors" title="Add Music Files">
                     <FileMusic size={16} />
                   </button>
@@ -467,7 +541,7 @@ export const TopBar = React.memo(function TopBar({
 
                 {playlist.length > 0 ? (
                   <>
-                    <div className="text-xs font-semibold text-gray-600 truncate mb-1">
+                    <div className="text-xs font-semibold text-muted-foreground truncate mb-1">
                       {playlist[currentTrack].name}
                     </div>
                     <div className="text-[10px] text-gray-400 mb-4">
@@ -475,13 +549,13 @@ export const TopBar = React.memo(function TopBar({
                     </div>
 
                     <div className="flex items-center justify-center gap-3 mb-4">
-                      <button onClick={handlePrevTrack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700">
+                      <button onClick={handlePrevTrack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted text-foreground">
                         <SkipBack size={16} fill="currentColor" />
                       </button>
                       <button onClick={() => setIsPlaying(!isPlaying)} className="w-10 h-10 flex items-center justify-center rounded-full bg-indigo-500 hover:bg-indigo-600 text-white shadow-md transition-transform active:scale-95">
                         {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" className="ml-0.5" />}
                       </button>
-                      <button onClick={handleNextTrack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-700">
+                      <button onClick={handleNextTrack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted text-foreground">
                         <SkipForward size={16} fill="currentColor" />
                       </button>
                     </div>
@@ -498,7 +572,7 @@ export const TopBar = React.memo(function TopBar({
                 ) : (
                   <div className="text-center py-4">
                     <Music size={24} className="mx-auto text-gray-300 mb-2" />
-                    <p className="text-xs text-gray-500">No music loaded</p>
+                    <p className="text-xs text-muted-foreground">No music loaded</p>
                     <button onClick={() => fileInputRef.current?.click()} className="mt-3 text-xs bg-indigo-50 text-indigo-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-indigo-100 transition-colors">
                       Choose Files
                     </button>
@@ -531,7 +605,7 @@ export const TopBar = React.memo(function TopBar({
               <Calendar size={16} />
             </button>
             {calOpen && (
-              <div className="absolute top-10 right-0 bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden w-64 z-50 text-gray-800">
+              <div className="absolute top-10 right-0 bg-card rounded-2xl shadow-xl border border-border overflow-hidden w-64 z-50 text-foreground">
                 <div className="bg-[#FF4757] text-white flex justify-between items-center px-4 py-3">
                   <button onClick={() => setCalDate(new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1))} className="hover:bg-[#ff6b77] rounded-full w-6 h-6 flex items-center justify-center transition-colors font-bold">&lt;</button>
                   <div className="font-semibold text-sm">
@@ -548,7 +622,7 @@ export const TopBar = React.memo(function TopBar({
                     {Array.from({ length: daysInMonth }).map((_, i) => {
                       const isToday = i + 1 === new Date().getDate() && calDate.getMonth() === new Date().getMonth() && calDate.getFullYear() === new Date().getFullYear();
                       return (
-                        <div key={i + 1} className={`flex items-center justify-center h-7 rounded-full transition-colors ${isToday ? "bg-[#FF4757] text-white shadow-sm font-bold" : "hover:bg-[#fff0f1] cursor-pointer text-gray-700"}`}>
+                        <div key={i + 1} className={`flex items-center justify-center h-7 rounded-full transition-colors ${isToday ? "bg-[#FF4757] text-white shadow-sm font-bold" : "hover:bg-[#fff0f1] cursor-pointer text-foreground"}`}>
                           {i + 1}
                         </div>
                       );
@@ -566,7 +640,7 @@ export const TopBar = React.memo(function TopBar({
             <button
               onClick={onToggleChat}
               title="Board Chat"
-              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${chatOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-gray-500 hover:bg-[#f2efff] hover:text-[#7B61FF]"}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${chatOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-muted-foreground hover:bg-[#f2efff] hover:text-[#7B61FF]"}`}
             >
               <MessageSquare size={16} />
               {chatUnreadCount > 0 && !chatOpen && (
@@ -580,7 +654,7 @@ export const TopBar = React.memo(function TopBar({
 
         {/* Board Search */}
         <div ref={searchContainerRef} className="relative">
-          <div className="flex items-center bg-gray-50 border border-gray-100 rounded-xl px-2.5 h-9 transition-all focus-within:ring-2 focus-within:ring-[#7B61FF] focus-within:border-transparent w-48 shadow-sm">
+          <div className="flex items-center bg-background border border-border rounded-xl px-2.5 h-9 transition-all focus-within:ring-2 focus-within:ring-[#7B61FF] focus-within:border-transparent w-48 shadow-sm">
             <Search size={14} className="text-gray-400 flex-shrink-0" />
             <input
               type="text"
@@ -591,19 +665,19 @@ export const TopBar = React.memo(function TopBar({
                 setIsSearchOpen(true);
               }}
               onFocus={() => setIsSearchOpen(true)}
-              className="w-full bg-transparent border-none outline-none text-xs text-gray-700 px-2 placeholder-gray-400"
+              className="w-full bg-transparent border-none outline-none text-xs text-foreground px-2 placeholder-gray-400"
             />
           </div>
           
           {/* Dropdown */}
           {isSearchOpen && searchQuery.trim() !== "" && (
-            <div className="absolute top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-1">
+            <div className="absolute top-full mt-2 w-56 bg-card rounded-xl shadow-xl border border-border py-1.5 z-50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-1">
               {filteredSearchBoards.length > 0 ? (
                 filteredSearchBoards.map(board => (
                   <button
                     key={board.id}
                     onClick={() => handleSelectSearchedBoard(board)}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex flex-col"
+                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-background transition-colors flex flex-col"
                   >
                     <span className="font-medium truncate">{board.name || "Untitled Board"}</span>
                   </button>
@@ -630,7 +704,7 @@ export const TopBar = React.memo(function TopBar({
                 {u.name ? u.name.charAt(0).toUpperCase() : "U"}
               </div>
             ))}
-            <div className="ml-2 text-xs font-bold text-gray-500">
+            <div className="ml-2 text-xs font-bold text-muted-foreground">
               {onlineUsers.length} Online
             </div>
           </div>
@@ -654,10 +728,10 @@ export const TopBar = React.memo(function TopBar({
           <div className="flex flex-col gap-3 max-w-[500px] w-full h-auto animate-in fade-in zoom-in duration-300 relative my-auto">
 
             {view === "main" ? (
-              <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
+              <div className="bg-card rounded-[24px] shadow-2xl border border-border p-6 flex flex-col text-foreground">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-5">
-                  <h2 className="font-bold text-gray-900 text-lg">Share this board</h2>
+                  <h2 className="font-bold text-foreground text-lg">Share this board</h2>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={handleCopyLink}
@@ -680,7 +754,7 @@ export const TopBar = React.memo(function TopBar({
                     </button>
                     <button
                       onClick={() => setShareOpen(false)}
-                      className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+                      className="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center text-gray-400 hover:text-muted-foreground transition-colors"
                     >
                       <X size={18} />
                     </button>
@@ -689,27 +763,27 @@ export const TopBar = React.memo(function TopBar({
 
                 {/* Who has access */}
                 <div className="flex flex-col">
-                  <h3 className="text-gray-500 font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
+                  <h3 className="text-muted-foreground font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
 
                   {/* Lock Row */}
                   <div ref={visibilityRef} className="relative">
                     <div
                       onClick={() => setVisibilityPopoverOpen(o => !o)}
-                      className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                      className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-background cursor-pointer transition-colors group"
                     >
                       <div className="flex items-center gap-3.5">
-                        <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:bg-muted transition-colors">
                           <Lock size={15} />
                         </div>
                         <div className="text-left">
-                          <div className="text-sm font-semibold text-gray-800">Private Board</div>
+                          <div className="text-sm font-semibold text-foreground">Private Board</div>
                           <div className="text-xs text-gray-400">
                             Only invited collaborators can view and edit this board.
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full border border-gray-200 shadow-sm">
+                        <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border shadow-sm">
                           <Lock size={10} className="text-gray-400" />
                           <span>Private</span>
                         </div>
@@ -717,7 +791,7 @@ export const TopBar = React.memo(function TopBar({
                       </div>
                     </div>
                     {visibilityPopoverOpen && (
-                      <div className="mt-1 w-full bg-white rounded-xl shadow-sm border border-gray-100 p-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="mt-1 w-full bg-card rounded-xl shadow-sm border border-border p-2 animate-in fade-in slide-in-from-top-1 duration-200">
                         <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Board Visibility</div>
                         
                         <button className="w-full text-left flex items-start gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-50 transition-colors cursor-default">
@@ -729,19 +803,19 @@ export const TopBar = React.memo(function TopBar({
                           <Check size={16} className="text-indigo-600 ml-auto mt-1" />
                         </button>
                         
-                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors opacity-50 cursor-not-allowed mt-1">
-                          <Globe size={16} className="text-gray-500 mt-0.5 shrink-0" />
+                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-background transition-colors opacity-50 cursor-not-allowed mt-1">
+                          <Globe size={16} className="text-muted-foreground mt-0.5 shrink-0" />
                           <div>
-                            <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">Public <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-gray-500">Coming Soon</span></div>
-                            <div className="text-xs text-gray-500 mt-0.5">Anyone on the internet can view.</div>
+                            <div className="text-sm font-semibold text-foreground flex items-center gap-2">Public <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-muted-foreground">Coming Soon</span></div>
+                            <div className="text-xs text-muted-foreground mt-0.5">Anyone on the internet can view.</div>
                           </div>
                         </button>
                         
-                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors opacity-50 cursor-not-allowed mt-1">
-                          <Users size={16} className="text-gray-500 mt-0.5 shrink-0" />
+                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-background transition-colors opacity-50 cursor-not-allowed mt-1">
+                          <Users size={16} className="text-muted-foreground mt-0.5 shrink-0" />
                           <div>
-                            <div className="text-sm font-semibold text-gray-700 flex items-center gap-2">Organization <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-gray-500">Coming Soon</span></div>
-                            <div className="text-xs text-gray-500 mt-0.5">Anyone in your org can access.</div>
+                            <div className="text-sm font-semibold text-foreground flex items-center gap-2">Organization <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-muted-foreground">Coming Soon</span></div>
+                            <div className="text-xs text-muted-foreground mt-0.5">Anyone in your org can access.</div>
                           </div>
                         </button>
                       </div>
@@ -751,14 +825,14 @@ export const TopBar = React.memo(function TopBar({
                   {/* Collaborators Row */}
                   <div 
                     onClick={() => setView("collaborators")}
-                    className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group mt-1"
+                    className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-background cursor-pointer transition-colors group mt-1"
                   >
                     <div className="flex items-center gap-3.5">
-                      <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100 transition-colors">
+                      <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:bg-muted transition-colors">
                         <Users size={15} />
                       </div>
                       <div className="text-left">
-                        <div className="text-sm font-semibold text-gray-800">Collaborators</div>
+                        <div className="text-sm font-semibold text-foreground">Collaborators</div>
                         <div className="text-xs text-gray-400">Manage members and permissions.</div>
                       </div>
                     </div>
@@ -775,12 +849,12 @@ export const TopBar = React.memo(function TopBar({
                             );
                           })}
                           {collaborators.length > 2 && (
-                            <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-600 -ml-1.5 z-[1] relative shadow-sm">
+                            <div className="w-6 h-6 rounded-full bg-muted border-2 border-white flex items-center justify-center text-[10px] font-bold text-muted-foreground -ml-1.5 z-[1] relative shadow-sm">
                               +{collaborators.length - 2}
                             </div>
                           )}
                         </div>
-                        <span className="text-xs font-medium text-gray-500">
+                        <span className="text-xs font-medium text-muted-foreground">
                           {collaborators.length === 0 ? "Owner only" : collaborators.length === 1 ? "1 Member" : `${collaborators.length} Members`}
                         </span>
                       </div>
@@ -790,14 +864,14 @@ export const TopBar = React.memo(function TopBar({
                 </div>
               </div>
             ) : (
-              <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800 animate-in slide-in-from-right-4 duration-200">
+              <div className="bg-card rounded-[24px] shadow-2xl border border-border p-6 flex flex-col text-foreground animate-in slide-in-from-right-4 duration-200">
                 {/* Header for Panel */}
                 <div className="flex items-center gap-3 mb-5">
-                  <button onClick={() => setView("main")} className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors">
+                  <button onClick={() => setView("main")} className="w-8 h-8 rounded-full bg-background hover:bg-muted flex items-center justify-center text-muted-foreground transition-colors">
                     <ChevronDown className="rotate-90" size={16} />
                   </button>
-                  <h2 className="font-bold text-gray-900 text-lg flex-1">Collaborators</h2>
-                  <button onClick={() => setShareOpen(false)} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 transition-colors">
+                  <h2 className="font-bold text-foreground text-lg flex-1">Collaborators</h2>
+                  <button onClick={() => setShareOpen(false)} className="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center text-gray-400 transition-colors">
                     <X size={18} />
                   </button>
                 </div>
@@ -812,7 +886,7 @@ export const TopBar = React.memo(function TopBar({
                         value={inviteEmail}
                         onChange={(e) => setInviteEmail(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-                        className="w-full h-10 px-3.5 rounded-xl border border-gray-200 focus:border-[#7B61FF] focus:ring-1 focus:ring-[#7B61FF] outline-none text-sm text-gray-800 placeholder-gray-400 transition-all"
+                        className="w-full h-10 px-3.5 rounded-xl border border-border focus:border-[#7B61FF] focus:ring-1 focus:ring-[#7B61FF] outline-none text-sm text-foreground placeholder-gray-400 transition-all"
                         disabled={isInviting}
                       />
                     </div>
@@ -853,7 +927,7 @@ export const TopBar = React.memo(function TopBar({
                         const initial = name.charAt(0).toUpperCase();
 
                         return (
-                          <div key={`${user.id || email}-${idx}`} className={`flex items-center justify-between py-2.5 px-1.5 border-b border-gray-50 last:border-0 hover:bg-gray-50/50 transition-colors`}>
+                          <div key={`${user.id || email}-${idx}`} className={`flex items-center justify-between py-2.5 px-1.5 border-b border-gray-50 last:border-0 hover:bg-background/50 transition-colors`}>
                             <div className="flex items-center gap-3.5">
                               <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shadow-sm ${
                                 isOwner 
@@ -863,17 +937,17 @@ export const TopBar = React.memo(function TopBar({
                                 {initial}
                               </div>
                               <div className="text-left max-w-[200px] truncate">
-                                <div className="text-sm font-semibold text-gray-800 truncate" title={email}>
+                                <div className="text-sm font-semibold text-foreground truncate" title={email}>
                                   {name}
                                 </div>
-                                <div className="text-[11px] text-gray-500 truncate" title={email}>
+                                <div className="text-[11px] text-muted-foreground truncate" title={email}>
                                   {email}
                                 </div>
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
                               {isOwner ? (
-                                <span className="text-xs font-medium text-gray-400 pr-1 px-2 py-1 rounded bg-gray-50 border border-gray-100">Owner</span>
+                                <span className="text-xs font-medium text-gray-400 pr-1 px-2 py-1 rounded bg-background border border-border">Owner</span>
                               ) : (
                                 <select
                                   value={user.role}
@@ -885,7 +959,7 @@ export const TopBar = React.memo(function TopBar({
                                     }
                                   }}
                                   disabled={isOwner}
-                                  className="bg-transparent border border-gray-200 rounded-lg px-2 py-1 text-xs font-medium text-gray-600 hover:text-gray-900 hover:border-gray-300 outline-none cursor-pointer pr-1 transition-colors shadow-sm"
+                                  className="bg-transparent border border-border rounded-lg px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border outline-none cursor-pointer pr-1 transition-colors shadow-sm"
                                 >
                                   <option value="editor">Editor</option>
                                   <option value="viewer">Viewer</option>
@@ -903,19 +977,19 @@ export const TopBar = React.memo(function TopBar({
             )}
 
             {collaboratorToRemove && (
-              <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-[120] rounded-[24px] flex items-center justify-center p-6 animate-in fade-in duration-200">
-                <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-5 max-w-[300px] w-full text-center">
+              <div className="absolute inset-0 bg-card/90 backdrop-blur-sm z-[120] rounded-[24px] flex items-center justify-center p-6 animate-in fade-in duration-200">
+                <div className="bg-card rounded-xl shadow-xl border border-border p-5 max-w-[300px] w-full text-center">
                   <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-3">
                     <Trash2 size={24} />
                   </div>
-                  <h3 className="text-lg font-bold text-gray-900 mb-2">Remove Collaborator?</h3>
-                  <p className="text-sm text-gray-500 mb-5">
+                  <h3 className="text-lg font-bold text-foreground mb-2">Remove Collaborator?</h3>
+                  <p className="text-sm text-muted-foreground mb-5">
                     Are you sure you want to remove <strong>{collaboratorToRemove.email || collaboratorToRemove.user_id}</strong> from this board? They will lose access immediately.
                   </p>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setCollaboratorToRemove(null)}
-                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                      className="flex-1 py-2 rounded-lg text-sm font-semibold text-muted-foreground bg-muted hover:bg-gray-200 transition-colors"
                     >
                       Cancel
                     </button>
@@ -935,12 +1009,12 @@ export const TopBar = React.memo(function TopBar({
             )}
 
             {/* Card 2: Classroom, Meet, Session */}
-            <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
+            <div className="bg-card rounded-[24px] shadow-2xl border border-border p-6 flex flex-col text-foreground">
 
               {/* Classroom */}
               <div
                 onClick={handleClassroomShare}
-                className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-background cursor-pointer transition-colors group"
               >
                 <div className="flex items-center gap-3.5">
                   <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
@@ -948,7 +1022,7 @@ export const TopBar = React.memo(function TopBar({
                       🏫
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-gray-800">
+                  <span className="text-sm font-semibold text-foreground">
                     {classroomShared ? "Shared successfully!" : "Share to Google Classroom"}
                   </span>
                 </div>
@@ -968,7 +1042,7 @@ export const TopBar = React.memo(function TopBar({
                     </div>
                     <span className="text-sm font-semibold text-gray-400">Cast to a Google Meet device</span>
                   </div>
-                  <div className="flex items-center justify-center w-5 h-5 text-gray-400 hover:text-gray-600">
+                  <div className="flex items-center justify-center w-5 h-5 text-gray-400 hover:text-muted-foreground">
                     <Info size={15} />
                   </div>
                 </div>
@@ -980,14 +1054,14 @@ export const TopBar = React.memo(function TopBar({
               </div>
 
               {/* Open Session */}
-              <div className="flex items-center justify-between py-3 px-1.5 border-t border-b border-gray-100 my-2">
+              <div className="flex items-center justify-between py-3 px-1.5 border-t border-b border-border my-2">
                 <div className="flex items-center gap-3.5 flex-1 pr-4">
                   <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
                     <Users size={16} />
                   </div>
                   <div className="text-left">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-gray-800">Start open session</span>
+                      <span className="text-sm font-semibold text-foreground">Start open session</span>
                       {sessionActive && (
                         <span className="text-[10px] bg-green-50 text-green-600 font-bold px-1.5 py-0.5 rounded animate-pulse">
                           Active ({sessionTime})
@@ -1003,7 +1077,7 @@ export const TopBar = React.memo(function TopBar({
                   onClick={() => setSessionActive(!sessionActive)}
                   className={`px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all border shrink-0 ${sessionActive
                     ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer"
-                    : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50 cursor-pointer"
+                    : "bg-card text-foreground border-border hover:bg-background cursor-pointer"
                     }`}
                 >
                   {sessionActive ? "Stop" : "Start"}
@@ -1014,19 +1088,19 @@ export const TopBar = React.memo(function TopBar({
               <div>
                 <div
                   onClick={() => setShowMoreOptions(!showMoreOptions)}
-                  className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group"
+                  className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-background cursor-pointer transition-colors group"
                 >
                   <div className="flex items-center gap-3.5">
-                    <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-gray-100">
+                    <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-gray-400 group-hover:bg-muted">
                       <MoreHorizontal size={15} />
                     </div>
-                    <span className="text-sm font-semibold text-gray-800">More</span>
+                    <span className="text-sm font-semibold text-foreground">More</span>
                   </div>
                   <ChevronRight size={15} className={`text-gray-400 group-hover:translate-x-0.5 transition-transform ${showMoreOptions ? "rotate-90" : ""}`} />
                 </div>
                 
                 {showMoreOptions && (
-                  <div className="mt-2 p-1 bg-gray-50/50 rounded-xl animate-in slide-in-from-top-2 duration-150 flex flex-col gap-1 relative">
+                  <div className="mt-2 p-1 bg-background/50 rounded-xl animate-in slide-in-from-top-2 duration-150 flex flex-col gap-1 relative">
                     
                     {/* Export Group */}
                     <div className="mb-1">
@@ -1036,21 +1110,21 @@ export const TopBar = React.memo(function TopBar({
                       <div className="flex flex-col">
                         <button 
                           onClick={() => setShowExportMenu(!showExportMenu)}
-                          className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all flex items-center justify-between group"
+                          className="w-full text-left px-2 py-1.5 text-xs font-semibold text-foreground hover:bg-card hover:shadow-sm rounded-lg transition-all flex items-center justify-between group"
                         >
                           <span>Export Board</span>
                           <ChevronRight size={14} className={`text-gray-400 transition-transform duration-200 ${showExportMenu ? "rotate-90" : "group-hover:translate-x-0.5"}`} />
                         </button>
                         
                         {showExportMenu && (
-                          <div className="mt-1 w-full bg-white rounded-xl shadow-sm border border-gray-100 p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-50 rounded-lg flex items-center justify-between cursor-not-allowed">
+                          <div className="mt-1 w-full bg-card rounded-xl shadow-sm border border-border p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-background rounded-lg flex items-center justify-between cursor-not-allowed">
                               <span>Export as PNG</span>
-                              <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                              <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                             </button>
-                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-gray-50 rounded-lg flex items-center justify-between cursor-not-allowed">
+                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-background rounded-lg flex items-center justify-between cursor-not-allowed">
                               <span>Export as PDF</span>
-                              <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                              <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                             </button>
                             <button 
                               onClick={() => {
@@ -1064,7 +1138,7 @@ export const TopBar = React.memo(function TopBar({
                                 setShowExportMenu(false);
                                 if (showToast) showToast("Board exported successfully!", "success");
                               }}
-                              className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 rounded-lg transition-colors"
+                              className="w-full text-left px-2 py-2 text-xs font-semibold text-foreground hover:bg-background hover:text-indigo-600 rounded-lg transition-colors"
                             >
                               Export as JSON
                             </button>
@@ -1073,7 +1147,7 @@ export const TopBar = React.memo(function TopBar({
                                 if (showToast) showToast("Mermaid export requires generating a flowchart first. (Coming Soon)", "info");
                                 setShowExportMenu(false);
                               }}
-                              className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:text-indigo-600 rounded-lg transition-colors"
+                              className="w-full text-left px-2 py-2 text-xs font-semibold text-foreground hover:bg-background hover:text-indigo-600 rounded-lg transition-colors"
                             >
                               Export as Mermaid
                             </button>
@@ -1094,17 +1168,17 @@ export const TopBar = React.memo(function TopBar({
                             onRenameBoard(currentBoardId, newName);
                           }
                         }}
-                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-700 hover:bg-white hover:shadow-sm rounded-lg transition-all"
+                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-foreground hover:bg-card hover:shadow-sm rounded-lg transition-all"
                       >
                         Rename Board
                       </button>
                       <button 
                         onClick={() => {}}
-                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-400 hover:bg-gray-50 rounded-lg flex items-center justify-between cursor-not-allowed"
+                        className="w-full text-left px-2 py-1.5 text-xs font-semibold text-gray-400 hover:bg-background rounded-lg flex items-center justify-between cursor-not-allowed"
                         disabled
                       >
                         <span>Duplicate Board</span>
-                        <span className="text-[9px] bg-gray-100 px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                        <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                       </button>
                       <button 
                         onClick={() => confirmDeleteBoard(currentBoardId)}
@@ -1132,18 +1206,18 @@ export const TopBar = React.memo(function TopBar({
             onClick={handleCancelDelete} 
           />
           {/* Modal */}
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="px-6 py-5">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-600 shrink-0">
                   <Trash2 size={20} />
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">Delete Board</h2>
+                <h2 className="text-lg font-bold text-foreground">Delete Board</h2>
               </div>
-              <p className="text-sm text-gray-600 mt-3 leading-relaxed">
+              <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
                 Are you sure you want to permanently delete this board?
               </p>
-              <p className="text-sm font-semibold text-gray-800 mt-2">
+              <p className="text-sm font-semibold text-foreground mt-2">
                 This action cannot be undone.
               </p>
               
@@ -1154,12 +1228,12 @@ export const TopBar = React.memo(function TopBar({
               )}
             </div>
             
-            <div className="px-6 py-4 bg-gray-50 flex items-center justify-end gap-3 rounded-b-2xl">
+            <div className="px-6 py-4 bg-background flex items-center justify-end gap-3 rounded-b-2xl">
               <button
                 onClick={handleCancelDelete}
                 disabled={isDeleting}
                 autoFocus
-                className="px-4 py-2 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:opacity-50"
+                className="px-4 py-2 text-sm font-bold text-foreground bg-card border border-border rounded-xl hover:bg-background hover:text-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200 disabled:opacity-50"
               >
                 Cancel
               </button>

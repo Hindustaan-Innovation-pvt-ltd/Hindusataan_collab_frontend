@@ -76,15 +76,15 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
   return (
     <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[100] flex items-center justify-center p-4 transition-all duration-300 pointer-events-auto">
       <div className="flex flex-col gap-3 max-w-[500px] w-full animate-in fade-in zoom-in duration-200">
-        <div className="bg-white rounded-[24px] shadow-2xl border border-gray-100 p-6 flex flex-col text-gray-800">
+        <div className="bg-card rounded-[24px] shadow-2xl border border-border p-6 flex flex-col text-foreground">
           {/* Header */}
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-bold text-gray-900 text-lg">Share this board</h2>
+            <h2 className="font-bold text-foreground text-lg">Share this board</h2>
             <div className="flex items-center gap-4">
               <button onClick={handleCopyLink} className="flex items-center gap-1.5 text-sm font-semibold text-[#7B61FF] hover:text-[#6B4FF0] transition-colors">
                 {copyStatus === "Copied!" ? <><Check size={15} /><span>Copied!</span></> : <><LinkIcon size={15} /><span>Copy link</span></>}
               </button>
-              <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={onClose} className="w-7 h-7 rounded-full hover:bg-muted flex items-center justify-center text-gray-400 hover:text-muted-foreground transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -99,7 +99,7 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleInvite()}
-                className="w-full h-10 px-3.5 rounded-xl border border-gray-200 focus:border-[#7B61FF] focus:ring-1 focus:ring-[#7B61FF] outline-none text-sm text-gray-800 placeholder-gray-400 transition-all"
+                className="w-full h-10 px-3.5 rounded-xl border border-border focus:border-[#7B61FF] focus:ring-1 focus:ring-[#7B61FF] outline-none text-sm text-foreground placeholder-gray-400 transition-all"
               />
             </div>
             <button
@@ -113,15 +113,15 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
 
           {/* Who has access */}
           <div className="flex flex-col">
-            <h3 className="text-gray-500 font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
+            <h3 className="text-muted-foreground font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
             
-            <div onClick={() => setLinkAccess(p => p === "invited" ? "anyone" : "invited")} className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group">
+            <div onClick={() => setLinkAccess(p => p === "invited" ? "anyone" : "invited")} className="flex items-center justify-between py-2.5 px-1.5 rounded-xl hover:bg-background cursor-pointer transition-colors group">
               <div className="flex items-center gap-3.5">
-                <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-gray-500 group-hover:bg-gray-100">
+                <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:bg-muted">
                   <Lock size={15} />
                 </div>
                 <div className="text-left">
-                  <div className="text-sm font-semibold text-gray-800">Only invited people</div>
+                  <div className="text-sm font-semibold text-foreground">Only invited people</div>
                   <div className="text-xs text-gray-400">{linkAccess === "invited" ? "Private board" : "Anyone with access can join"}</div>
                 </div>
               </div>
@@ -136,17 +136,17 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
               const displayName = user.name || user.email?.split('@')[0] || `User ${user.user_id.slice(-4)}`;
               const initial = displayName.charAt(0).toUpperCase();
               return (
-                <div key={user.user_id} className="flex items-center justify-between py-2.5 px-1.5 border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                <div key={user.user_id} className="flex items-center justify-between py-2.5 px-1.5 border-t border-border/50 hover:bg-background/50 transition-colors">
                   <div className="flex items-center gap-3.5">
-                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-xs font-bold" title={displayName}>
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-xs font-bold" title={displayName}>
                       {initial}
                     </div>
                     <div className="text-left max-w-[200px] truncate">
-                      <div className="text-sm font-semibold text-gray-800 truncate" title={displayName}>
+                      <div className="text-sm font-semibold text-foreground truncate" title={displayName}>
                         {displayName}
                       </div>
                       {user.email && (
-                        <div className="text-[10px] text-gray-400 truncate" title={user.email}>
+                        <div className="text-[10px] text-muted-foreground truncate" title={user.email}>
                           {user.email}
                         </div>
                       )}
@@ -157,7 +157,7 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
                       value={user.role}
                       onChange={(e) => handleRoleChange(user.user_id, e.target.value)}
                       disabled={user.role === "owner"}
-                      className="bg-transparent border-none text-xs font-medium text-gray-500 hover:text-gray-800 outline-none cursor-pointer pr-1"
+                      className="bg-transparent border-none text-xs font-medium text-muted-foreground hover:text-foreground outline-none cursor-pointer pr-1"
                     >
                       <option value="owner">owner</option>
                       <option value="editor">can edit</option>

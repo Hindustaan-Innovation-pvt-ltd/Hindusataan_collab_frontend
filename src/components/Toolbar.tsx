@@ -83,7 +83,7 @@ function Toolbar({
       <div className="flex flex-col gap-2 items-center pointer-events-auto">
         {/* Pen picker */}
         {tool === "pen" && toolMenuOpen && (
-          <div className="flex flex-col p-2.5 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 gap-2 mb-1">
+          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border gap-2 mb-1">
             <div>
               <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Style</div>
               <div className="grid grid-cols-3 gap-1.5">
@@ -97,8 +97,8 @@ function Toolbar({
                     title={t.label}
                     onClick={() => setPenType(t.type as PenType)}
                     className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${penType === t.type
-                        ? "bg-gray-100 shadow-inner scale-95"
-                        : "hover:bg-gray-50"
+                        ? "bg-muted shadow-inner scale-95"
+                        : "hover:bg-background"
                       } ${t.color}`}
                   >
                     {t.icon}
@@ -116,7 +116,7 @@ function Toolbar({
                   <button
                     key={t.thick}
                     onClick={() => setPenThickness(t.thick as PenThickness)}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${penThickness === t.thick ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${penThickness === t.thick ? "bg-gray-800 text-white" : "bg-muted text-muted-foreground hover:bg-gray-200"
                       }`}
                   >
                     {t.label}
@@ -129,7 +129,7 @@ function Toolbar({
 
         {/* Shape kind picker */}
         {tool === "shape" && toolMenuOpen && (
-          <div className="flex flex-col p-2.5 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100">
+          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border">
             <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Shapes</div>
             <div className="grid grid-cols-3 gap-1.5">
               {SHAPE_KINDS.map(({ kind, label, icon }) => (
@@ -139,7 +139,7 @@ function Toolbar({
                   onClick={() => setShapeKind(kind)}
                   className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${shapeKind === kind
                       ? "bg-[#3742FA] text-white shadow-md scale-105"
-                      : "text-[#4B5563] hover:bg-gray-100 hover:text-gray-900"
+                      : "text-[#4B5563] hover:bg-muted hover:text-foreground"
                     }`}
                 >
                   {icon}
@@ -157,7 +157,7 @@ function Toolbar({
 
         {/* Icon search picker — searches the full lucide-react library */}
         {iconSearchOpen && (
-          <div className="flex flex-col p-2.5 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 w-80 mb-1">
+          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border w-80 mb-1">
             <div className="flex items-center gap-2 mb-2 px-1">
               <Search size={14} className="text-gray-400 shrink-0" />
               <input
@@ -166,14 +166,14 @@ function Toolbar({
                 value={iconQuery}
                 onChange={(e) => setIconQuery(e.target.value)}
                 placeholder="Search 1000+ icons (e.g. cup, mobile, smiley)"
-                className="flex-1 text-xs outline-none text-gray-800 placeholder:text-gray-400"
+                className="flex-1 text-xs outline-none text-foreground placeholder:text-gray-400"
               />
               <button
                 onClick={() => {
                   setIconSearchOpen(false);
                   setIconQuery("");
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-muted-foreground"
               >
                 <X size={14} />
               </button>
@@ -193,7 +193,7 @@ function Toolbar({
                       setIconSearchOpen(false);
                       setIconQuery("");
                     }}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl text-[#4B5563] hover:bg-gray-100 hover:text-gray-900 transition-all"
+                    className="w-9 h-9 flex items-center justify-center rounded-xl text-[#4B5563] hover:bg-muted hover:text-foreground transition-all"
                   >
                     <Icon size={17} />
                   </button>
@@ -209,7 +209,7 @@ function Toolbar({
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 bg-white rounded-full px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 pointer-events-auto">
+      <div className="flex items-center gap-1.5 bg-card rounded-full px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border pointer-events-auto">
         {TOOLS.map(({ id, label, key, icon }) => (
           <button
             key={id}
@@ -231,7 +231,7 @@ function Toolbar({
               w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200
               ${tool === id
                 ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
-                : "text-[#4B5563] hover:bg-gray-100 hover:text-gray-900"}
+                : "text-[#4B5563] hover:bg-muted hover:text-foreground"}
             `}
           >
             {icon}
@@ -250,7 +250,7 @@ function Toolbar({
           className={`w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200 ${
             iconSearchOpen
               ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
-              : "text-[#4B5563] hover:bg-gray-100 hover:text-gray-900"
+              : "text-[#4B5563] hover:bg-muted hover:text-foreground"
           }`}
         >
           <Search size={18} />
@@ -274,12 +274,12 @@ function Toolbar({
         <button
           onClick={() => onZoom(-1)}
           title="Zoom out"
-          className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <Minus size={16} />
         </button>
         <div
-          className="px-2 text-xs font-medium text-[#4B5563] min-w-[48px] text-center cursor-pointer hover:text-gray-900"
+          className="px-2 text-xs font-medium text-[#4B5563] min-w-[48px] text-center cursor-pointer hover:text-foreground"
           title="Reset zoom"
           onClick={() => {/* handled outside */ }}
         >
@@ -288,7 +288,7 @@ function Toolbar({
         <button
           onClick={() => onZoom(1)}
           title="Zoom in"
-          className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
         >
           <Plus size={16} />
         </button>
@@ -352,7 +352,7 @@ export default Toolbar;
 //       <div className="flex flex-col gap-2 items-center pointer-events-auto">
 //         {/* Pen picker */}
 //         {tool === "pen" && toolMenuOpen && (
-//           <div className="flex flex-col p-2.5 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 gap-2 mb-1">
+//           <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border gap-2 mb-1">
 //             <div>
 //               <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Style</div>
 //               <div className="grid grid-cols-3 gap-1.5">
@@ -366,8 +366,8 @@ export default Toolbar;
 //                     title={t.label}
 //                     onClick={() => setPenType(t.type as PenType)}
 //                     className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${penType === t.type
-//                         ? "bg-gray-100 shadow-inner scale-95"
-//                         : "hover:bg-gray-50"
+//                         ? "bg-muted shadow-inner scale-95"
+//                         : "hover:bg-background"
 //                       } ${t.color}`}
 //                   >
 //                     {t.icon}
@@ -385,7 +385,7 @@ export default Toolbar;
 //                   <button
 //                     key={t.thick}
 //                     onClick={() => setPenThickness(t.thick as PenThickness)}
-//                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${penThickness === t.thick ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+//                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${penThickness === t.thick ? "bg-gray-800 text-white" : "bg-muted text-muted-foreground hover:bg-gray-200"
 //                       }`}
 //                   >
 //                     {t.label}
@@ -398,7 +398,7 @@ export default Toolbar;
 
 //         {/* Shape kind picker */}
 //         {tool === "shape" && toolMenuOpen && (
-//           <div className="flex flex-col p-2.5 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100">
+//           <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border">
 //             <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Shapes</div>
 //             <div className="grid grid-cols-3 gap-1.5">
 //               {SHAPE_KINDS.map(({ kind, label, icon }) => (
@@ -408,7 +408,7 @@ export default Toolbar;
 //                   onClick={() => setShapeKind(kind)}
 //                   className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${shapeKind === kind
 //                       ? "bg-[#3742FA] text-white shadow-md scale-105"
-//                       : "text-[#4B5563] hover:bg-gray-100 hover:text-gray-900"
+//                       : "text-[#4B5563] hover:bg-muted hover:text-foreground"
 //                     }`}
 //                 >
 //                   {icon}
@@ -425,7 +425,7 @@ export default Toolbar;
 //         )}
 //       </div>
 
-//       <div className="flex items-center gap-1.5 bg-white rounded-full px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 pointer-events-auto">
+//       <div className="flex items-center gap-1.5 bg-card rounded-full px-3 py-2 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border pointer-events-auto">
 //         {TOOLS.map(({ id, label, key, icon }) => (
 //           <button
 //             key={id}
@@ -446,7 +446,7 @@ export default Toolbar;
 //               w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200
 //               ${tool === id
 //                 ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
-//                 : "text-[#4B5563] hover:bg-gray-100 hover:text-gray-900"}
+//                 : "text-[#4B5563] hover:bg-muted hover:text-foreground"}
 //             `}
 //           >
 //             {icon}
@@ -471,12 +471,12 @@ export default Toolbar;
 //         <button
 //           onClick={() => onZoom(-1)}
 //           title="Zoom out"
-//           className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+//           className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
 //         >
 //           <Minus size={16} />
 //         </button>
 //         <div
-//           className="px-2 text-xs font-medium text-[#4B5563] min-w-[48px] text-center cursor-pointer hover:text-gray-900"
+//           className="px-2 text-xs font-medium text-[#4B5563] min-w-[48px] text-center cursor-pointer hover:text-foreground"
 //           title="Reset zoom"
 //           onClick={() => {/* handled outside */ }}
 //         >
@@ -485,7 +485,7 @@ export default Toolbar;
 //         <button
 //           onClick={() => onZoom(1)}
 //           title="Zoom in"
-//           className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+//           className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
 //         >
 //           <Plus size={16} />
 //         </button>

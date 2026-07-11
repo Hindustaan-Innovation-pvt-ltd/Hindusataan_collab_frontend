@@ -248,7 +248,7 @@ export default function Signup() {
 
   return (
     <div
-      className="min-h-screen w-full flex bg-white"
+      className="min-h-screen w-full flex bg-card"
       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
     >
       {/* Decorative left panel */}
@@ -297,7 +297,7 @@ export default function Signup() {
       </div>
 
       {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center px-6 py-10 bg-white">
+      <div className="flex-1 flex items-center justify-center px-6 py-10 bg-card">
         <div className="w-full max-w-[440px] px-4">
           {isResetFlow ? (
             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
@@ -322,18 +322,18 @@ export default function Signup() {
               {!resetOtpSent ? (
                 <form onSubmit={handleSendForgotPasswordOtp} className="space-y-5">
                   {/* Selector tabs */}
-                  <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
+                  <div className="flex bg-muted p-1 rounded-xl gap-1">
                     <button
                       type="button"
                       onClick={() => { setResetType("email"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-white text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
                     >
                       Email
                     </button>
                     <button
                       type="button"
                       onClick={() => { setResetType("phone"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-white text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
                     >
                       Phone Number
                     </button>
@@ -350,7 +350,7 @@ export default function Signup() {
                           placeholder="Enter your registered email"
                           value={resetEmail}
                           onChange={(e) => setResetEmail(e.target.value)}
-                          className="pl-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                          className="pl-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                           required
                         />
                       </div>
@@ -363,7 +363,7 @@ export default function Signup() {
                           <select
                             value={resetCountryCode}
                             onChange={(e) => setResetCountryCode(e.target.value)}
-                            className="w-full h-12 rounded-xl border border-gray-200 bg-white px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
+                            className="w-full h-12 rounded-xl border border-border bg-card px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
                           >
                             <option value="+91">+91 (IN)</option>
                             <option value="+1">+1 (US)</option>
@@ -384,7 +384,7 @@ export default function Signup() {
                             placeholder="Enter your phone number"
                             value={resetPhone}
                             onChange={(e) => setResetPhone(e.target.value.replace(/\D/g, ""))}
-                            className="pl-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                            className="pl-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                             required
                           />
                         </div>
@@ -425,7 +425,7 @@ export default function Signup() {
                         placeholder="Enter 6-digit OTP"
                         value={resetOtp}
                         onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        className="pl-10 h-12 rounded-xl border-gray-200 text-[15px] tracking-widest text-lg font-medium placeholder:tracking-normal placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                        className="pl-10 h-12 rounded-xl border-border text-[15px] tracking-widest text-lg font-medium placeholder:tracking-normal placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                         required
                         autoFocus
                       />
@@ -442,7 +442,7 @@ export default function Signup() {
                         placeholder="Enter new password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        className="pl-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                        className="pl-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                         required
                       />
                     </div>
@@ -458,7 +458,7 @@ export default function Signup() {
                         placeholder="Confirm new password"
                         value={confirmNewPassword}
                         onChange={(e) => setConfirmNewPassword(e.target.value)}
-                        className="pl-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                        className="pl-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                         required
                       />
                     </div>
@@ -481,7 +481,7 @@ export default function Signup() {
                       type="button"
                       variant="outline"
                       onClick={() => setResetOtpSent(false)}
-                      className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-gray-200 text-[#1C1B1F] shadow-sm hover:bg-gray-50 transition-all hover:-translate-y-0.5"
+                      className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-[#1C1B1F] shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
                     >
                       <ArrowLeft size={18} className="mr-2" /> Back
                     </Button>
@@ -524,7 +524,7 @@ export default function Signup() {
               const isCompleted = step > s || (step === 4 && s === 4);
               const isCurrent = step === s && step !== 4;
               return (
-                <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isCompleted ? 'bg-[#3742FA] text-white shadow-[0_0_0_4px_white]' : isCurrent ? 'bg-[#3742FA] text-white shadow-[0_0_0_4px_white]' : 'bg-white border-2 border-gray-200 text-gray-400'}`}>
+                <div key={s} className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${isCompleted ? 'bg-[#3742FA] text-white shadow-[0_0_0_4px_white]' : isCurrent ? 'bg-[#3742FA] text-white shadow-[0_0_0_4px_white]' : 'bg-card border-2 border-border text-gray-400'}`}>
                   {isCompleted ? <Check size={16} strokeWidth={3} /> : s}
                 </div>
               )
@@ -552,7 +552,7 @@ export default function Signup() {
                       placeholder="Enter your full name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      className="pl-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                      className="pl-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                       autoFocus
                     />
                   </div>
@@ -568,7 +568,7 @@ export default function Signup() {
                       placeholder="Enter your email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                      className="pl-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                     />
                   </div>
                 </div>
@@ -625,21 +625,21 @@ export default function Signup() {
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 pr-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                      className="pl-10 pr-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                       autoFocus
                     />
                     <button 
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-muted-foreground"
                     >
                       {showPassword ? <EyeOff size={18} strokeWidth={2} /> : <Eye size={18} strokeWidth={2} />}
                     </button>
                   </div>
                   {/* Visual Password Strength Indicator */}
                   <div className="flex items-center gap-2 mt-2 px-1">
-                    <span className="text-[11px] font-semibold text-gray-500">Password strength:</span>
-                    <span className="text-[11px] font-bold text-gray-700">{getPasswordStrengthText()}</span>
+                    <span className="text-[11px] font-semibold text-muted-foreground">Password strength:</span>
+                    <span className="text-[11px] font-bold text-foreground">{getPasswordStrengthText()}</span>
                     <div className="flex gap-1 h-1.5 ml-2 w-24">
                       <div className={`flex-1 rounded-full transition-colors ${password.length > 0 ? getPasswordStrengthColor() : "bg-gray-200"}`} />
                       <div className={`flex-1 rounded-full transition-colors ${password.length >= 6 ? getPasswordStrengthColor() : "bg-gray-200"}`} />
@@ -658,12 +658,12 @@ export default function Signup() {
                       placeholder="Confirm your password"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="pl-10 pr-10 h-12 rounded-xl border-gray-200 text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
+                      className="pl-10 pr-10 h-12 rounded-xl border-border text-[15px] placeholder:text-gray-400 focus-visible:ring-[#3742FA] focus-visible:border-[#3742FA]"
                     />
                     <button 
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-muted-foreground"
                     >
                       {showConfirmPassword ? <EyeOff size={18} strokeWidth={2} /> : <Eye size={18} strokeWidth={2} />}
                     </button>
@@ -681,7 +681,7 @@ export default function Signup() {
                     type="button"
                     variant="outline"
                     onClick={handleBack}
-                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-gray-200 text-[#1C1B1F] shadow-sm hover:bg-gray-50 transition-all hover:-translate-y-0.5"
+                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-[#1C1B1F] shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
                   >
                     <ArrowLeft size={18} className="mr-2" /> Back
                   </Button>
@@ -708,9 +708,9 @@ export default function Signup() {
               </div>
 
               <div className="space-y-6">
-                <div className="p-5 bg-gray-50 border border-gray-100 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-white border border-gray-200 flex items-center justify-center shrink-0">
-                    <ShieldCheck size={20} className="text-gray-500" strokeWidth={2.5} />
+                <div className="p-5 bg-background border border-border rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-card border border-border flex items-center justify-center shrink-0">
+                    <ShieldCheck size={20} className="text-muted-foreground" strokeWidth={2.5} />
                   </div>
                   <p className="text-[14px] text-[#4A4840] font-medium leading-snug">
                     Your privacy and data security are important to us.
@@ -722,7 +722,7 @@ export default function Signup() {
                     id="agreed"
                     checked={agreed}
                     onCheckedChange={(v) => setAgreed(v === true)}
-                    className="mt-1 w-5 h-5 rounded-md border-gray-300 data-[state=checked]:bg-[#3742FA] data-[state=checked]:text-white"
+                    className="mt-1 w-5 h-5 rounded-md border-border data-[state=checked]:bg-[#3742FA] data-[state=checked]:text-white"
                   />
                   <label htmlFor="agreed" className="text-[14.5px] text-[#4A4840] font-medium cursor-pointer select-none">
                     I agree to the <a href="#" className="text-[#3742FA] hover:underline">Terms of Service</a> and <a href="#" className="text-[#3742FA] hover:underline">Privacy Policy</a>
@@ -740,7 +740,7 @@ export default function Signup() {
                     type="button"
                     variant="outline"
                     onClick={handleBack}
-                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-gray-200 text-[#1C1B1F] shadow-sm hover:bg-gray-50 transition-all hover:-translate-y-0.5"
+                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-[#1C1B1F] shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
                   >
                     <ArrowLeft size={18} className="mr-2" /> Back
                   </Button>

@@ -10,10 +10,10 @@ export function BoardCard({ board, onDelete }: BoardCardProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow bg-white flex flex-col justify-between">
+    <div className="border rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow bg-card flex flex-col justify-between">
       <div>
         <h3 className="text-lg font-semibold truncate">{board.name || 'Untitled Board'}</h3>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Last updated: {new Date(board.updatedAt).toLocaleDateString()}
         </p>
       </div>

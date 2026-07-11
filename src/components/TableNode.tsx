@@ -97,7 +97,7 @@ function TableNode({ el, selected, editingId, zoom, onBlur, onDblClick, onUpdate
       style={{ left: x, top: y, width: w, height: h, cursor: "grab" }}
     >
       <div
-        className="absolute inset-0 bg-white border-2 border-black rounded overflow-hidden flex flex-col shadow-sm"
+        className="absolute inset-0 bg-card border-2 border-black rounded overflow-hidden flex flex-col shadow-sm"
         style={{ boxShadow: selected ? "0 0 0 2px #3742FA" : undefined }}
       >
         {Array.from({ length: rows }).map((_, r) => (
@@ -110,7 +110,7 @@ function TableNode({ el, selected, editingId, zoom, onBlur, onDblClick, onUpdate
               return (
                 <div
                   key={c}
-                  className="flex-1 border-r border-black last:border-r-0 relative flex items-center justify-center p-1.5 hover:bg-gray-50/80 transition-colors"
+                  className="flex-1 border-r border-black last:border-r-0 relative flex items-center justify-center p-1.5 hover:bg-background/80 transition-colors"
                   onPointerDown={(e) => {
                     if (isEditing) return; // let the input handle its own pointer events
                     handleCellPointerDown(e, cellId);
@@ -126,7 +126,7 @@ function TableNode({ el, selected, editingId, zoom, onBlur, onDblClick, onUpdate
                       />
                     </div>
                   ) : (
-                    <div className="w-full text-sm text-center font-medium overflow-hidden whitespace-pre-wrap text-gray-900 break-words pointer-events-none select-none px-1">
+                    <div className="w-full text-sm text-center font-medium overflow-hidden whitespace-pre-wrap text-foreground break-words pointer-events-none select-none px-1">
                       {cellText}
                     </div>
                   )}
@@ -152,8 +152,8 @@ function TableNode({ el, selected, editingId, zoom, onBlur, onDblClick, onUpdate
           title="Drag down to add rows, drag right to add columns"
         >
           <div className="w-4 h-4 rounded-full bg-[#3742FA] shadow-md border border-white flex items-center justify-center relative">
-            <div className="absolute w-2 h-0.5 bg-white rounded-sm" />
-            <div className="absolute h-2 w-0.5 bg-white rounded-sm" />
+            <div className="absolute w-2 h-0.5 bg-card rounded-sm" />
+            <div className="absolute h-2 w-0.5 bg-card rounded-sm" />
           </div>
         </div>
       )}

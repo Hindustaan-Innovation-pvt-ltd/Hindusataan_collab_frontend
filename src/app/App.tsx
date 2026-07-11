@@ -1179,9 +1179,9 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <div className="w-screen h-screen bg-white flex items-center justify-center flex-col gap-4">
-        <div className="w-8 h-8 border-4 border-gray-200 border-t-[#3742FA] rounded-full animate-spin"></div>
-        <div className="text-gray-500 font-medium text-sm animate-pulse">Loading Boards...</div>
+      <div className="w-screen h-screen bg-card flex items-center justify-center flex-col gap-4">
+        <div className="w-8 h-8 border-4 border-border border-t-[#3742FA] rounded-full animate-spin"></div>
+        <div className="text-muted-foreground font-medium text-sm animate-pulse">Loading Boards...</div>
       </div>
     );
   }
@@ -1480,15 +1480,15 @@ export default function App() {
                 {selectedCommentId === c.id ? (
                   <div
                     onPointerDown={(e) => e.stopPropagation()}
-                    className="absolute top-10 left-1/2 -translate-x-1/2 bg-white rounded-xl shadow-xl border border-gray-100 p-3 min-w-[200px] z-50"
+                    className="absolute top-10 left-1/2 -translate-x-1/2 bg-card rounded-xl shadow-xl border border-border p-3 min-w-[200px] z-50"
                   >
-                    <div className="flex items-center justify-between gap-2 border-b border-gray-100 pb-1.5 mb-1.5">
-                      <span className="font-semibold text-xs text-gray-800">{c.author}</span>
+                    <div className="flex items-center justify-between gap-2 border-b border-border pb-1.5 mb-1.5">
+                      <span className="font-semibold text-xs text-foreground">{c.author}</span>
                       <span className="text-[10px] text-gray-400">
                         {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-700 whitespace-pre-wrap select-text">{c.text}</p>
+                    <p className="text-xs text-foreground whitespace-pre-wrap select-text">{c.text}</p>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1511,13 +1511,13 @@ export default function App() {
           {activePlacement && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
-              className="absolute bg-white rounded-xl shadow-xl border border-gray-100 p-3 w-64 z-50 pointer-events-auto"
+              className="absolute bg-card rounded-xl shadow-xl border border-border p-3 w-64 z-50 pointer-events-auto"
               style={{
                 left: activePlacement.x,
                 top: activePlacement.y,
               }}
             >
-              <div className="text-xs font-semibold text-gray-600 mb-1">New comment by {getSessionUser()}</div>
+              <div className="text-xs font-semibold text-muted-foreground mb-1">New comment by {getSessionUser()}</div>
               <textarea
                 autoFocus
                 placeholder="Write a comment..."
@@ -1545,7 +1545,7 @@ export default function App() {
                     setTool("select");
                   }
                 }}
-                className="w-full border border-gray-200 rounded-lg p-2 text-xs focus:ring-2 focus:ring-[#3742FA]/20 focus:border-[#3742FA] outline-none resize-none h-16 text-gray-800"
+                className="w-full border border-border rounded-lg p-2 text-xs focus:ring-2 focus:ring-[#3742FA]/20 focus:border-[#3742FA] outline-none resize-none h-16 text-foreground"
               />
               <div className="flex justify-end gap-1.5 mt-2">
                 <button
@@ -1553,7 +1553,7 @@ export default function App() {
                     setActivePlacement(null);
                     setTool("select");
                   }}
-                  className="px-2.5 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+                  className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-background rounded-lg transition-colors"
                 >
                   Cancel
                 </button>
@@ -1677,7 +1677,7 @@ export default function App() {
                 {p.editingId && <span className="opacity-80 font-medium">(Editing)</span>}
               </div>
               {p.isTyping && (
-                <div className="bg-white px-2 py-1.5 rounded-full shadow-md flex items-center justify-center gap-1 max-w-max border border-gray-100">
+                <div className="bg-card px-2 py-1.5 rounded-full shadow-md flex items-center justify-center gap-1 max-w-max border border-border">
                   <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                   <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                   <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -1724,10 +1724,10 @@ export default function App() {
       )}
 
       {isCommentWindowOpen && (
-        <div className="absolute top-24 right-6 w-80 bg-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-gray-100 flex flex-col z-50 pointer-events-auto overflow-hidden max-h-[500px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="absolute top-24 right-6 w-80 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border flex flex-col z-50 pointer-events-auto overflow-hidden max-h-[500px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
-            <div className="flex items-center gap-2 text-gray-800">
+          <div className="flex items-center justify-between px-4 py-3 bg-background border-b border-border">
+            <div className="flex items-center gap-2 text-foreground">
               <MessageSquare size={16} className="text-[#3742FA]" />
               <span className="font-bold text-sm">Comments</span>
             </div>
@@ -1736,7 +1736,7 @@ export default function App() {
                 setIsCommentWindowOpen(false);
                 if (tool === "comment") setTool("select");
               }}
-              className="text-gray-400 hover:text-gray-600 rounded-lg p-1 hover:bg-gray-100 transition-colors"
+              className="text-gray-400 hover:text-muted-foreground rounded-lg p-1 hover:bg-muted transition-colors"
             >
               <X size={16} />
             </button>
@@ -1757,7 +1757,7 @@ export default function App() {
               comments
                 .filter(c => c.boardId === currentBoardId)
                 .map(c => (
-                  <div key={c.id} className="p-2.5 bg-gray-50/70 hover:bg-gray-50 rounded-xl border border-gray-100/80 transition-all flex flex-col gap-1 relative group/item">
+                  <div key={c.id} className="p-2.5 bg-background/70 hover:bg-background rounded-xl border border-border/80 transition-all flex flex-col gap-1 relative group/item">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <div
@@ -1766,7 +1766,7 @@ export default function App() {
                         >
                           {c.author ? c.author.slice(0, 2).toUpperCase() : "C"}
                         </div>
-                        <span className="font-semibold text-xs text-gray-700">{c.author}</span>
+                        <span className="font-semibold text-xs text-foreground">{c.author}</span>
                       </div>
                       <span className="text-[10px] text-gray-400">
                         {new Date(c.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
@@ -1810,7 +1810,7 @@ export default function App() {
           <button
             onClick={() => setAiOpen(true)}
             title="Open AI Assistant"
-            className="relative flex items-center justify-center bg-white border border-gray-200 text-gray-800 shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden gap-2.5 px-5 h-14 rounded-full"
+            className="relative flex items-center justify-center bg-card border border-border text-foreground shadow-xl transition-all duration-300 hover:scale-105 overflow-hidden gap-2.5 px-5 h-14 rounded-full"
           >
             <Sparkles size={20} className="text-[#7B61FF] shrink-0" />
             <span className="font-semibold text-[15px] whitespace-nowrap">
@@ -1823,7 +1823,7 @@ export default function App() {
 
       {/* Space hint */}
       {spaceHeld && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-sm text-xs text-gray-500 px-3 py-1.5 rounded-full shadow-md border border-gray-100 pointer-events-none">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/90 backdrop-blur-sm text-xs text-muted-foreground px-3 py-1.5 rounded-full shadow-md border border-border pointer-events-none">
           Hold Space to pan
         </div>
       )}

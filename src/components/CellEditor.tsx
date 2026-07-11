@@ -28,7 +28,7 @@ function CellEditor({ cellId, cellText, onBlur }: CellEditorProps) {
       ref={inputRef}
       type="text"
       defaultValue={cellText}
-      className="absolute inset-0 w-full h-full bg-blue-50 text-sm text-center font-medium outline-none border-2 border-[#3742FA] rounded z-30 text-gray-900 px-1"
+      className="absolute inset-0 w-full h-full bg-blue-50 text-sm text-center font-medium outline-none border-2 border-[#3742FA] rounded z-30 text-foreground px-1"
       onBlur={(e) => onBlur(cellId, e.target.value)}
       onPointerDown={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
@@ -68,7 +68,7 @@ export default CellEditor;
 //       onBlur={(e) => onBlur(cellId, e.target.value)}
 //       onPointerDown={e => e.stopPropagation()}
 //       onKeyDown={e => e.stopPropagation()}
-//       className="absolute inset-0 w-full h-full bg-transparent resize-none outline-none text-sm text-center p-2 font-medium text-gray-900"
+//       className="absolute inset-0 w-full h-full bg-transparent resize-none outline-none text-sm text-center p-2 font-medium text-foreground"
 //       style={{ pointerEvents: "auto" }}
 //     />
 //   );
