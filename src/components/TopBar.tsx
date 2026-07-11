@@ -766,9 +766,10 @@ export const TopBar = React.memo(function TopBar({
                       <div className="flex items-center">
                         <div className="flex mr-2">
                           {collaborators.slice(0, 2).map((c: any, i: number) => {
-                            const initial = (c.email || c.user_id || "U").charAt(0).toUpperCase();
+                            const displayName = c.name || c.email || c.user_id || "U";
+                            const initial = displayName.charAt(0).toUpperCase();
                             return (
-                              <div key={i} className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-700 -ml-1.5 first:ml-0 z-[2] relative shadow-sm">
+                              <div key={i} className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-[10px] font-bold text-indigo-700 -ml-1.5 first:ml-0 z-[2] relative shadow-sm" title={displayName}>
                                 {initial}
                               </div>
                             );
@@ -848,7 +849,7 @@ export const TopBar = React.memo(function TopBar({
                       {collaborators.map((user: any, idx: number) => {
                         const isOwner = user.role === "owner";
                         const email = user.email || user.user_id || "unknown@example.com";
-                        const name = email.split('@')[0];
+                        const name = user.name || email.split('@')[0];
                         const initial = name.charAt(0).toUpperCase();
 
                         return (

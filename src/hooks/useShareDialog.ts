@@ -75,9 +75,21 @@ export function useShareDialog(currentBoardId: string, boardName: string, showTo
       } else {
         setInviteMessage("Invitation sent successfully.");
       }
+      
+      // Auto-dismiss success message after 2.5 seconds
+      setTimeout(() => {
+        setInviteMessage(null);
+      }, 2500);
+      
     } catch (error: any) {
       console.error("Invite error:", error);
-      setInviteError(error.response?.data?.message || error.message || "Failed to send invitation.");
+      const errMsg = error.response?.data?.message || error.message || "Failed to send invitation.";
+      setInviteError(errMsg);
+      
+      // Auto-dismiss error message after 5 seconds
+      setTimeout(() => {
+        setInviteError(null);
+      }, 5000);
     } finally {
       setIsInviting(false);
     }

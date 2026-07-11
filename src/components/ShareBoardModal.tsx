@@ -47,7 +47,7 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
         await collaborationService.inviteCollaborator(boardId, email, "editor");
       }
       setInviteEmail("");
-      toast.success("Invitations sent successfully!");
+      toast.success("Invitations sent successfully!", { duration: 1500 });
       fetchCollaborators();
     } catch (err: any) {
       console.error("Invite failed:", err);
@@ -132,33 +132,42 @@ export function ShareBoardModal({ boardId, onClose }: ShareBoardModalProps) {
             </div>
 
             {/* Invited Users Rows */}
-            {invitedUsers.map((user) => (
-              <div key={user.user_id} className="flex items-center justify-between py-2.5 px-1.5 border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-xs font-bold">
-                    U
-                  </div>
-                  <div className="text-left max-w-[200px] truncate">
-                    <div className="text-sm font-semibold text-gray-800 truncate">
-                      User {user.user_id.slice(-4)}
+            {invitedUsers.map((user) => {
+              const displayName = user.name || user.email?.split('@')[0] || `User ${user.user_id.slice(-4)}`;
+              const initial = displayName.charAt(0).toUpperCase();
+              return (
+                <div key={user.user_id} className="flex items-center justify-between py-2.5 px-1.5 border-t border-gray-50 hover:bg-gray-50/50 transition-colors">
+                  <div className="flex items-center gap-3.5">
+                    <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 text-xs font-bold" title={displayName}>
+                      {initial}
+                    </div>
+                    <div className="text-left max-w-[200px] truncate">
+                      <div className="text-sm font-semibold text-gray-800 truncate" title={displayName}>
+                        {displayName}
+                      </div>
+                      {user.email && (
+                        <div className="text-[10px] text-gray-400 truncate" title={user.email}>
+                          {user.email}
+                        </div>
+                      )}
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={user.role}
+                      onChange={(e) => handleRoleChange(user.user_id, e.target.value)}
+                      disabled={user.role === "owner"}
+                      className="bg-transparent border-none text-xs font-medium text-gray-500 hover:text-gray-800 outline-none cursor-pointer pr-1"
+                    >
+                      <option value="owner">owner</option>
+                      <option value="editor">can edit</option>
+                      <option value="viewer">can view</option>
+                      {user.role !== "owner" && <option value="remove">remove</option>}
+                    </select>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={user.role}
-                    onChange={(e) => handleRoleChange(user.user_id, e.target.value)}
-                    disabled={user.role === "owner"}
-                    className="bg-transparent border-none text-xs font-medium text-gray-500 hover:text-gray-800 outline-none cursor-pointer pr-1"
-                  >
-                    <option value="owner">owner</option>
-                    <option value="editor">can edit</option>
-                    <option value="viewer">can view</option>
-                    {user.role !== "owner" && <option value="remove">remove</option>}
-                  </select>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
