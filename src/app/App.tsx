@@ -1523,7 +1523,7 @@ export default function App() {
                     key={el.id} el={el}
                     selected={selected} editing={editing}
                     onBlur={onBlur} onDblClick={onElDblClick}
-                    onResize={(id, fontSize) => onResizeShape(id, { fontSize })}
+                    onResize={(id, fontSize) => onUpdateEl(id, { fontSize })}
                   />
                 );
               case "shape":
@@ -1533,7 +1533,7 @@ export default function App() {
                     selected={selected}
                     onStartConnect={onStartConnect}
                     editing={editing}
-                    onResize={(id, x, y, w, h) => onResizeShape(id, { x, y, w, h })}
+                    onResize={(id, x, y, w, h) => onUpdateEl(id, { x, y, w, h })}
                     onDblClick={(id) => setEditId(id)}
                     onBlur={(id, text) => {
                       setEls((current) =>
@@ -1549,7 +1549,7 @@ export default function App() {
                 return (
                   <DeviceFrameNode
                     key={el.id} el={el as any} selected={selected}
-                    onResize={(id, w, h) => onResizeShape(id, { w, h })}
+                    onResize={(id, w, h) => onUpdateEl(id, { w, h })}
                   />
                 );
               case "table":
