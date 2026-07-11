@@ -126,6 +126,8 @@ export const TopBar = React.memo(function TopBar({
   const [view, setView] = useState<"main" | "collaborators">("main");
   const [visibilityPopoverOpen, setVisibilityPopoverOpen] = useState(false);
   const [collaboratorToRemove, setCollaboratorToRemove] = useState<any | null>(null);
+  const [isOnlinePanelOpen, setIsOnlinePanelOpen] = useState(false);
+  const onlinePanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -141,6 +143,9 @@ export const TopBar = React.memo(function TopBar({
       }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
+      }
+      if (onlinePanelRef.current && !onlinePanelRef.current.contains(event.target as Node)) {
+        setIsOnlinePanelOpen(false);
       }
     };
 
@@ -210,8 +215,11 @@ export const TopBar = React.memo(function TopBar({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && deleteConfirmOpen && !isDeleting) {
-        handleCancelDelete();
+      if (e.key === 'Escape') {
+        if (deleteConfirmOpen && !isDeleting) {
+          handleCancelDelete();
+        }
+        setIsOnlinePanelOpen(false);
       }
     };
     document.addEventListener('keydown', handleKeyDown);
@@ -276,8 +284,9 @@ export const TopBar = React.memo(function TopBar({
 
   return (
     <div className="absolute top-4 left-4 right-4 z-50 flex items-start justify-between pointer-events-none">
-      {/* LEFT: Board Selector Dropdown */}
-      <div className="flex flex-col gap-2 pointer-events-auto relative" ref={boardSelectorRef}>
+      {/* LEFT: Board Selector and Search */}
+      <div className="flex items-start gap-2 pointer-events-auto">
+        <div className="flex flex-col gap-2 relative" ref={boardSelectorRef}>
         <div 
           onClick={() => setBoardSelectorOpen(!boardSelectorOpen)}
           className="flex items-center justify-between gap-2 bg-card rounded-xl px-3 h-10 shadow-lg border border-black/[0.06] hover:bg-background cursor-pointer min-w-[200px] transition-colors"
@@ -398,7 +407,55 @@ export const TopBar = React.memo(function TopBar({
         )}
       </div>
 
-      {/* RIGHT: Top Bar tools */}
+      {/* Board Search */}
+      <div ref={searchContainerRef} className="relative">
+        <button
+          onClick={() => setIsSearchOpen(!isSearchOpen)}
+          className={`flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg border border-black/[0.06] transition-colors ${isSearchOpen ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+          title="Search Boards"
+        >
+          <Search size={16} className="text-gray-600" />
+        </button>
+        
+        {/* Dropdown */}
+        {isSearchOpen && (
+          <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 z-50 animate-in fade-in slide-in-from-top-1">
+            <div className="px-3 pb-2 pt-1 border-b border-gray-100">
+              <div className="relative">
+                <Search size={14} className="text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search boards..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg outline-none text-sm text-gray-700 pl-8 pr-3 py-1.5 focus:border-[#7B61FF]"
+                />
+              </div>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-1 mt-1">
+              {filteredSearchBoards.length > 0 ? (
+                filteredSearchBoards.map(board => (
+                  <button
+                    key={board.id}
+                    onClick={() => handleSelectSearchedBoard(board)}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex flex-col rounded-md"
+                  >
+                    <span className="font-medium truncate">{board.name || "Untitled Board"}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="px-3 py-4 text-xs text-center text-gray-400">
+                  No boards found
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+
+    {/* RIGHT: Top Bar tools */}
       <div className="flex items-center gap-2 pointer-events-auto">
         <div className="flex items-center gap-1 bg-card rounded-2xl px-2 py-1.5 shadow-lg border border-black/[0.06]">
           {/* Avatar / User Menu */}
@@ -652,61 +709,74 @@ export const TopBar = React.memo(function TopBar({
           </div>
         </div>
 
-        {/* Board Search */}
-        <div ref={searchContainerRef} className="relative">
-          <div className="flex items-center bg-background border border-border rounded-xl px-2.5 h-9 transition-all focus-within:ring-2 focus-within:ring-[#7B61FF] focus-within:border-transparent w-48 shadow-sm">
-            <Search size={14} className="text-gray-400 flex-shrink-0" />
-            <input
-              type="text"
-              placeholder="Search boards..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setIsSearchOpen(true);
-              }}
-              onFocus={() => setIsSearchOpen(true)}
-              className="w-full bg-transparent border-none outline-none text-xs text-foreground px-2 placeholder-gray-400"
-            />
-          </div>
-          
-          {/* Dropdown */}
-          {isSearchOpen && searchQuery.trim() !== "" && (
-            <div className="absolute top-full mt-2 w-56 bg-card rounded-xl shadow-xl border border-border py-1.5 z-50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-1">
-              {filteredSearchBoards.length > 0 ? (
-                filteredSearchBoards.map(board => (
-                  <button
-                    key={board.id}
-                    onClick={() => handleSelectSearchedBoard(board)}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-background transition-colors flex flex-col"
-                  >
-                    <span className="font-medium truncate">{board.name || "Untitled Board"}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="px-3 py-4 text-xs text-center text-gray-400">
-                  No boards found
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Online Presence Avatars */}
         {onlineUsers.length > 0 && (
-          <div className="flex items-center ml-2 relative" title={`${onlineUsers.length} online`}>
-            {onlineUsers.map((u, i) => (
-              <div 
-                key={`${u.user_id || 'user'}-${i}`}
-                className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-md -ml-2 first:ml-0"
-                style={{ backgroundColor: u.color || "#7B61FF", zIndex: 10 - i }}
-                title={u.name}
-              >
-                {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+          <div className="relative" ref={onlinePanelRef}>
+            <button
+              onClick={() => setIsOnlinePanelOpen(!isOnlinePanelOpen)}
+              className={`flex items-center ml-2 px-1 py-0.5 rounded-full transition-colors ${
+                isOnlinePanelOpen ? "bg-gray-100" : "hover:bg-gray-50"
+              }`}
+              title={`${onlineUsers.length} online`}
+            >
+              <div className="flex items-center relative">
+                {onlineUsers.slice(0, 3).map((u, i) => (
+                  <div 
+                    key={`${u.user_id || 'user'}-${i}`}
+                    className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-[10px] font-bold shadow-md -ml-2 first:ml-0"
+                    style={{ backgroundColor: u.color || "#7B61FF", zIndex: 10 - i }}
+                    title={u.name}
+                  >
+                    {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                ))}
+                {onlineUsers.length > 3 && (
+                  <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center bg-gray-100 text-gray-600 text-[10px] font-bold shadow-md -ml-2 z-[7]">
+                    +{onlineUsers.length - 3}
+                  </div>
+                )}
+                <div className="ml-2 text-xs font-bold text-gray-500 mr-2 flex items-center gap-1">
+                  {onlineUsers.length} Online
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${isOnlinePanelOpen ? 'rotate-180' : ''}`} />
+                </div>
               </div>
-            ))}
-            <div className="ml-2 text-xs font-bold text-muted-foreground">
-              {onlineUsers.length} Online
-            </div>
+            </button>
+
+            {isOnlinePanelOpen && (
+              <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Online Collaborators</span>
+                  <span className="text-xs font-semibold text-[#7B61FF] bg-[#f2efff] px-2 py-0.5 rounded-full">{onlineUsers.length}</span>
+                </div>
+                <div className="max-h-[300px] overflow-y-auto custom-scrollbar p-2 flex flex-col gap-1">
+                  {onlineUsers.map((u, i) => {
+                    const isMe = u.name === userName;
+                    return (
+                      <div key={`${u.user_id || 'user'}-${i}`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="relative">
+                          <div 
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                            style={{ backgroundColor: u.color || "#7B61FF" }}
+                          >
+                            {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                          </div>
+                          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-[1.5px] border-white rounded-full"></div>
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                          <div className="text-sm font-semibold text-gray-800 truncate flex items-center gap-1.5">
+                            {u.name} {isMe && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-medium border border-gray-200">You</span>}
+                          </div>
+                          <div className="text-xs text-gray-500 capitalize">{u.role || "Viewer"}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {onlineUsers.length === 0 && (
+                    <div className="text-xs text-center text-gray-400 py-4">No collaborators online</div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
