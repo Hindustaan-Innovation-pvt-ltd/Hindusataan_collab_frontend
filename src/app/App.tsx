@@ -218,6 +218,7 @@ export default function App() {
       if (selectedEl && selectedEl.type === "text") {
         setTextFontSize(selectedEl.fontSize || 20);
         setTextFontFamily(selectedEl.fontFamily || "sans-serif");
+        setToolMenuOpen(true);
       }
     }
   }, [selIds, els]);
@@ -255,7 +256,7 @@ export default function App() {
 
   const isEditingOrSelectedText = useMemo(() => {
     if (tool === "text") return true;
-    if (selIds.length > 0) {
+    if (tool === "select" && selIds.length > 0) {
       return els.some(el => selIds.includes(el.id) && el.type === "text");
     }
     return false;

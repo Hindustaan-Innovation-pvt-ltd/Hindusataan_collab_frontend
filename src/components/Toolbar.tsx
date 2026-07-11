@@ -78,11 +78,19 @@ function Toolbar({
   const [iconSearchOpen, setIconSearchOpen] = useState(false);
   const [iconQuery, setIconQuery] = useState("");
   const { layout } = useWorkspaceTheme();
+  
   const toolbarRef = React.useRef<HTMLDivElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const iconPanelRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (
+        toolbarRef.current && !toolbarRef.current.contains(target) &&
+        (!panelRef.current || !panelRef.current.contains(target)) &&
+        (!iconPanelRef.current || !iconPanelRef.current.contains(target))
+      ) {
         setIconSearchOpen(false);
         setToolMenuOpen(false);
       }
@@ -101,11 +109,6 @@ function Toolbar({
     };
   }, [setToolMenuOpen]);
 
-  const palette =
-    tool === "sticky" ? { colors: STICKY_COLORS, active: stickyColor, set: setStickyColor } :
-      tool === "shape" ? { colors: SHAPE_COLORS, active: shapeColor, set: setShapeColor } :
-        tool === "pen" ? { colors: PEN_COLORS, active: penColor, set: setPenColor } : null;
-
   const filteredIcons = useMemo(() => {
     const q = iconQuery.trim().toLowerCase();
     if (!q) return ALL_ICONS.slice(0, MAX_RESULTS);
@@ -113,294 +116,332 @@ function Toolbar({
     return matches.slice(0, MAX_RESULTS);
   }, [iconQuery]);
 
-  // Define layout styles
+  // Define layout styles for the main toolbar
   let containerClass = "";
-  let innerClass = "";
   let itemGroupClass = "";
   let dividerClass = "";
 
   if (layout === "horizontal") {
-    containerClass = "absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none z-50";
-    innerClass = "flex flex-col gap-2 items-center pointer-events-auto";
-    itemGroupClass = "flex items-center gap-1 bg-card rounded-full px-2.5 py-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border pointer-events-auto";
-    dividerClass = "w-px h-5 bg-gray-200 mx-1.5";
+    containerClass = "absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center pointer-events-none z-50";
+    itemGroupClass = "flex items-center gap-1.5 bg-card/95 backdrop-blur-md rounded-full px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto";
+    dividerClass = "w-px h-5 bg-border mx-1";
   } else if (layout === "vertical") {
-    containerClass = "absolute left-4 top-20 flex flex-row-reverse items-center gap-2 pointer-events-none z-50";
-    innerClass = "flex flex-row-reverse gap-2 items-center pointer-events-auto";
-    itemGroupClass = "flex flex-col items-center gap-1 bg-card rounded-full px-1.5 py-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border pointer-events-auto";
-    dividerClass = "w-5 h-px bg-gray-200 my-1.5";
+    containerClass = "absolute left-4 top-20 flex items-center pointer-events-none z-50";
+    itemGroupClass = "flex flex-col items-center gap-1.5 bg-card/95 backdrop-blur-md rounded-full px-2 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto";
+    dividerClass = "w-5 h-px bg-border my-1";
   }
 
+  // Side-panel positions so they do not block drawing space
+  const panelPositionClass = layout === "horizontal"
+    ? "fixed left-5 top-24 z-50 w-64"
+    : "fixed left-20 top-24 z-50 w-64";
+
+  const iconPanelPositionClass = layout === "horizontal"
+    ? "fixed left-5 top-24 z-50 w-80"
+    : "fixed left-20 top-24 z-50 w-80";
+
+  const showOptionsPanel = toolMenuOpen && (tool === "pen" || tool === "shape" || tool === "sticky" || isEditingOrSelectedText);
+
   return (
-    <div ref={toolbarRef} className={containerClass}>
-      <div className={innerClass}>
-        {/* Pen picker */}
-        {tool === "pen" && toolMenuOpen && (
-          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border gap-2 mb-1">
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Style</div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {[
-                  { type: "pen", icon: <Pencil size={18} />, color: "text-blue-500", label: "Pen" },
-                  { type: "marker", icon: <Brush size={18} />, color: "text-purple-500", label: "Marker" },
-                  { type: "highlighter", icon: <Highlighter size={18} />, color: "text-yellow-500", label: "Highlighter" },
-                ].map(t => (
-                  <button
-                    key={t.type}
-                    title={t.label}
-                    onClick={() => setPenType(t.type as PenType)}
-                    className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${penType === t.type
-                      ? "bg-muted shadow-inner scale-95"
-                      : "hover:bg-background"
-                      } ${t.color}`}
-                  >
-                    {t.icon}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 mb-1.5 px-1.5 uppercase tracking-wider flex justify-between items-center">
-                <span>Thickness</span>
-                <span className="font-bold text-foreground">{penThickness}px</span>
-              </div>
-              <div className="flex items-center gap-2 px-1.5 py-1">
-                <input
-                  type="range"
-                  min={1}
-                  max={penType === "highlighter" ? 60 : penType === "marker" ? 40 : 20}
-                  value={penThickness}
-                  onChange={(e) => setPenThickness(parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-muted rounded-lg appearance-none cursor-pointer accent-[#3742FA]"
-                  style={{ accentColor: "#3742FA" }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+    <>
+      <div ref={toolbarRef} className={containerClass}>
+        <div className={itemGroupClass}>
+          {TOOLS.map(({ id, label, key, icon }) => (
+            <button
+              key={id}
+              title={`${label} (${key})`}
+              onClick={() => {
+                if (id === tool) {
+                  setToolMenuOpen(!toolMenuOpen);
+                } else {
+                  setTool(id as Tool);
+                  if (id === "pen" || id === "shape" || id === "sticky" || id === "text") {
+                    setToolMenuOpen(true);
+                  } else {
+                    setToolMenuOpen(false);
+                  }
+                }
+                setIconSearchOpen(false);
+              }}
+              className={`
+                w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer
+                ${tool === id
+                  ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
+                  : "text-[#4B5563] hover:bg-muted hover:text-foreground"}
+              `}
+            >
+              {icon}
+            </button>
+          ))}
 
-        {/* Shape kind picker */}
-        {tool === "shape" && toolMenuOpen && (
-          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border">
-            <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Shapes</div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {SHAPE_KINDS.map(({ kind, label, icon }) => (
-                <button
-                  key={kind}
-                  title={label}
-                  onClick={() => setShapeKind(kind)}
-                  className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${shapeKind === kind
-                    ? "bg-[#3742FA] text-white shadow-md scale-105"
-                    : "text-[#4B5563] hover:bg-muted hover:text-foreground"
-                    }`}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+          <div className={dividerClass} />
 
-        {palette && toolMenuOpen && (
-          <div>
-            <ColorPalette colors={palette.colors} active={palette.active} onPick={palette.set} />
-          </div>
-        )}
+          {/* Icon search toggle button */}
+          <button
+            title="Insert icon"
+            onClick={() => {
+              setIconSearchOpen((prev) => !prev);
+              setToolMenuOpen(false);
+            }}
+            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${iconSearchOpen
+                ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
+                : "text-[#4B5563] hover:bg-muted hover:text-foreground"
+              }`}
+          >
+            <Smile size={18} />
+          </button>
 
-        {isEditingOrSelectedText && toolMenuOpen && (
-          <div className="flex flex-col p-3 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border gap-2.5 mb-1 w-52 pointer-events-auto">
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 mb-1.5 px-1.5 uppercase tracking-wider">Font Family</div>
-              <div className="relative">
-                <select
-                  value={textFontFamily}
-                  onChange={(e) => setTextFontFamily?.(e.target.value)}
-                  className="w-full h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-[#3742FA] appearance-none cursor-pointer pr-8"
-                >
-                  <option value="sans-serif">Sans-Serif (Modern)</option>
-                  <option value="serif">Serif (Classic)</option>
-                  <option value="monospace">Monospace (Code)</option>
-                  <option value="cursive">Cursive (Handwritten)</option>
-                  <option value="'Outfit', sans-serif">Outfit (Geometric)</option>
-                  <option value="'Playfair Display', serif">Playfair Display (Elegant Serif)</option>
-                  <option value="'Poppins', sans-serif">Poppins (Clean Sans-Serif)</option>
-                  <option value="'Lobster', cursive">Lobster (Vintage/Bold)</option>
-                  <option value="'Pacifico', cursive">Pacifico (Smooth Handwriting)</option>
-                  <option value="'Caveat', cursive">Caveat (Natural Pen)</option>
-                  <option value="'Lora', serif">Lora (Classic Book Serif)</option>
-                </select>
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[10px]">
-                  ▼
-                </div>
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-gray-400 mb-1.5 px-1.5 uppercase tracking-wider">Font Size</div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setTextFontSize?.(Math.max(10, textFontSize - 2))}
-                  className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-foreground hover:bg-background border border-border font-bold text-sm"
-                >
-                  -
-                </button>
-                <input
-                  type="number"
-                  value={textFontSize}
-                  onChange={(e) => setTextFontSize?.(Math.max(8, parseInt(e.target.value) || 20))}
-                  className="w-16 h-8 text-center text-xs font-bold bg-card border border-border rounded-lg"
-                />
-                <button
-                  onClick={() => setTextFontSize?.(Math.min(120, textFontSize + 2))}
-                  className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-foreground hover:bg-background border border-border font-bold text-sm"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+          <div className={dividerClass} />
 
-        {/* Icon search picker — searches the full lucide-react library */}
-        {iconSearchOpen && (
-          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border w-80 mb-1">
-            <div className="flex items-center gap-2 mb-2 px-1">
-              <Search size={14} className="text-gray-400 shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                value={iconQuery}
-                onChange={(e) => setIconQuery(e.target.value)}
-                placeholder="Search 1000+ icons (e.g. cup, mobile, smiley)"
-                className="flex-1 text-xs outline-none text-foreground placeholder:text-gray-400"
-              />
+          {hasSelection && (
+            <>
               <button
-                onClick={() => {
-                  setIconSearchOpen(false);
-                  setIconQuery("");
-                }}
-                className="text-gray-400 hover:text-muted-foreground"
+                onClick={onDelete}
+                title="Delete selected (Del)"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
               >
-                <X size={14} />
+                <Trash2 size={18} />
               </button>
-            </div>
-            <div className="grid grid-cols-7 gap-1.5 max-h-56 overflow-y-auto pr-1">
-              {filteredIcons.length === 0 ? (
-                <div className="col-span-7 text-center text-[11px] text-gray-400 py-4">
-                  No icons found
+              <div className={dividerClass} />
+            </>
+          )}
+
+          <button
+            onClick={() => onZoom(-1)}
+            title="Zoom out"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+          >
+            <Minus size={16} />
+          </button>
+          <div
+            className={`text-xs font-semibold text-[#4B5563] text-center cursor-pointer hover:text-foreground flex items-center justify-center ${
+              layout === "horizontal" ? "px-1.5 min-w-[44px]" : "py-1.5 min-h-[44px] w-9"
+            }`}
+            title="Reset zoom"
+            onClick={() => {/* handled outside */ }}
+          >
+            {Math.round(zoomLevel * 100)}%
+          </div>
+          <button
+            onClick={() => onZoom(1)}
+            title="Zoom in"
+            className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* Unified Tool Options Panel docked to the side */}
+      {showOptionsPanel && (
+        <div ref={panelRef} className={`flex flex-col p-4 bg-card/95 backdrop-blur-md rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] border border-border/80 gap-3.5 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${panelPositionClass}`}>
+          
+          {/* Pen Tool Settings */}
+          {tool === "pen" && (
+            <>
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Draw Style</div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { type: "pen", icon: <Pencil size={15} />, color: "text-blue-500", label: "Pen" },
+                    { type: "marker", icon: <Brush size={15} />, color: "text-purple-500", label: "Marker" },
+                    { type: "highlighter", icon: <Highlighter size={15} />, color: "text-yellow-600", label: "Highlight" },
+                  ].map(t => (
+                    <button
+                      key={t.type}
+                      title={t.label}
+                      onClick={() => setPenType(t.type as PenType)}
+                      className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer ${penType === t.type
+                        ? "bg-muted shadow-inner scale-95 border border-border"
+                        : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"
+                        } ${t.color}`}
+                    >
+                      <span className="flex items-center gap-1.5 text-xs font-semibold">
+                        {t.icon}
+                        {t.label}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                filteredIcons.map(({ name, Icon }) => (
-                  <button
-                    key={name}
-                    title={name}
-                    onClick={() => {
-                      onInsertIcon?.(name);
-                      setIconSearchOpen(false);
-                      setIconQuery("");
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl text-[#4B5563] hover:bg-muted hover:text-foreground transition-all"
-                  >
-                    <Icon size={17} />
-                  </button>
-                ))
-              )}
-            </div>
-            {!iconQuery && (
-              <div className="text-[10px] text-gray-400 text-center mt-2">
-                Showing first {MAX_RESULTS} icons — type to search all
               </div>
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-1.5 px-1 uppercase tracking-wider flex justify-between items-center">
+                  <span>Thickness</span>
+                  <span className="font-bold text-foreground bg-muted px-1.5 py-0.5 rounded text-[11px]">{penThickness}px</span>
+                </div>
+                <div className="flex items-center gap-2 px-1 py-1">
+                  <input
+                    type="range"
+                    min={1}
+                    max={penType === "highlighter" ? 60 : penType === "marker" ? 40 : 20}
+                    value={penThickness}
+                    onChange={(e) => setPenThickness(parseInt(e.target.value))}
+                    className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-[#3742FA]"
+                    style={{ accentColor: "#3742FA" }}
+                  />
+                </div>
+              </div>
+
+              <div className="h-px bg-border/60 my-0.5" />
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Colors</div>
+                <ColorPalette colors={PEN_COLORS} active={penColor} onPick={setPenColor} flat={true} />
+              </div>
+            </>
+          )}
+
+          {/* Shape Tool Settings */}
+          {tool === "shape" && (
+            <>
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Shapes</div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {SHAPE_KINDS.map(({ kind, label, icon }) => (
+                    <button
+                      key={kind}
+                      title={label}
+                      onClick={() => setShapeKind(kind)}
+                      className={`w-11 h-11 flex items-center justify-center rounded-xl transition-all cursor-pointer ${shapeKind === kind
+                        ? "bg-[#3742FA] text-white shadow-md scale-105"
+                        : "text-[#4B5563] hover:bg-muted hover:text-foreground"
+                        }`}
+                    >
+                      {icon}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px bg-border/60 my-0.5" />
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Colors</div>
+                <ColorPalette colors={SHAPE_COLORS} active={shapeColor} onPick={setShapeColor} flat={true} />
+              </div>
+            </>
+          )}
+
+          {/* Sticky Note Settings */}
+          {tool === "sticky" && (
+            <div>
+              <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Sticky Colors</div>
+              <ColorPalette colors={STICKY_COLORS} active={stickyColor} onPick={setStickyColor} flat={true} />
+            </div>
+          )}
+
+          {/* Font Settings for Text Editing / Text Tool */}
+          {isEditingOrSelectedText && (
+            <>
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-1.5 px-1 uppercase tracking-wider">Font Family</div>
+                <div className="relative">
+                  <select
+                    value={textFontFamily}
+                    onChange={(e) => setTextFontFamily?.(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-border bg-card px-3 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-[#3742FA] appearance-none cursor-pointer pr-8"
+                  >
+                    <option value="sans-serif">Sans-Serif (Modern)</option>
+                    <option value="serif">Serif (Classic)</option>
+                    <option value="monospace">Monospace (Code)</option>
+                    <option value="cursive">Cursive (Handwritten)</option>
+                    <option value="'Outfit', sans-serif">Outfit (Geometric)</option>
+                    <option value="'Playfair Display', serif">Playfair Display (Elegant Serif)</option>
+                    <option value="'Poppins', sans-serif">Poppins (Clean Sans-Serif)</option>
+                    <option value="'Lobster', cursive">Lobster (Vintage/Bold)</option>
+                    <option value="'Pacifico', cursive">Pacifico (Smooth Handwriting)</option>
+                    <option value="'Caveat', cursive">Caveat (Natural Pen)</option>
+                    <option value="'Lora', serif">Lora (Classic Book Serif)</option>
+                  </select>
+                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-[9px]">
+                    ▼
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-1.5 px-1 uppercase tracking-wider">Font Size</div>
+                <div className="flex items-center justify-between gap-1.5">
+                  <button
+                    onClick={() => setTextFontSize?.(Math.max(10, textFontSize - 2))}
+                    className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-foreground hover:bg-background border border-border font-bold text-sm cursor-pointer transition-all active:scale-90"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    value={textFontSize}
+                    onChange={(e) => setTextFontSize?.(Math.max(8, parseInt(e.target.value) || 20))}
+                    className="w-20 h-8 text-center text-xs font-bold bg-card border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3742FA]"
+                  />
+                  <button
+                    onClick={() => setTextFontSize?.(Math.min(120, textFontSize + 2))}
+                    className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-foreground hover:bg-background border border-border font-bold text-sm cursor-pointer transition-all active:scale-90"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+        </div>
+      )}
+
+      {/* Icon search picker docked to the side */}
+      {iconSearchOpen && (
+        <div ref={iconPanelRef} className={`flex flex-col p-3 bg-card/95 backdrop-blur-md rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${iconPanelPositionClass}`}>
+          <div className="flex items-center gap-2 mb-2 px-1">
+            <Search size={14} className="text-gray-400 shrink-0" />
+            <input
+              autoFocus
+              type="text"
+              value={iconQuery}
+              onChange={(e) => setIconQuery(e.target.value)}
+              placeholder="Search 1000+ icons (e.g. cup, mobile, smiley)"
+              className="flex-1 text-xs outline-none text-foreground placeholder:text-gray-400"
+            />
+            <button
+              onClick={() => {
+                setIconSearchOpen(false);
+                setIconQuery("");
+              }}
+              className="text-gray-400 hover:text-muted-foreground cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1.5 max-h-56 overflow-y-auto pr-1">
+            {filteredIcons.length === 0 ? (
+              <div className="col-span-7 text-center text-[11px] text-gray-400 py-4">
+                No icons found
+              </div>
+            ) : (
+              filteredIcons.map(({ name, Icon }) => (
+                <button
+                  key={name}
+                  title={name}
+                  onClick={() => {
+                    onInsertIcon?.(name);
+                    setIconSearchOpen(false);
+                    setIconQuery("");
+                  }}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl text-[#4B5563] hover:bg-muted hover:text-foreground transition-all cursor-pointer"
+                >
+                  <Icon size={17} />
+                </button>
+              ))
             )}
           </div>
-        )}
-
-      </div>
-
-      <div className={itemGroupClass}>
-        {TOOLS.map(({ id, label, key, icon }) => (
-          <button
-            key={id}
-            title={`${label} (${key})`}
-            onClick={() => {
-              if (id === tool) {
-                setToolMenuOpen(!toolMenuOpen);
-              } else {
-                setTool(id as Tool);
-                if (id === "pen" || id === "shape" || id === "sticky" || id === "text") {
-                  setToolMenuOpen(true);
-                } else {
-                  setToolMenuOpen(false);
-                }
-              }
-              setIconSearchOpen(false);
-            }}
-            className={`
-              w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200
-              ${tool === id
-                ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
-                : "text-[#4B5563] hover:bg-muted hover:text-foreground"}
-            `}
-          >
-            {icon}
-          </button>
-        ))}
-
-        <div className={dividerClass} />
-
-        {/* Icon search toggle button */}
-        <button
-          title="Insert icon"
-          onClick={() => {
-            setIconSearchOpen((prev) => !prev);
-            setToolMenuOpen(false);
-          }}
-          className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 ${iconSearchOpen
-              ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
-              : "text-[#4B5563] hover:bg-muted hover:text-foreground"
-            }`}
-        >
-          <Smile size={18} />
-        </button>
-
-        <div className={dividerClass} />
-
-        {hasSelection && (
-          <>
-            <button
-              onClick={onDelete}
-              title="Delete selected (Del)"
-              className="w-9 h-9 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-            >
-              <Trash2 size={18} />
-            </button>
-            <div className={dividerClass} />
-          </>
-        )}
-
-        <button
-          onClick={() => onZoom(-1)}
-          title="Zoom out"
-          className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        >
-          <Minus size={16} />
-        </button>
-        <div
-          className={`text-xs font-medium text-[#4B5563] text-center cursor-pointer hover:text-foreground flex items-center justify-center ${
-            layout === "horizontal" ? "px-1.5 min-w-[44px]" : "py-1.5 min-h-[44px] w-9"
-          }`}
-          title="Reset zoom"
-          onClick={() => {/* handled outside */ }}
-        >
-          {Math.round(zoomLevel * 100)}%
+          {!iconQuery && (
+            <div className="text-[10px] text-gray-400 text-center mt-2">
+              Showing first {MAX_RESULTS} icons — type to search all
+            </div>
+          )}
         </div>
-        <button
-          onClick={() => onZoom(1)}
-          title="Zoom in"
-          className="w-8 h-8 flex items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-        >
-          <Plus size={16} />
-        </button>
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
