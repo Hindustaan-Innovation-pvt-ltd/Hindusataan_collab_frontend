@@ -1,6 +1,5 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
-import { Icon as IconifyIcon } from "@iconify/react";
 import type { IconEl } from "../types";
 
 interface IconNodeProps {
@@ -11,11 +10,34 @@ interface IconNodeProps {
 
 const MIN_SIZE = 16;
 
+// 1. Emoji detect karne ke liye helper regex
+const isEmoji = (str: string) => {
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}]/u;
+  return emojiRegex.test(str);
+};
+
+// 2. Emoji ko Fluent Emoji CDN URL mein badalne ka function (Eraser.io Premium Look)
+const getFluentEmojiUrl = (emoji: string) => {
+  // Emoji ka unified unicode code-point nikalna (e.g., 🚀 -> 1f680)
+  const codePoints = Array.from(emoji)
+    .map((char) => char.codePointAt(0)?.toString(16))
+    .filter(Boolean)
+    .join("-");
+
+  // Microsoft Fluent Emojis ka high-quality flat/3d public CDN
+  return `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${codePoints}_flat.svg`;
+};
+
 function IconNode({ el, selected, onResize }: IconNodeProps) {
   const { x, y, size, color, iconName } = el;
 
-  const isIconify = iconName.includes(":");
-  const IconComponent = isIconify ? null : (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName];
+  const isAnEmoji = isEmoji(iconName);
+  const fluentEmojiUrl = isAnEmoji ? getFluentEmojiUrl(iconName) : null;
+
+  // Agar emoji nahi hai, toh Lucide Icons lookup karega
+  const IconComponent = !isAnEmoji
+    ? (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName]
+    : null;
 
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -30,7 +52,6 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== e.pointerId) return;
-      // Use the larger of dx/dy so diagonal drag feels natural, keep icon square
       const dx = moveEvent.clientX - startX;
       const dy = moveEvent.clientY - startY;
       const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
@@ -51,7 +72,8 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
     window.addEventListener("pointerup", onPointerUp);
   };
 
-  if (!isIconify && !IconComponent) {
+  // Fallback state agar kuch na mile
+  if (!IconComponent && !isAnEmoji) {
     return (
       <div
         data-el-id={el.id}
@@ -76,14 +98,38 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
         outline: selected ? "2px solid #3742FA" : "2px dashed transparent",
         outlineOffset: 6,
         borderRadius: 6,
+        userSelect: "none",
       }}
     >
-      {isIconify ? (
-        <IconifyIcon icon={iconName} width={size} height={size} color={color} />
+      {/* Option B Implementation: Render Vector CDN image for Emojis */}
+      {isAnEmoji && fluentEmojiUrl ? (
+        <img
+          src={fluentEmojiUrl}
+          alt={iconName}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            pointerEvents: "none", // Image drag issue prevent karne ke liye
+          }}
+          onError={(e) => {
+            // Agar kisi rare emoji ka SVG CDN par nahi milta, toh standard text rendering fallback ho jayega
+            const target = e.target as HTMLImageElement;
+            target.style.display = "none";
+            const parent = target.parentElement;
+            if (parent) {
+              const span = document.createElement("span");
+              span.innerText = iconName;
+              span.style.fontSize = `${size * 0.8}px`;
+              parent.appendChild(span);
+            }
+          }}
+        />
       ) : (
         IconComponent && <IconComponent size={size} color={color} />
       )}
 
+      {/* Resize Handle */}
       {selected && (
         <div
           onPointerDown={handleResizePointerDown}
@@ -98,6 +144,7 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
             border: "2px solid #3742FA",
             cursor: "nwse-resize",
             touchAction: "none",
+            zIndex: 10,
           }}
         />
       )}
@@ -106,54 +153,3 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
 }
 
 export default IconNode;
-
-// import React from "react";
-// import * as LucideIcons from "lucide-react";
-// import type { IconEl } from "../types";
-
-// interface IconNodeProps {
-//   el: IconEl;
-//   selected: boolean;
-// }
-
-// function IconNode({ el, selected }: IconNodeProps) {
-//   const { x, y, size, color, iconName } = el;
-
-//   // Look up the icon component dynamically by name from the full library —
-//   // matches whatever was picked in the Toolbar's search, no hardcoded list.
-//   const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName];
-
-//   if (!IconComponent) {
-//     // Icon name doesn't exist in the library (e.g. corrupted data) — render a visible fallback instead of crashing
-//     return (
-//       <div
-//         data-el-id={el.id}
-//         className="absolute flex items-center justify-center text-red-400 text-xs border border-dashed border-red-300 rounded"
-//         style={{ left: x, top: y, width: size, height: size, cursor: "grab" }}
-//       >
-//         ?
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div
-//       data-el-id={el.id}
-//       className="absolute flex items-center justify-center"
-//       style={{
-//         left: x,
-//         top: y,
-//         width: size,
-//         height: size,
-//         cursor: "grab",
-//         outline: selected ? "2px solid #3742FA" : "2px dashed transparent",
-//         outlineOffset: 6,
-//         borderRadius: 6,
-//       }}
-//     >
-//       <IconComponent size={size} color={color} />
-//     </div>
-//   );
-// }
-
-// export default IconNode;

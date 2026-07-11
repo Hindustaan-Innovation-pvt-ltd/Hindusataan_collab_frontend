@@ -161,6 +161,16 @@ export default function App() {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<El[]>([]);
+  const isCutRef = useRef(false);
+  const lastMouseRef = useRef({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0 });
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
 
   // Refs for tracking current state during events without causing re-renders
   const camRef = useRef(cam);
@@ -407,23 +417,53 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
         if (selIdsRef.current.length > 0) {
           clipboardRef.current = elsRef.current.filter(ex => selIdsRef.current.includes(ex.id));
+          isCutRef.current = false;
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x") {
+        if (selIdsRef.current.length > 0) {
+          clipboardRef.current = elsRef.current.filter(ex => selIdsRef.current.includes(ex.id));
+          setEls(p => p.filter(el => !selIdsRef.current.includes(el.id)));
+          setSelIds([]);
+          isCutRef.current = true;
         }
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         if (clipboardRef.current.length > 0) {
+          let dx = 20, dy = 20;
+
+          if (isCutRef.current) {
+            const rect = wrapRef.current ? wrapRef.current.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight } as DOMRect;
+            const pt = worldPt(lastMouseRef.current.x, lastMouseRef.current.y, rect, camRef.current);
+            let minX = Infinity, minY = Infinity;
+            clipboardRef.current.forEach(el => {
+              if ('x' in el) minX = Math.min(minX, el.x);
+              if ('y' in el) minY = Math.min(minY, el.y);
+            });
+            if (minX !== Infinity && minY !== Infinity) {
+              dx = pt.x - minX;
+              dy = pt.y - minY;
+            }
+            isCutRef.current = false;
+          }
+
           const newEls = clipboardRef.current.map(el => {
             const newEl = { ...el, id: uid() };
-            if ('x' in newEl) newEl.x += 20;
-            if ('y' in newEl) newEl.y += 20;
+            if ('x' in newEl) newEl.x += dx;
+            if ('y' in newEl) newEl.y += dy;
             return newEl;
           });
           setEls(p => [...p, ...newEls]);
           setSelIds(newEls.map(e => e.id));
+          clipboardRef.current = newEls;
         }
         return;
       }
+
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
         if (selIdsRef.current.length > 0) {
