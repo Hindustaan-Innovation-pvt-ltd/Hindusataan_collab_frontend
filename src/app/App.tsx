@@ -17,6 +17,7 @@ import AIDialog from "../components/AIDialog";
 import Toolbar from "../components/Toolbar";
 import { boardService } from "../services/boardService";
 import { websocketService } from '../services/websocketService';
+import { collaborationService } from "../services/collaborationService";
 import { parseMermaidToElements } from "../utils/mermaidParser";
 import TopBar from "../components/TopBar";
 import ContextMenu from "../components/ContextMenu";
@@ -91,6 +92,20 @@ export default function App() {
     }, 5000);
     return () => clearInterval(int);
   }, []);
+
+  const [userRole, setUserRole] = useState<"owner" | "editor" | "viewer">("viewer");
+
+  useEffect(() => {
+    if (currentBoardId) {
+      collaborationService.getBoardRole(currentBoardId)
+        .then((role) => {
+          if (role === "owner" || role === "editor" || role === "viewer") {
+            setUserRole(role);
+          }
+        })
+        .catch((e) => console.error("Failed to get board role", e));
+    }
+  }, [currentBoardId]);
 
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string | null } | null>(null);
 
@@ -799,7 +814,6 @@ export default function App() {
         console.log("Handling create_flowchart with JSON nodes data");
         const NODE_W = 160;
         const NODE_H = 80;
-        const GAP_X = 80;
         const GAP_Y = 100;
         
         // simple grid layout
@@ -825,8 +839,8 @@ export default function App() {
         
         if (data.edges && Array.isArray(data.edges)) {
           data.edges.forEach((e: any) => {
-            const sourceId = typeof e.source === 'number' ? nodeIds[e.source] : nodeIds.find((_, i) => data.nodes[i].id === e.source || data.nodes[i].text === e.source);
-            const targetId = typeof e.target === 'number' ? nodeIds[e.target] : nodeIds.find((_, i) => data.nodes[i].id === e.target || data.nodes[i].text === e.target);
+            const sourceId = typeof e.source === 'number' ? nodeIds[e.source] : nodeIds.find((_: string, i: number) => data.nodes[i].id === e.source || data.nodes[i].text === e.source);
+            const targetId = typeof e.target === 'number' ? nodeIds[e.target] : nodeIds.find((_: string, i: number) => data.nodes[i].id === e.target || data.nodes[i].text === e.target);
             if (sourceId && targetId) {
               edgesEls.push({
                 id: uid(),
@@ -1648,7 +1662,7 @@ export default function App() {
         onCreateBoard={handleCreateBoard}
         boards={boards}
         showToast={showToast}
-        role="owner"
+        role={userRole}
         onlineUsers={onlineUsers}
         chatOpen={isChatOpen}
         onToggleChat={() => {

@@ -1250,13 +1250,15 @@ export const TopBar = React.memo(function TopBar({
                         <span>Duplicate Board</span>
                         <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                       </button>
-                      <button 
-                        onClick={() => confirmDeleteBoard(currentBoardId)}
-                        disabled={!onDeleteBoard}
-                        className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
-                      >
-                        Delete Board
-                      </button>
+                      {role === "owner" && (
+                        <button 
+                          onClick={() => confirmDeleteBoard(currentBoardId)}
+                          disabled={!onDeleteBoard}
+                          className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
+                        >
+                          Delete Board
+                        </button>
+                      )}
                     </div>
                     
                   </div>
