@@ -826,7 +826,7 @@ export default function App() {
         if (elTarget) {
           const id = elTarget.getAttribute("data-el-id")!;
           setEls(p => p.filter(x => {
-            if (x.id === id && !x.locked && x.type === "path") return false;
+            if (x.id === id && !x.locked) return false;
             return true;
           }));
         }
