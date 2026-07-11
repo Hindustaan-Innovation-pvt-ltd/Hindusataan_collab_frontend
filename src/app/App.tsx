@@ -625,7 +625,7 @@ export default function App() {
         window.removeEventListener("pointerup", onUp);
 
         const elsUnder = document.elementsFromPoint(ue.clientX, ue.clientY);
-        const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
+          const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
 
         if (upTarget) {
           const toId = upTarget.getAttribute("data-el-id")!;
@@ -1256,7 +1256,7 @@ export default function App() {
     }
   }, []);
 
-  const onInsertIcon = useCallback((iconName: string) => {
+  const onInsertIcon = useCallback((iconName: string, sizeScale: number = 1) => {
     // Place the new item at the current center of the visible canvas
     const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const centerWorld = worldPt(centerScreen.x, centerScreen.y, getRect(), camRef.current);
@@ -1268,16 +1268,16 @@ export default function App() {
       setEls(p => [...p, {
         id, type: "device_frame",
         kind,
-        x: centerWorld.x - (kind === "browser" ? 400 : 150),
-        y: centerWorld.y - (kind === "browser" ? 300 : 300),
-        w: kind === "browser" ? 800 : 300,
-        h: kind === "browser" ? 600 : 600,
+        x: centerWorld.x - (kind === "browser" ? 400 * sizeScale : 150 * sizeScale),
+        y: centerWorld.y - (kind === "browser" ? 300 * sizeScale : 300 * sizeScale),
+        w: kind === "browser" ? 800 * sizeScale : 300 * sizeScale,
+        h: kind === "browser" ? 600 * sizeScale : 600 * sizeScale,
         color: "#1C1B1F",
       }]);
       return;
     }
 
-    const size = 48;
+    const size = 48 * sizeScale;
     setEls(p => [...p, {
       id, type: "icon",
       iconName,
@@ -1286,6 +1286,48 @@ export default function App() {
       size,
       color: "var(--color-foreground)",
     }]);
+    setSelIds([id]);
+  }, []);
+
+  const onInsertEmoji = useCallback((emoji: string, sizeScale: number = 1) => {
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
+    
+    const id = uid();
+    const size = 60 * sizeScale;
+    setEls(p => [...p, { id, type: "text", x: centerWorld.x - size / 2, y: centerWorld.y - size / 2, fontSize: size, color: "var(--color-foreground)", text: emoji }]);
+    setSelIds([id]);
+  }, []);
+
+  const onInsertShape = useCallback((kind: string, sizeScale: number = 1) => {
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
+    
+    const id = uid();
+    const w = 100 * sizeScale;
+    const h = 100 * sizeScale;
+    setEls(p => [...p, { id, type: "shape", kind: kind as any, x: centerWorld.x - w / 2, y: centerWorld.y - h / 2, w, h, color: shapeColorRef.current || "#1ABCFE" }]);
+    setSelIds([id]);
+  }, []);
+
+  const onInsertDeviceFrame = useCallback((kind: string, sizeScale: number = 1) => {
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
+    
+    const id = uid();
+    let w = 300 * sizeScale, h = 600 * sizeScale;
+    if (kind === "browser" || kind === "desktop" || kind === "laptop") {
+      w = 800 * sizeScale; h = 600 * sizeScale;
+    } else if (kind === "tablet") {
+      w = 600 * sizeScale; h = 800 * sizeScale;
+    }
+    setEls(p => [...p, { id, type: "device_frame", kind: kind as any, x: centerWorld.x - w / 2, y: centerWorld.y - h / 2, w, h, color: "#1C1B1F" }]);
     setSelIds([id]);
   }, []);
 
@@ -1481,6 +1523,7 @@ export default function App() {
                     key={el.id} el={el}
                     selected={selected} editing={editing}
                     onBlur={onBlur} onDblClick={onElDblClick}
+                    onResize={(id, fontSize) => onResizeShape(id, { fontSize })}
                   />
                 );
               case "shape":
@@ -1490,7 +1533,7 @@ export default function App() {
                     selected={selected}
                     onStartConnect={onStartConnect}
                     editing={editing}
-                    onResize={onUpdateEl}
+                    onResize={(id, x, y, w, h) => onResizeShape(id, { x, y, w, h })}
                     onDblClick={(id) => setEditId(id)}
                     onBlur={(id, text) => {
                       setEls((current) =>
@@ -1506,7 +1549,7 @@ export default function App() {
                 return (
                   <DeviceFrameNode
                     key={el.id} el={el as any} selected={selected}
-                    onResize={onUpdateEl}
+                    onResize={(id, w, h) => onResizeShape(id, { w, h })}
                   />
                 );
               case "table":
@@ -1859,6 +1902,9 @@ export default function App() {
         setTextFontSize={handleTextFontSizeChange}
         textFontFamily={textFontFamily}
         setTextFontFamily={handleTextFontFamilyChange}
+        onInsertEmoji={onInsertEmoji}
+        onInsertShape={onInsertShape}
+        onInsertDeviceFrame={onInsertDeviceFrame}
       />
 
       {/* Toast Notification */}

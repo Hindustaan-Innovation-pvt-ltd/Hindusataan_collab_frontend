@@ -8,6 +8,8 @@ import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
 import ColorPalette from "./ColorPalette";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
+import EmojiPicker, { Theme } from 'emoji-picker-react';
+import QuickInsertPanel from './QuickInsertPanel';
 
 interface ToolbarProps {
   tool: Tool;
@@ -29,12 +31,15 @@ interface ToolbarProps {
   toolMenuOpen: boolean;
   setToolMenuOpen: (o: boolean) => void;
   hasSelection: boolean;
-  onInsertIcon?: (iconName: string) => void;
+  onInsertIcon?: (iconName: string, sizeScale: number) => void;
   isEditingOrSelectedText?: boolean;
   textFontSize?: number;
   setTextFontSize?: (size: number) => void;
   textFontFamily?: string;
   setTextFontFamily?: (family: string) => void;
+  onInsertEmoji?: (emoji: string, sizeScale: number) => void;
+  onInsertShape?: (kind: string, sizeScale: number) => void;
+  onInsertDeviceFrame?: (kind: string, sizeScale: number) => void;
 }
 
 // Exports from lucide-react that aren't actual icon components —
@@ -74,8 +79,9 @@ function Toolbar({
   setTextFontSize,
   textFontFamily = "sans-serif",
   setTextFontFamily,
+  onInsertEmoji, onInsertShape, onInsertDeviceFrame,
 }: ToolbarProps) {
-  const [iconSearchOpen, setIconSearchOpen] = useState(false);
+  const [quickInsertOpen, setQuickInsertOpen] = useState(false);
   const [iconQuery, setIconQuery] = useState("");
   const { layout } = useWorkspaceTheme();
   const toolbarRef = React.useRef<HTMLDivElement>(null);
@@ -83,13 +89,13 @@ function Toolbar({
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
-        setIconSearchOpen(false);
+        setQuickInsertOpen(false);
         setToolMenuOpen(false);
       }
     };
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setIconSearchOpen(false);
+        setQuickInsertOpen(false);
         setToolMenuOpen(false);
       }
     };
@@ -260,59 +266,16 @@ function Toolbar({
           </div>
         )}
 
-        {/* Icon search picker — searches the full lucide-react library */}
-        {iconSearchOpen && (
-          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border w-80 mb-1">
-            <div className="flex items-center gap-2 mb-2 px-1">
-              <Search size={14} className="text-gray-400 shrink-0" />
-              <input
-                autoFocus
-                type="text"
-                value={iconQuery}
-                onChange={(e) => setIconQuery(e.target.value)}
-                placeholder="Search 1000+ icons (e.g. cup, mobile, smiley)"
-                className="flex-1 text-xs outline-none text-foreground placeholder:text-gray-400"
-              />
-              <button
-                onClick={() => {
-                  setIconSearchOpen(false);
-                  setIconQuery("");
-                }}
-                className="text-gray-400 hover:text-muted-foreground"
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <div className="grid grid-cols-7 gap-1.5 max-h-56 overflow-y-auto pr-1">
-              {filteredIcons.length === 0 ? (
-                <div className="col-span-7 text-center text-[11px] text-gray-400 py-4">
-                  No icons found
-                </div>
-              ) : (
-                filteredIcons.map(({ name, Icon }) => (
-                  <button
-                    key={name}
-                    title={name}
-                    onClick={() => {
-                      onInsertIcon?.(name);
-                      setIconSearchOpen(false);
-                      setIconQuery("");
-                    }}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl text-[#4B5563] hover:bg-muted hover:text-foreground transition-all"
-                  >
-                    <Icon size={17} />
-                  </button>
-                ))
-              )}
-            </div>
-            {!iconQuery && (
-              <div className="text-[10px] text-gray-400 text-center mt-2">
-                Showing first {MAX_RESULTS} icons — type to search all
-              </div>
-            )}
-          </div>
+        {/* Quick Insert Panel */}
+        {quickInsertOpen && (
+          <QuickInsertPanel
+            onInsertIcon={(name, scale) => { onInsertIcon?.(name, scale); setQuickInsertOpen(false); }}
+            onInsertEmoji={(emoji, scale) => { onInsertEmoji?.(emoji, scale); setQuickInsertOpen(false); }}
+            onInsertShape={(kind, scale) => { onInsertShape?.(kind, scale); setQuickInsertOpen(false); }}
+            onInsertDeviceFrame={(kind, scale) => { onInsertDeviceFrame?.(kind, scale); setQuickInsertOpen(false); }}
+            onClose={() => setQuickInsertOpen(false)}
+          />
         )}
-
       </div>
 
       <div className={itemGroupClass}>
@@ -331,7 +294,7 @@ function Toolbar({
                   setToolMenuOpen(false);
                 }
               }
-              setIconSearchOpen(false);
+              setQuickInsertOpen(false);
             }}
             className={`
               w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200
@@ -346,14 +309,14 @@ function Toolbar({
 
         <div className={dividerClass} />
 
-        {/* Icon search toggle button */}
+        {/* Quick Insert search toggle button (Smile icon) */}
         <button
-          title="Insert icon"
+          title="Quick Insert (Assets)"
           onClick={() => {
-            setIconSearchOpen((prev) => !prev);
+            setQuickInsertOpen((prev) => !prev);
             setToolMenuOpen(false);
           }}
-          className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 ${iconSearchOpen
+          className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 ${quickInsertOpen
               ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
               : "text-[#4B5563] hover:bg-muted hover:text-foreground"
             }`}
