@@ -42,7 +42,7 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
     endY = pt.y;
   }
 
-  const handlePointerDown = (e: React.PointerEvent, handle: "start" | "end" | "body") => {
+  const handlePointerDown = (e: React.PointerEvent, handle: "start" | "end") => {
     e.stopPropagation();
     e.preventDefault();
     const target = e.currentTarget;
@@ -67,37 +67,28 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
       const dX = (me.clientX - initClientX) / zoom;
       const dY = (me.clientY - initClientY) / zoom;
 
-      if (handle === "body") {
+      const elsUnder = document.elementsFromPoint(me.clientX, me.clientY);
+      const upTarget = elsUnder.map(node => node.closest("[data-el-id]")).find(node => node != null);
+      const snapId = upTarget ? upTarget.getAttribute("data-el-id")! : undefined;
+
+      const finalSnapId = snapId !== el.id ? snapId : undefined;
+
+      if (handle === "start") {
+        currentFrom = finalSnapId;
         onUpdate(el.id, {
           x: initX + dX,
           y: initY + dY,
-          from: undefined,
-          to: undefined,
+          dx: initDx - dX,
+          dy: initDy - dY,
+          from: currentFrom,
         });
-      } else {
-        const elsUnder = document.elementsFromPoint(me.clientX, me.clientY);
-        const upTarget = elsUnder.map(node => node.closest("[data-el-id]")).find(node => node != null);
-        const snapId = upTarget ? upTarget.getAttribute("data-el-id")! : undefined;
-
-        const finalSnapId = snapId !== el.id ? snapId : undefined;
-
-        if (handle === "start") {
-          currentFrom = finalSnapId;
-          onUpdate(el.id, {
-            x: initX + dX,
-            y: initY + dY,
-            dx: initDx - dX,
-            dy: initDy - dY,
-            from: currentFrom,
-          });
-        } else if (handle === "end") {
-          currentTo = finalSnapId;
-          onUpdate(el.id, {
-            dx: initDx + dX,
-            dy: initDy + dY,
-            to: currentTo,
-          });
-        }
+      } else if (handle === "end") {
+        currentTo = finalSnapId;
+        onUpdate(el.id, {
+          dx: initDx + dX,
+          dy: initDy + dY,
+          to: currentTo,
+        });
       }
     };
 
@@ -124,7 +115,6 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
           x1={startX} y1={startY} x2={endX} y2={endY}
           stroke="transparent" strokeWidth="20"
           style={{ pointerEvents: "stroke", cursor: "move" }}
-          onPointerDown={(e) => handlePointerDown(e, "body")}
         />
         <line
           x1={startX} y1={startY} x2={endX} y2={endY}

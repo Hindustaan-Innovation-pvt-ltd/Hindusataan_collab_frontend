@@ -4,8 +4,8 @@ import { useParams, useNavigate } from "react-router";
 import IconNode from "../components/IconNode";
 // import { toPng } from "html-to-image";
 
-import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Peer, Comment, StickyEl, GraphEl, TableEl, Board } from "../types";
-import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, INIT_ELS } from "../constants";
+import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Peer, Comment, StickyEl, GraphEl, Board, ImageEl } from "../types";
+import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, ARROW_COLORS, TEXT_COLORS, TABLE_COLORS, INIT_ELS } from "../constants";
 import { uid, worldPt, pathD, getElementBox } from "../utils";
 
 import StickyNote from "../components/StickyNote";
@@ -23,7 +23,10 @@ import { parseMermaidToElements } from "../utils/mermaidParser";
 import ArrowNode from "../components/ArrowNode";
 import TopBar from "../components/TopBar";
 import ContextMenu from "../components/ContextMenu";
+import TableFormattingMenu from "../components/TableFormattingMenu";
 import { BoardChat } from "../components/BoardChat";
+import { uploadService } from "../services/uploadService";
+import { ImageNode } from "../components/ImageNode";
 import type { LiveChatMessage } from "../services/liveChatService";
 
 import { useBoardSync } from "../hooks/useBoardSync";
@@ -77,6 +80,11 @@ export default function App() {
   const [shapeColor, setShapeColor] = useState(SHAPE_COLORS[0]);
   const [shapeKind, setShapeKind] = useState<ShapeKind>("rect");
   const [penColor, setPenColor] = useState(PEN_COLORS[0]);
+  const [arrowColor, setArrowColor] = useState(ARROW_COLORS[0]);
+  const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
+  const [tableColor, setTableColor] = useState(TABLE_COLORS[0]);
+  const [tableConfig, setTableConfig] = useState({ rows: 3, cols: 3, template: "basic" });
+  const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [penType, setPenType] = useState<PenType>("pen");
   const [penThickness, setPenThickness] = useState<PenThickness>("thin");
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
@@ -85,6 +93,7 @@ export default function App() {
   const [marquee, setMarquee] = useState<{ start: Pt, end: Pt } | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const [peers, setPeers] = useState<Peer[]>([]);
 
@@ -162,6 +171,57 @@ export default function App() {
   const wrapRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<El[]>([]);
 
+  const handleUploadImage = async (file: File) => {
+    try {
+      setIsUploadingImage(true);
+      const data = await uploadService.uploadImage(file);
+      
+      // Determine image dimensions
+      const img = new Image();
+      img.onload = () => {
+        // Limit max width/height to 400 initially to fit nicely
+        const maxDim = 400;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = (maxDim / w) * h;
+            w = maxDim;
+          } else {
+            w = (maxDim / h) * w;
+            h = maxDim;
+          }
+        }
+        
+        // Place in center of screen
+        const vpW = window.innerWidth;
+        const vpH = window.innerHeight;
+        const centerW = (vpW / 2 - cam.x) / cam.z;
+        const centerH = (vpH / 2 - cam.y) / cam.z;
+
+        const newImageEl: import("../types").ImageEl = {
+          id: uid(),
+          type: "image",
+          url: data.url,
+          x: centerW - w / 2,
+          y: centerH - h / 2,
+          w: Math.max(w, 20),
+          h: Math.max(h, 20),
+        };
+
+        setEls(prev => [...prev, newImageEl]);
+        setSelIds([newImageEl.id]);
+        setTool("select");
+        setIsUploadingImage(false);
+      };
+      img.src = data.url;
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || "Failed to upload image", "error");
+      setIsUploadingImage(false);
+    }
+  };
+
   // Refs for tracking current state during events without causing re-renders
   const camRef = useRef(cam);
   const elsRef = useRef(els);
@@ -171,6 +231,10 @@ export default function App() {
   const shapeColorRef = useRef(shapeColor);
   const shapeKindRef = useRef(shapeKind);
   const penColorRef = useRef(penColor);
+  const arrowColorRef = useRef(arrowColor);
+  const textColorRef = useRef(textColor);
+  const tableColorRef = useRef(tableColor);
+  const tableConfigRef = useRef(tableConfig);
   const toolRef = useRef(tool);
   const penTypeRef = useRef(penType);
   const penThicknessRef = useRef(penThickness);
@@ -186,10 +250,14 @@ export default function App() {
   useEffect(() => { shapeKindRef.current = shapeKind; }, [shapeKind]);
   useEffect(() => {
     penColorRef.current = penColor;
+    arrowColorRef.current = arrowColor;
+    textColorRef.current = textColor;
+    tableColorRef.current = tableColor;
+    tableConfigRef.current = tableConfig;
     penTypeRef.current = penType;
     penThicknessRef.current = penThickness;
     toolRef.current = tool;
-  }, [penColor, penType, penThickness, tool]);
+  }, [penColor, arrowColor, textColor, tableColor, tableConfig, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
 
   // Interaction state refs
@@ -496,6 +564,8 @@ export default function App() {
   }, [editId, broadcastPresence]);
 
   const onPtrDown = useCallback((e: React.PointerEvent) => {
+    setEditId(null);
+    setSelectedCellId(null);
     setToolMenuOpen(false);
     setAiOpen(false);
     setContextMenu(null);
@@ -547,7 +617,7 @@ export default function App() {
             id: newId, type: "free_arrow",
             x: startPt.x, y: startPt.y,
             dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-            color: "var(--color-foreground)",
+            color: arrowColorRef.current,
             from: id
           }]);
           setSelIds([newId]);
@@ -660,8 +730,7 @@ export default function App() {
 
     if (toolRef.current === "text") {
       const id = uid();
-      const textColor = boardBgRef.current === "white" ? "#1C1B1F" : "#FFFFFF";
-      setEls(p => [...p, { id, type: "text", x: w.x, y: w.y, text: "Text", fontSize: 20, color: textColor }]);
+      setEls(p => [...p, { id, type: "text", x: w.x, y: w.y, text: "Text", fontSize: 20, color: textColorRef.current }]);
       setSelIds([id]);
       setEditId(id);
       setTool("select");
@@ -683,11 +752,50 @@ export default function App() {
 
     if (toolRef.current === "table") {
       const id = uid();
+      const cfg = tableConfigRef.current;
+      const initialRowHeights: Record<number, number> = {};
+      const initialColWidths: Record<number, number> = {};
+      for (let r = 0; r < cfg.rows; r++) initialRowHeights[r] = 40;
+      for (let c = 0; c < cfg.cols; c++) initialColWidths[c] = 120;
+      
+      let cells: Record<string, import("../types").TableCell> = {};
+      let headerRow = false;
+      let altRowColors = false;
+      
+      // Template generator logic
+      if (cfg.template === "comparison") {
+        headerRow = true;
+        altRowColors = true;
+      } else if (cfg.template === "kanban") {
+        headerRow = true;
+        for (let c = 0; c < cfg.cols; c++) {
+          cells[`0,${c}`] = { text: `Column ${c + 1}`, align: "center", fontBold: true };
+        }
+      } else if (cfg.template === "schedule") {
+        headerRow = true;
+        altRowColors = true;
+        cells[`0,0`] = { text: "Time", align: "center", fontBold: true };
+        for (let c = 1; c < cfg.cols; c++) {
+          cells[`0,${c}`] = { text: `Day ${c}`, align: "center", fontBold: true };
+        }
+      } else if (cfg.template === "checklist") {
+        headerRow = true;
+        initialColWidths[0] = 50;
+        cells[`0,0`] = { text: "Done", align: "center", fontBold: true };
+        cells[`0,1`] = { text: "Task", align: "left", fontBold: true };
+      }
+
       setEls(p => [...p, {
         id, type: "table",
-        x: w.x - 120, y: w.y - 40,
-        rows: 2, cols: 2, cellW: 120, cellH: 40,
-        data: {}, color: "#FFFFFF"
+        x: w.x - ((cfg.cols * 120) / 2), 
+        y: w.y - ((cfg.rows * 40) / 2),
+        rows: cfg.rows, cols: cfg.cols,
+        rowHeights: initialRowHeights,
+        colWidths: initialColWidths,
+        cells, 
+        color: tableColorRef.current,
+        headerRow,
+        altRowColors
       }]);
       setSelIds([id]);
       setTool("select");
@@ -769,7 +877,7 @@ export default function App() {
               id: newId, type: "free_arrow",
               x: startPt.x, y: startPt.y,
               dx: endPt.x - startPt.x, dy: endPt.y - startPt.y,
-              color: "var(--color-foreground)"
+              color: arrowColorRef.current
             }]);
             setSelIds([newId]);
           }
@@ -835,6 +943,9 @@ export default function App() {
         if (orig.type === "path") {
            return { ...orig, pts: orig.pts.map(pt => ({ x: pt.x + dx, y: pt.y + dy })) };
         }
+        if (orig.type === "free_arrow") {
+          return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy, from: undefined, to: undefined };
+        }
         return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy };
       }));
       return;
@@ -882,7 +993,10 @@ export default function App() {
       const [tableId, r, c] = id.split("-");
       setEls(p => p.map(el => {
         if (el.id === tableId && el.type === "table") {
-          return { ...el, data: { ...el.data, [`${r},${c}`]: text } };
+          const tEl = el as import("../types").TableEl;
+          const cellKey = `${r},${c}`;
+          const currentCell = tEl.cells?.[cellKey] || { text: "" };
+          return { ...tEl, cells: { ...tEl.cells, [cellKey]: { ...currentCell, text } } } as import("../types").TableEl;
         }
         return el;
       }));
@@ -1076,13 +1190,25 @@ export default function App() {
       setEls(p => [...p, ...newEls]);
     }
     else if (action === "create_table" && data.rows) {
-      const newTable: TableEl = {
+      const rowHeights: Record<number, number> = {};
+      const colWidths: Record<number, number> = {};
+      for (let r = 0; r < data.rows; r++) rowHeights[r] = 40;
+      for (let c = 0; c < data.cols; c++) colWidths[c] = 120;
+      
+      const cells: Record<string, import("../types").TableCell> = {};
+      if (data.data) {
+        Object.entries(data.data as Record<string, string>).forEach(([key, text]) => {
+          cells[key] = { text };
+        });
+      }
+
+      const newTable: import("../types").TableEl = {
         id: uid(), type: "table",
         rows: data.rows, cols: data.cols,
-        cellW: 120, cellH: 40,
+        rowHeights, colWidths,
         x: startX - (data.cols * 60), y: startY - (data.rows * 20),
         color: "#ffffff",
-        data: data.data || {}
+        cells
       };
       setEls(p => [...p, newTable]);
     }
@@ -1131,7 +1257,7 @@ export default function App() {
           id: newId, type: "free_arrow",
           x: startPt.x, y: startPt.y,
           dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-          color: "var(--color-foreground)",
+          color: arrowColorRef.current,
           from: id
         }]);
         setSelIds([newId]);
@@ -1332,6 +1458,8 @@ export default function App() {
       className="fixed inset-0 overflow-hidden w-full h-full"
       style={{ cursor, fontFamily: "'Plus Jakarta Sans', sans-serif", userSelect: "none" }}
     >
+
+
       {/* Dot grid */}
       <div
         className="absolute inset-0 pointer-events-none transition-colors duration-300"
@@ -1406,6 +1534,8 @@ export default function App() {
                     }}
                   />
                 );
+              case "image":
+                return <ImageNode key={el.id} el={el as ImageEl} selected={selected} onUpdate={onUpdateEl} scale={cam.z} />;
               case "device_frame":
                 return (
                   <DeviceFrameNode
@@ -1423,6 +1553,8 @@ export default function App() {
                     onBlur={onBlur}
                     onDblClick={onElDblClick}
                     onUpdate={onUpdateEl}
+                    selectedCellId={selectedCellId}
+                    onSelectCell={setSelectedCellId}
                   />
                 );
               case "icon":
@@ -1716,6 +1848,83 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* Table Formatting Menu Overlay */}
+        {selIds.length === 1 && els.find(e => e.id === selIds[0])?.type === "table" && (
+          <div
+            className="absolute top-24 right-6 z-50 pointer-events-auto"
+          >
+            <TableFormattingMenu
+              el={els.find(e => e.id === selIds[0]) as import("../types").TableEl}
+              selectedCellId={selectedCellId}
+              onClose={() => setSelIds([])}
+              onUpdateTable={onUpdateEl}
+              onUpdateCell={(id, cellId, partial) => {
+                const el = els.find(e => e.id === id) as import("../types").TableEl;
+                if (!el) return;
+                const updatedCells = { ...el.cells };
+                updatedCells[cellId] = { ...(updatedCells[cellId] || { text: "" }), ...partial };
+                onUpdateEl(id, { cells: updatedCells });
+              }}
+              onAddRow={(id) => {
+                const el = els.find(e => e.id === id) as import("../types").TableEl;
+                if (!el) return;
+                onUpdateEl(id, {
+                  rows: el.rows + 1,
+                  rowHeights: { ...el.rowHeights, [el.rows]: 40 }
+                });
+              }}
+              onAddCol={(id) => {
+                const el = els.find(e => e.id === id) as import("../types").TableEl;
+                if (!el) return;
+                onUpdateEl(id, {
+                  cols: el.cols + 1,
+                  colWidths: { ...el.colWidths, [el.cols]: 120 }
+                });
+              }}
+              onDeleteRow={(id, rIndex) => {
+                const el = els.find(e => e.id === id) as import("../types").TableEl;
+                if (!el || el.rows <= 1) return;
+                const newRows = el.rows - 1;
+                const newRowHeights: Record<number, number> = {};
+                for (let i = 0, target = 0; i < el.rows; i++) {
+                  if (i !== rIndex) newRowHeights[target++] = el.rowHeights[i] || 40;
+                }
+                const newCells: Record<string, import("../types").TableCell> = {};
+                for (let i = 0, targetRow = 0; i < el.rows; i++) {
+                  if (i === rIndex) continue;
+                  for (let j = 0; j < el.cols; j++) {
+                    const c = el.cells[`${i},${j}`];
+                    if (c) newCells[`${targetRow},${j}`] = c;
+                  }
+                  targetRow++;
+                }
+                onUpdateEl(id, { rows: newRows, rowHeights: newRowHeights, cells: newCells });
+                setSelectedCellId(null);
+              }}
+              onDeleteCol={(id, cIndex) => {
+                const el = els.find(e => e.id === id) as import("../types").TableEl;
+                if (!el || el.cols <= 1) return;
+                const newCols = el.cols - 1;
+                const newColWidths: Record<number, number> = {};
+                for (let i = 0, target = 0; i < el.cols; i++) {
+                  if (i !== cIndex) newColWidths[target++] = el.colWidths[i] || 120;
+                }
+                const newCells: Record<string, import("../types").TableCell> = {};
+                for (let i = 0; i < el.rows; i++) {
+                  for (let j = 0, targetCol = 0; j < el.cols; j++) {
+                    if (j === cIndex) continue;
+                    const c = el.cells[`${i},${j}`];
+                    if (c) newCells[`${i},${targetCol}`] = c;
+                    targetCol++;
+                  }
+                }
+                onUpdateEl(id, { cols: newCols, colWidths: newColWidths, cells: newCells });
+                setSelectedCellId(null);
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Toolbar */}
@@ -1755,11 +1964,30 @@ export default function App() {
         setPenType={setPenType}
         penThickness={penThickness}
         setPenThickness={setPenThickness}
+        arrowColor={arrowColor}
+        setArrowColor={(c) => {
+          setArrowColor(c);
+          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "free_arrow" ? { ...el, color: c } : el));
+        }}
+        textColor={textColor}
+        setTextColor={(c) => {
+          setTextColor(c);
+          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "text" ? { ...el, color: c } : el));
+        }}
+        tableColor={tableColor}
+        setTableColor={(c) => {
+          setTableColor(c);
+          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "table" ? { ...el, color: c } : el));
+        }}
+        tableConfig={tableConfig}
+        setTableConfig={setTableConfig}
         toolMenuOpen={toolMenuOpen}
         setToolMenuOpen={setToolMenuOpen}
         onDelete={onDelete}
         hasSelection={selIds.length > 0}
         onInsertIcon={onInsertIcon}
+        onUploadImage={handleUploadImage}
+        isUploadingImage={isUploadingImage}
       />
 
       {/* Toast Notification */}

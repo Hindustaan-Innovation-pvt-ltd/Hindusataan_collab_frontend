@@ -30,8 +30,8 @@ export function getElementBox(el: El): { cx: number; cy: number; w: number; h: n
   }
   if (el.type === "table") {
     const e = el as TableEl;
-    const w = e.cols * e.cellW;
-    const h = e.rows * e.cellH;
+    let w = 0; for (let c = 0; c < e.cols; c++) w += (e.colWidths?.[c] || 120);
+    let h = 0; for (let r = 0; r < e.rows; r++) h += (e.rowHeights?.[r] || 40);
     return { cx: e.x + w / 2, cy: e.y + h / 2, w, h };
   }
   if (el.type === "path") {

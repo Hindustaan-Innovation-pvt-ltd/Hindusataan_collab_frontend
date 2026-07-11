@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from "react";
 import * as LucideIcons from "lucide-react";
 import { 
-  Trash2, Minus, Plus, Pencil, Brush, Highlighter, Search, X, Smile
+  Trash2, Minus, Plus, Pencil, Brush, Highlighter, Search, X, Smile, Image as ImageIcon, Loader2
 } from "lucide-react";
 
 import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
-import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
+import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, ARROW_COLORS, TEXT_COLORS, TABLE_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
 import ColorPalette from "./ColorPalette";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 
@@ -22,6 +22,14 @@ interface ToolbarProps {
   setShapeKind: (k: ShapeKind) => void;
   penColor: string;
   setPenColor: (c: string) => void;
+  arrowColor: string;
+  setArrowColor: (c: string) => void;
+  textColor: string;
+  setTextColor: (c: string) => void;
+  tableColor: string;
+  setTableColor: (c: string) => void;
+  tableConfig: { rows: number, cols: number, template: string };
+  setTableConfig: (cfg: { rows: number, cols: number, template: string }) => void;
   penType: PenType;
   setPenType: (t: PenType) => void;
   penThickness: PenThickness;
@@ -31,6 +39,8 @@ interface ToolbarProps {
   onDelete: () => void;
   hasSelection: boolean;
   onInsertIcon?: (iconName: string) => void;
+  onUploadImage?: (file: File) => Promise<void>;
+  isUploadingImage?: boolean;
 }
 
 // Exports from lucide-react that aren't actual icon components —
@@ -59,13 +69,18 @@ function Toolbar({
   tool, setTool, onZoom, zoomLevel,
   stickyColor, setStickyColor,
   shapeColor, setShapeColor, shapeKind, setShapeKind,
-  penColor, setPenColor,
+  penColor, setPenColor, arrowColor, setArrowColor,
+  textColor, setTextColor, tableColor, setTableColor,
+  tableConfig, setTableConfig,
   penType, setPenType,
   penThickness, setPenThickness,
   toolMenuOpen, setToolMenuOpen,
   onDelete, hasSelection,
   onInsertIcon,
+  onUploadImage,
+  isUploadingImage,
 }: ToolbarProps) {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [iconSearchOpen, setIconSearchOpen] = useState(false);
   const [iconQuery, setIconQuery] = useState("");
   const { layout } = useWorkspaceTheme();
@@ -95,7 +110,10 @@ function Toolbar({
   const palette =
     tool === "sticky" ? { colors: STICKY_COLORS, active: stickyColor, set: setStickyColor } :
       tool === "shape" ? { colors: SHAPE_COLORS, active: shapeColor, set: setShapeColor } :
-        tool === "pen" ? { colors: PEN_COLORS, active: penColor, set: setPenColor } : null;
+        tool === "pen" ? { colors: PEN_COLORS, active: penColor, set: setPenColor } : 
+          tool === "arrow" ? { colors: ARROW_COLORS, active: arrowColor, set: setArrowColor } :
+            tool === "text" ? { colors: TEXT_COLORS, active: textColor, set: setTextColor } :
+              tool === "table" ? { colors: TABLE_COLORS, active: tableColor, set: setTableColor } : null;
 
   const filteredIcons = useMemo(() => {
     const q = iconQuery.trim().toLowerCase();
@@ -193,6 +211,47 @@ function Toolbar({
           </div>
         )}
 
+        {/* Table preset picker */}
+        {tool === "table" && toolMenuOpen && (
+          <div className="flex flex-col p-2.5 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border w-48">
+            <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Presets</div>
+            <div className="grid grid-cols-4 gap-1.5 mb-3">
+              {[
+                { r: 2, c: 2, label: "2x2" },
+                { r: 3, c: 3, label: "3x3" },
+                { r: 4, c: 4, label: "4x4" },
+                { r: 5, c: 5, label: "5x5" },
+              ].map(cfg => (
+                <button
+                  key={cfg.label}
+                  onClick={() => setTableConfig({ ...tableConfig, rows: cfg.r, cols: cfg.c, template: "basic" })}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition-colors ${tableConfig.rows === cfg.r && tableConfig.cols === cfg.c && tableConfig.template === "basic" ? "bg-[#3742FA] text-white" : "bg-muted text-muted-foreground hover:bg-gray-200"}`}
+                >
+                  {cfg.label}
+                </button>
+              ))}
+            </div>
+            
+            <div className="text-[10px] font-bold text-gray-400 mb-2 px-1.5 uppercase tracking-wider">Templates</div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { id: "comparison", label: "Compare", r: 4, c: 3 },
+                { id: "kanban", label: "Kanban", r: 4, c: 3 },
+                { id: "schedule", label: "Schedule", r: 5, c: 6 },
+                { id: "checklist", label: "Checklist", r: 5, c: 2 },
+              ].map(tpl => (
+                <button
+                  key={tpl.id}
+                  onClick={() => setTableConfig({ rows: tpl.r, cols: tpl.c, template: tpl.id })}
+                  className={`py-1.5 text-[10px] font-semibold rounded-lg transition-colors ${tableConfig.template === tpl.id ? "bg-[#3742FA] text-white" : "bg-muted text-muted-foreground hover:bg-gray-200"}`}
+                >
+                  {tpl.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {palette && toolMenuOpen && (
           <div>
             <ColorPalette colors={palette.colors} active={palette.active} onPick={palette.set} />
@@ -265,7 +324,7 @@ function Toolbar({
                 setToolMenuOpen(!toolMenuOpen);
               } else {
                 setTool(id as Tool);
-                if (id === "pen" || id === "shape" || id === "sticky") {
+                if (id === "pen" || id === "shape" || id === "sticky" || id === "arrow") {
                   setToolMenuOpen(true);
                 } else {
                   setToolMenuOpen(false);
@@ -299,6 +358,32 @@ function Toolbar({
             }`}
         >
           <Smile size={18} />
+        </button>
+
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml"
+          onChange={async (e) => {
+            if (e.target.files && e.target.files[0] && onUploadImage) {
+              await onUploadImage(e.target.files[0]);
+              // Reset the input value so the same file can be selected again
+              if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+          }}
+        />
+        <button
+          title="Upload image"
+          disabled={isUploadingImage}
+          onClick={() => {
+            fileInputRef.current?.click();
+            setToolMenuOpen(false);
+            setIconSearchOpen(false);
+          }}
+          className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 text-[#4B5563] hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {isUploadingImage ? <Loader2 size={18} className="animate-spin text-indigo-500" /> : <ImageIcon size={18} />}
         </button>
 
         <div className={dividerClass} />

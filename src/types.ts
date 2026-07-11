@@ -11,7 +11,8 @@ export type Tool =
   | "icon"
   | "eraser"
   | "arrow"
-  | "comment";
+  | "comment"
+  | "image";
 
 export type PenType = "pen" | "marker" | "highlighter";
 export type PenThickness = "thin" | "thick";
@@ -120,15 +121,29 @@ export interface ShapeEl extends BaseEl {
   text?: string;
 }
 
+export interface TableCell {
+  text: string;
+  rowSpan?: number;
+  colSpan?: number;
+  bg?: string;
+  align?: "left" | "center" | "right";
+  vAlign?: "top" | "middle" | "bottom";
+  fontBold?: boolean;
+  fontItalic?: boolean;
+}
+
 export interface TableEl extends BaseEl {
   type: "table";
   rows: number;
   cols: number;
-  cellW: number;
-  cellH: number;
-  // Cell contents keyed by "row,col" — e.g. data["0,1"] = "Header B"
-  data: Record<string, string>;
-  color?: string;
+  rowHeights: Record<number, number>;
+  colWidths: Record<number, number>;
+  cells: Record<string, TableCell>; // Keyed by "r,c"
+  color?: string; // Border color
+  borderThickness?: number;
+  borderStyle?: "solid" | "dashed" | "dotted";
+  headerRow?: boolean;
+  altRowColors?: boolean;
 }
 
 export interface IconEl extends BaseEl {
@@ -180,6 +195,14 @@ export interface DeviceFrameEl extends BaseEl {
   color: string;
 }
 
+export interface ImageEl extends BaseEl {
+  type: "image";
+  url: string;
+  w: number;
+  h: number;
+  rotation?: number;
+}
+
 export type El =
   | StickyEl
   | TextEl
@@ -190,7 +213,8 @@ export type El =
   | FreeArrowEl
   | PathEl
   | GraphEl
-  | DeviceFrameEl;
+  | DeviceFrameEl
+  | ImageEl;
 
 export interface ChatMessage {
   id: string;
