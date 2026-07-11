@@ -90,6 +90,8 @@ export const TopBar = React.memo(function TopBar({
     localStorage.removeItem("token");
     localStorage.removeItem("HIXCanvas_token");
     localStorage.removeItem("HIXCanvas_session");
+    localStorage.removeItem("HIXCanvas_ephemeral");
+    sessionStorage.removeItem("HIXCanvas_session_active");
     window.location.href = "/login";
   };
   const [running, setRunning] = useState(false);

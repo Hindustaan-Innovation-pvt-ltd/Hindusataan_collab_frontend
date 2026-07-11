@@ -15,7 +15,7 @@ export type Tool =
   | "image";
 
 export type PenType = "pen" | "marker" | "highlighter";
-export type PenThickness = "thin" | "thick";
+export type PenThickness = number;
 
 export interface Pt {
   x: number;
@@ -110,6 +110,7 @@ export interface TextEl extends BaseEl {
   text: string;
   fontSize: number;
   color: string;
+  fontFamily?: string;
 }
 
 export interface ShapeEl extends BaseEl {
@@ -186,7 +187,7 @@ export interface GraphEl extends BaseEl {
   graphData: any;
 }
 
-export type DeviceFrameKind = "browser" | "phone";
+export type DeviceFrameKind = "browser" | "desktop" | "phone" | "tablet" | "laptop";
 export interface DeviceFrameEl extends BaseEl {
   type: "device_frame";
   kind: DeviceFrameKind;

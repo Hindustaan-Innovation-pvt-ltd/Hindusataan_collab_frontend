@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Sparkles, X, MessageSquare } from "lucide-react";
 import { useParams, useNavigate } from "react-router";
 import IconNode from "../components/IconNode";
@@ -80,13 +80,16 @@ export default function App() {
   const [shapeColor, setShapeColor] = useState(SHAPE_COLORS[0]);
   const [shapeKind, setShapeKind] = useState<ShapeKind>("rect");
   const [penColor, setPenColor] = useState(PEN_COLORS[0]);
-  const [arrowColor, setArrowColor] = useState(ARROW_COLORS[0]);
-  const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
-  const [tableColor, setTableColor] = useState(TABLE_COLORS[0]);
-  const [tableConfig, setTableConfig] = useState({ rows: 3, cols: 3, template: "basic" });
+  const [arrowColor] = useState(ARROW_COLORS[0]);
+  const [textColor] = useState(TEXT_COLORS[0]);
+  const [tableColor] = useState(TABLE_COLORS[0]);
+  const [tableConfig] = useState({ rows: 3, cols: 3, template: "basic" });
+
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [penType, setPenType] = useState<PenType>("pen");
-  const [penThickness, setPenThickness] = useState<PenThickness>("thin");
+  const [penThickness, setPenThickness] = useState<PenThickness>(3);
+  const [textFontSize, setTextFontSize] = useState<number>(20);
+  const [textFontFamily, setTextFontFamily] = useState<string>("sans-serif");
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const [livePts, setLivePts] = useState<Pt[]>([]);
   const [liveArrow, setLiveArrow] = useState<{ start: Pt, end: Pt } | null>(null);
@@ -170,6 +173,16 @@ export default function App() {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<El[]>([]);
+  const isCutRef = useRef(false);
+  const lastMouseRef = useRef({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0 });
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
 
   const handleUploadImage = async (file: File) => {
     try {
@@ -260,6 +273,63 @@ export default function App() {
   }, [penColor, arrowColor, textColor, tableColor, tableConfig, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
 
+  const textFontSizeRef = useRef(textFontSize);
+  const textFontFamilyRef = useRef(textFontFamily);
+  useEffect(() => {
+    textFontSizeRef.current = textFontSize;
+    textFontFamilyRef.current = textFontFamily;
+  }, [textFontSize, textFontFamily]);
+
+  // Sync selected text node font properties back to toolbar state
+  useEffect(() => {
+    if (selIds.length === 1) {
+      const selectedEl = els.find(e => e.id === selIds[0]);
+      if (selectedEl && selectedEl.type === "text") {
+        setTextFontSize(selectedEl.fontSize || 20);
+        setTextFontFamily(selectedEl.fontFamily || "sans-serif");
+        setToolMenuOpen(true);
+      }
+    }
+  }, [selIds, els]);
+
+  const handleTextFontSizeChange = (size: number) => {
+    setTextFontSize(size);
+    if (selIdsRef.current.length > 0) {
+      setEls(p => p.map(el => {
+        if (selIdsRef.current.includes(el.id) && el.type === "text") {
+          return { ...el, fontSize: size };
+        }
+        return el;
+      }));
+    }
+  };
+
+  const handleTextFontFamilyChange = (family: string) => {
+    setTextFontFamily(family);
+    if (selIdsRef.current.length > 0) {
+      setEls(p => p.map(el => {
+        if (selIdsRef.current.includes(el.id) && el.type === "text") {
+          return { ...el, fontFamily: family };
+        }
+        return el;
+      }));
+    }
+  };
+
+  const handlePenTypeChange = (type: PenType) => {
+    setPenType(type);
+    if (type === "pen") setPenThickness(3);
+    else if (type === "marker") setPenThickness(10);
+    else if (type === "highlighter") setPenThickness(24);
+  };
+
+  const isEditingOrSelectedText = useMemo(() => {
+    if (tool === "text") return true;
+    if (tool === "select" && selIds.length > 0) {
+      return els.some(el => selIds.includes(el.id) && el.type === "text");
+    }
+    return false;
+  }, [tool, selIds, els]);
   // Interaction state refs
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
   const dragRef = useRef<{ startW: Pt; originalEls: El[] } | null>(null);
@@ -475,23 +545,53 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
         if (selIdsRef.current.length > 0) {
           clipboardRef.current = elsRef.current.filter(ex => selIdsRef.current.includes(ex.id));
+          isCutRef.current = false;
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x") {
+        if (selIdsRef.current.length > 0) {
+          clipboardRef.current = elsRef.current.filter(ex => selIdsRef.current.includes(ex.id));
+          setEls(p => p.filter(el => !selIdsRef.current.includes(el.id)));
+          setSelIds([]);
+          isCutRef.current = true;
         }
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         if (clipboardRef.current.length > 0) {
+          let dx = 20, dy = 20;
+
+          if (isCutRef.current) {
+            const rect = wrapRef.current ? wrapRef.current.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight } as DOMRect;
+            const pt = worldPt(lastMouseRef.current.x, lastMouseRef.current.y, rect, camRef.current);
+            let minX = Infinity, minY = Infinity;
+            clipboardRef.current.forEach(el => {
+              if ('x' in el) minX = Math.min(minX, el.x);
+              if ('y' in el) minY = Math.min(minY, el.y);
+            });
+            if (minX !== Infinity && minY !== Infinity) {
+              dx = pt.x - minX;
+              dy = pt.y - minY;
+            }
+            isCutRef.current = false;
+          }
+
           const newEls = clipboardRef.current.map(el => {
             const newEl = { ...el, id: uid() };
-            if ('x' in newEl) newEl.x += 20;
-            if ('y' in newEl) newEl.y += 20;
+            if ('x' in newEl) newEl.x += dx;
+            if ('y' in newEl) newEl.y += dy;
             return newEl;
           });
           setEls(p => [...p, ...newEls]);
           setSelIds(newEls.map(e => e.id));
+          clipboardRef.current = newEls;
         }
         return;
       }
+
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
         if (selIdsRef.current.length > 0) {
@@ -597,7 +697,7 @@ export default function App() {
         window.removeEventListener("pointerup", onUp);
 
         const elsUnder = document.elementsFromPoint(ue.clientX, ue.clientY);
-        const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
+          const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
 
         if (upTarget) {
           const toId = upTarget.getAttribute("data-el-id")!;
@@ -730,7 +830,7 @@ export default function App() {
 
     if (toolRef.current === "text") {
       const id = uid();
-      setEls(p => [...p, { id, type: "text", x: w.x, y: w.y, text: "Text", fontSize: 20, color: textColorRef.current }]);
+      setEls(p => [...p, { id, type: "text", x: w.x, y: w.y, text: "Text", fontSize: textFontSizeRef.current, color: textColorRef.current, fontFamily: textFontFamilyRef.current }]);
       setSelIds([id]);
       setEditId(id);
       setTool("select");
@@ -818,9 +918,7 @@ export default function App() {
         if (drawRef.current.length > 1) {
           const pts = drawRef.current.slice();
           const id = uid();
-          const sw = penTypeRef.current === "highlighter" ? (penThicknessRef.current === "thick" ? 48 : 24) :
-            penTypeRef.current === "marker" ? (penThicknessRef.current === "thick" ? 16 : 8) :
-              (penThicknessRef.current === "thick" ? 6 : 2);
+          const sw = penThicknessRef.current;
           setEls(p => [...p, { id, type: "path", x: 0, y: 0, pts, color: penColorRef.current, sw, penType: penTypeRef.current }]);
         }
         drawRef.current = [];
@@ -838,7 +936,7 @@ export default function App() {
         if (elTarget) {
           const id = elTarget.getAttribute("data-el-id")!;
           setEls(p => p.filter(x => {
-            if (x.id === id && !x.locked && x.type === "path") return false;
+            if (x.id === id && !x.locked) return false;
             return true;
           }));
         }
@@ -1286,7 +1384,7 @@ export default function App() {
     }
   }, []);
 
-  const onInsertIcon = useCallback((iconName: string) => {
+  const onInsertIcon = useCallback((iconName: string, sizeScale: number = 1) => {
     // Place the new item at the current center of the visible canvas
     const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
     const centerWorld = worldPt(centerScreen.x, centerScreen.y, getRect(), camRef.current);
@@ -1298,16 +1396,16 @@ export default function App() {
       setEls(p => [...p, {
         id, type: "device_frame",
         kind,
-        x: centerWorld.x - (kind === "browser" ? 400 : 150),
-        y: centerWorld.y - (kind === "browser" ? 300 : 300),
-        w: kind === "browser" ? 800 : 300,
-        h: kind === "browser" ? 600 : 600,
+        x: centerWorld.x - (kind === "browser" ? 400 * sizeScale : 150 * sizeScale),
+        y: centerWorld.y - (kind === "browser" ? 300 * sizeScale : 300 * sizeScale),
+        w: kind === "browser" ? 800 * sizeScale : 300 * sizeScale,
+        h: kind === "browser" ? 600 * sizeScale : 600 * sizeScale,
         color: "#1C1B1F",
       }]);
       return;
     }
 
-    const size = 48;
+    const size = 48 * sizeScale;
     setEls(p => [...p, {
       id, type: "icon",
       iconName,
@@ -1316,6 +1414,48 @@ export default function App() {
       size,
       color: "var(--color-foreground)",
     }]);
+    setSelIds([id]);
+  }, []);
+
+  const onInsertEmoji = useCallback((emoji: string, sizeScale: number = 1) => {
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
+    
+    const id = uid();
+    const size = 60 * sizeScale;
+    setEls(p => [...p, { id, type: "text", x: centerWorld.x - size / 2, y: centerWorld.y - size / 2, fontSize: size, color: "var(--color-foreground)", text: emoji }]);
+    setSelIds([id]);
+  }, []);
+
+  const onInsertShape = useCallback((kind: string, sizeScale: number = 1) => {
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
+    
+    const id = uid();
+    const w = 100 * sizeScale;
+    const h = 100 * sizeScale;
+    setEls(p => [...p, { id, type: "shape", kind: kind as any, x: centerWorld.x - w / 2, y: centerWorld.y - h / 2, w, h, color: shapeColorRef.current || "#1ABCFE" }]);
+    setSelIds([id]);
+  }, []);
+
+  const onInsertDeviceFrame = useCallback((kind: string, sizeScale: number = 1) => {
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
+    
+    const id = uid();
+    let w = 300 * sizeScale, h = 600 * sizeScale;
+    if (kind === "browser" || kind === "desktop" || kind === "laptop") {
+      w = 800 * sizeScale; h = 600 * sizeScale;
+    } else if (kind === "tablet") {
+      w = 600 * sizeScale; h = 800 * sizeScale;
+    }
+    setEls(p => [...p, { id, type: "device_frame", kind: kind as any, x: centerWorld.x - w / 2, y: centerWorld.y - h / 2, w, h, color: "#1C1B1F" }]);
     setSelIds([id]);
   }, []);
 
@@ -1513,6 +1653,7 @@ export default function App() {
                     key={el.id} el={el}
                     selected={selected} editing={editing}
                     onBlur={onBlur} onDblClick={onElDblClick}
+                    onResize={(id, fontSize) => onUpdateEl(id, { fontSize })}
                   />
                 );
               case "shape":
@@ -1671,9 +1812,7 @@ export default function App() {
               </defs>
               {livePts.length > 1 && (() => {
                 const isHighlighter = penType === "highlighter";
-                const liveSw = isHighlighter ? (penThickness === "thick" ? 48 : 24) :
-                  penType === "marker" ? (penThickness === "thick" ? 16 : 8) :
-                    (penThickness === "thick" ? 6 : 2);
+                const liveSw = penThickness;
                 return (
                   <path d={pathD(livePts)} stroke={penColor} strokeWidth={liveSw} fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: isHighlighter ? 0.3 : 1, mixBlendMode: isHighlighter ? "multiply" : undefined }} />
                 );
@@ -1961,26 +2100,10 @@ export default function App() {
           setEls(p => p.map(el => selIds.includes(el.id) && el.type === "path" ? { ...el, color: c } : el));
         }}
         penType={penType}
-        setPenType={setPenType}
+        setPenType={handlePenTypeChange}
         penThickness={penThickness}
         setPenThickness={setPenThickness}
-        arrowColor={arrowColor}
-        setArrowColor={(c) => {
-          setArrowColor(c);
-          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "free_arrow" ? { ...el, color: c } : el));
-        }}
-        textColor={textColor}
-        setTextColor={(c) => {
-          setTextColor(c);
-          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "text" ? { ...el, color: c } : el));
-        }}
-        tableColor={tableColor}
-        setTableColor={(c) => {
-          setTableColor(c);
-          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "table" ? { ...el, color: c } : el));
-        }}
-        tableConfig={tableConfig}
-        setTableConfig={setTableConfig}
+
         toolMenuOpen={toolMenuOpen}
         setToolMenuOpen={setToolMenuOpen}
         onDelete={onDelete}
@@ -1988,6 +2111,14 @@ export default function App() {
         onInsertIcon={onInsertIcon}
         onUploadImage={handleUploadImage}
         isUploadingImage={isUploadingImage}
+        isEditingOrSelectedText={isEditingOrSelectedText}
+        textFontSize={textFontSize}
+        setTextFontSize={handleTextFontSizeChange}
+        textFontFamily={textFontFamily}
+        setTextFontFamily={handleTextFontFamilyChange}
+        onInsertEmoji={onInsertEmoji}
+        onInsertShape={onInsertShape}
+        onInsertDeviceFrame={onInsertDeviceFrame}
       />
 
       {/* Toast Notification */}

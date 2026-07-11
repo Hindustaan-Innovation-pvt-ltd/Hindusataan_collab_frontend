@@ -97,7 +97,7 @@ function TableFormattingMenu({
               <ColorPalette
                 colors={TABLE_COLORS}
                 active={el.color || TABLE_COLORS[0]}
-                onPick={(c) => onUpdateTable(el.id, { color: c })}
+                onPick={(c: string) => onUpdateTable(el.id, { color: c })}
               />
             </div>
 
@@ -145,7 +145,7 @@ function TableFormattingMenu({
               <ColorPalette
                 colors={["transparent", ...TABLE_COLORS.slice(0, 5)]}
                 active={currentCell?.bg || "transparent"}
-                onPick={(c) => onUpdateCell(el.id, `${rowIndex},${colIndex}`, { bg: c === "transparent" ? undefined : c })}
+                onPick={(c: string) => onUpdateCell(el.id, `${rowIndex},${colIndex}`, { bg: c === "transparent" ? undefined : c })}
               />
             </div>
 

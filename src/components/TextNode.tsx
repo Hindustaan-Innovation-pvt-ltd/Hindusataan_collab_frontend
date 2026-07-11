@@ -65,9 +65,10 @@ interface TextNodeProps {
   editing: boolean;
   onBlur: (id: string, text: string) => void;
   onDblClick: (id: string) => void;
+  onResize: (id: string, fontSize: number) => void;
 }
 
-function TextNode({ el, selected, editing, onBlur, onDblClick }: TextNodeProps) {
+function TextNode({ el, selected, editing, onBlur, onDblClick, onResize }: TextNodeProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -110,7 +111,7 @@ function TextNode({ el, selected, editing, onBlur, onDblClick }: TextNodeProps) 
           className="bg-transparent resize-none outline-none"
           style={{
             fontSize: el.fontSize, color: el.color,
-            fontFamily: "inherit", fontWeight: 600,
+            fontFamily: el.fontFamily || "sans-serif", fontWeight: 600,
             minWidth: 80, minHeight: el.fontSize * 1.6,
             lineHeight: 1.4,
           }}
@@ -120,10 +121,53 @@ function TextNode({ el, selected, editing, onBlur, onDblClick }: TextNodeProps) 
       ) : (
         <div
           className="font-semibold whitespace-pre"
-          style={{ fontSize: el.fontSize, color: el.color, lineHeight: 1.4 }}
+          style={{ fontSize: el.fontSize, color: el.color, lineHeight: 1.4, fontFamily: el.fontFamily || "sans-serif" }}
         >
           {el.text}
         </div>
+      )}
+
+      {selected && !editing && (
+        <div
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const target = e.currentTarget;
+            target.setPointerCapture(e.pointerId);
+
+            const startX = e.clientX;
+            const startFontSize = el.fontSize || 24;
+
+            const onPointerMove = (moveEvent: PointerEvent) => {
+              if (moveEvent.pointerId !== e.pointerId) return;
+              const dx = moveEvent.clientX - startX;
+              const newSize = Math.max(12, startFontSize + dx * 0.5);
+              onResize(el.id, newSize);
+            };
+
+            const onPointerUp = (upEvent: PointerEvent) => {
+              if (upEvent.pointerId !== e.pointerId) return;
+              try { target.releasePointerCapture(e.pointerId); } catch (err) {}
+              window.removeEventListener("pointermove", onPointerMove);
+              window.removeEventListener("pointerup", onPointerUp);
+            };
+
+            window.addEventListener("pointermove", onPointerMove);
+            window.addEventListener("pointerup", onPointerUp);
+          }}
+          style={{
+            position: "absolute",
+            right: -7,
+            bottom: -7,
+            width: 14,
+            height: 14,
+            borderRadius: "50%",
+            background: "#fff",
+            border: "2px solid #3742FA",
+            cursor: "nwse-resize",
+            touchAction: "none",
+          }}
+        />
       )}
     </div>
   );
