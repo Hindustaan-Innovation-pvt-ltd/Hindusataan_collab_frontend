@@ -76,7 +76,7 @@ export const SHAPE_KINDS: { kind: ShapeKind; label: string; icon: JSX.Element }[
 // ── Initial Board Elements ─────────────────────────────────────────────────────
 
 export const INIT_ELS: El[] = [
-  { id: "i1", type: "sticky", x: -260, y: -180, w: 200, h: 200, text: "🎉 Welcome to FigJam!\n\nDrag me around.", color: "#FFE566" },
+  { id: "i1", type: "sticky", x: -260, y: -180, w: 200, h: 200, text: "🎉 Welcome to HIXCanvas!\n\nDrag me around.", color: "#FFE566" },
   { id: "i2", type: "sticky", x: 20, y: -200, w: 200, h: 200, text: "Double-click any sticky to edit text ✏️", color: "#7BC8F6" },
   { id: "i3", type: "sticky", x: 300, y: -140, w: 200, h: 200, text: "Use the toolbar to add shapes, draw, and more.", color: "#FF9EAF" },
   { id: "i4", type: "shape", kind: "ellipse", x: -220, y: 100, w: 160, h: 100, color: "#4ECDC4" },

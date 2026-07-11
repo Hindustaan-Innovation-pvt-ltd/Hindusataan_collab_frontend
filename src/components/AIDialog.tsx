@@ -10,15 +10,15 @@ const AI_SUGGESTIONS = [
   "Add 3 sticky notes for brainstorming",
   "Summarize what's on my board",
   "Suggest a layout for my ideas",
-  "What can I create with FigJam?",
+  "What can I create with HIXCanvas?",
 ];
 
 const AI_RESPONSES: Record<string, string> = {
-  default: "I'm your FigJam AI assistant! I can help you brainstorm, organize ideas, suggest layouts, and more. What would you like to work on today?",
+  default: "I'm your HIXCanvas AI assistant! I can help you brainstorm, organize ideas, suggest layouts, and more. What would you like to work on today?",
   brainstorm: "Great idea! For brainstorming sessions, I recommend starting with a central topic sticky note, then branching out to 4–6 theme clusters. Use color coding: yellow for problems, blue for solutions, pink for open questions. Want me to walk you through a structured brainstorm?",
-  layout: "For a clean FigJam layout, try a 3-column structure: **Ideas** on the left, **In Progress** in the center, and **Done** on the right. Use shapes as column headers and sticky notes for individual items. This works beautifully for project tracking or sprint planning.",
+  layout: "For a clean HIXCanvas layout, try a 3-column structure: **Ideas** on the left, **In Progress** in the center, and **Done** on the right. Use shapes as column headers and sticky notes for individual items. This works beautifully for project tracking or sprint planning.",
   summary: "Looking at your board, I can see a few sticky notes and shapes placed around the canvas. It looks like you're in early ideation mode — great start! Consider grouping related notes together with colored sections to build structure. Would you like tips on organizing your board?",
-  figjam: "FigJam is a collaborative whiteboard tool. You can: \n• Add sticky notes (press S) \n• Draw freehand (press P) \n• Place shapes like rectangles and ellipses \n• Move and zoom the infinite canvas \n• Use the AI assistant (that's me!) to get creative help. What would you like to explore?",
+  HIXCanvas: "HIXCanvas is a collaborative whiteboard tool. You can: \n• Add sticky notes (press S) \n• Draw freehand (press P) \n• Place shapes like rectangles and ellipses \n• Move and zoom the infinite canvas \n• Use the AI assistant (that's me!) to get creative help. What would you like to explore?",
 };
 
 
@@ -54,19 +54,19 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setIsTyping(true);
     const userMsgId = msgId();
     const userMsg: ChatMessage = { id: userMsgId, role: "user", content: `Uploading file: ${file.name}... (0%)` };
     setMessages(p => [...p, userMsg]);
-    
+
     try {
       const taskId = await chatService.uploadFile(file, (progress: number) => {
         setMessages(p => p.map(m => m.id === userMsgId ? { ...m, content: `Uploading file: ${file.name}... (${progress}%)` } : m));
       });
       const assistantId = msgId();
       setMessages(p => [...p, { id: assistantId, role: "assistant", content: "Processing file, please wait..." }]);
-      
+
       const checkStatus = async () => {
         try {
           const status = await chatService.checkFileStatus(taskId);
@@ -114,7 +114,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
     setIsTyping(true);
 
     const sessionId = "session-" + (boardId || "default");
-    
+
     try {
       const lower = text.toLowerCase();
       const isBoardCapture = lower.includes("what is written on this board") || lower.includes("read the board") || lower.includes("handwritten") || lower.includes("handwriting") || text.startsWith("/vision");
@@ -122,17 +122,17 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
 
       if (isBoardCapture) {
         try {
-          const boardNode = document.getElementById("figjam-board-capture");
+          const boardNode = document.getElementById("HIXCanvas-board-capture");
           if (boardNode) {
             setMessages(p => [...p, { id: assistantId, role: "assistant", content: "Capturing whiteboard and analyzing handwriting..." }]);
-            
+
             const dataUrl = await toPng(boardNode, { backgroundColor: "#f5f5f5" });
             const res = await fetch(dataUrl);
             const blob = await res.blob();
             const file = new File([blob], "board_capture.png", { type: "image/png" });
-            
+
             const taskId = await chatService.uploadFile(file);
-            
+
             const checkStatus = async () => {
               try {
                 const status = await chatService.checkFileStatus(taskId);
@@ -228,7 +228,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
               msg.streaming = false;
               console.log("Raw AI stream response:", msg.content);
               let hasAction = false;
-              
+
               // We parse out JSON action blocks
               // First look for markdown-wrapped JSON
               const mdRegex = /```(?:json)?\s*(\{[\s\S]*?\})\s*```/ig;
@@ -259,9 +259,9 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
                         success = true;
                         break;
                       }
-                    } catch (e2) {}
+                    } catch (e2) { }
                   }
-                  
+
                   // Try parsing as JSON lines (multiple objects)
                   if (!success) {
                     const lines = cleanedJsonStr.split('\n');
@@ -276,7 +276,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
                           onAIAction(obj.action, obj.data);
                           success = true;
                         }
-                      } catch (e3) {}
+                      } catch (e3) { }
                     }
                   }
 
@@ -294,8 +294,8 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
                       const titleMatch = cleanedJsonStr.match(/"title"\s*:\s*"([^"]+)"/);
                       const typeMatch = cleanedJsonStr.match(/"chartType"\s*:\s*"([^"]+)"/);
                       if (typeMatch && onAIAction) {
-                        onAIAction("create_graph", { 
-                          title: titleMatch ? titleMatch[1] : "Graph", 
+                        onAIAction("create_graph", {
+                          title: titleMatch ? titleMatch[1] : "Graph",
                           chartType: typeMatch[1],
                           labels: ["Q1", "Q2", "Q3", "Q4"],
                           datasets: [{ label: "Data", data: [10, 20, 30, 40] }]
@@ -305,7 +305,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
                     }
                   }
                 }
-                
+
                 if (!success) console.error("Failed to parse action json", jsonStr);
                 return success;
               };
@@ -330,7 +330,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
                   .replace(/```mermaid\s*[\s\S]*?\s*```/gi, "")
                   .replace(/\{[\s\S]*"action"\s*:\s*"[^"]+"[\s\S]*\}/g, "")
                   .trim();
-                
+
                 if (!msg.content) {
                   msg.content = "I've created that on the canvas for you!";
                 } else {

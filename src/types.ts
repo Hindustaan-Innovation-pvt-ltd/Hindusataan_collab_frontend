@@ -169,6 +169,15 @@ export interface GraphEl extends BaseEl {
   graphData: any;
 }
 
+export type DeviceFrameKind = "browser" | "phone";
+export interface DeviceFrameEl extends BaseEl {
+  type: "device_frame";
+  kind: DeviceFrameKind;
+  w: number;
+  h: number;
+  color: string;
+}
+
 export type El =
   | StickyEl
   | TextEl
@@ -178,7 +187,8 @@ export type El =
   | ConnectionEl
   | FreeArrowEl
   | PathEl
-  | GraphEl;
+  | GraphEl
+  | DeviceFrameEl;
 
 export interface ChatMessage {
   id: string;

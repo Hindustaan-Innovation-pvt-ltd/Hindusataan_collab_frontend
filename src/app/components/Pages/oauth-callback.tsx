@@ -13,7 +13,7 @@ export default function OauthCallback() {
 
     if (name && email) {
       localStorage.setItem(
-        "figjam_session",
+        "HIXCanvas_session",
         JSON.stringify({
           name: decodeURIComponent(name),
           email: decodeURIComponent(email),

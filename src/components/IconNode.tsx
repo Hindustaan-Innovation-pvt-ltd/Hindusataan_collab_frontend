@@ -1,5 +1,6 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
+import { Icon as IconifyIcon } from "@iconify/react";
 import type { IconEl } from "../types";
 
 interface IconNodeProps {
@@ -13,7 +14,8 @@ const MIN_SIZE = 16;
 function IconNode({ el, selected, onResize }: IconNodeProps) {
   const { x, y, size, color, iconName } = el;
 
-  const IconComponent = (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName];
+  const isIconify = iconName.includes(":");
+  const IconComponent = isIconify ? null : (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName];
 
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -49,7 +51,7 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
     window.addEventListener("pointerup", onPointerUp);
   };
 
-  if (!IconComponent) {
+  if (!isIconify && !IconComponent) {
     return (
       <div
         data-el-id={el.id}
@@ -76,7 +78,11 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
         borderRadius: 6,
       }}
     >
-      <IconComponent size={size} color={color} />
+      {isIconify ? (
+        <IconifyIcon icon={iconName} width={size} height={size} color={color} />
+      ) : (
+        IconComponent && <IconComponent size={size} color={color} />
+      )}
 
       {selected && (
         <div

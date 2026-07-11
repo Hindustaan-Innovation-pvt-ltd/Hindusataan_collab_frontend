@@ -13,8 +13,8 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
-    
+    const token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+
     if (config.url && config.url.includes("/api/collaboration")) {
       if (!token) {
         return Promise.reject(new Error("Please log in first to use collaboration features."));
@@ -28,7 +28,7 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
-    
+
     return config;
   },
   (error) => {
@@ -40,9 +40,9 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem("figjam_token");
+      localStorage.removeItem("HIXCanvas_token");
       localStorage.removeItem("token");
-      localStorage.removeItem("figjam_session");
+      localStorage.removeItem("HIXCanvas_session");
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -54,16 +54,16 @@ export default api;
 // ── fetchWithAuth helper (used by new integration-branch services) ──────────
 /**
  * A helper function to make fetch requests with the Authorization header.
- * Checks both "figjam_token" and "token" keys in localStorage.
+ * Checks both "HIXCanvas_token" and "token" keys in localStorage.
  */
 export async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
+  const token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
   const headers = new Headers(options.headers || {});
-  
+
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
   }
-  
+
   if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
@@ -76,8 +76,8 @@ export async function fetchWithAuth(endpoint: string, options: RequestInit = {})
   if (response.status === 401) {
     console.error("Unauthorized request. Token might be invalid or expired.");
     localStorage.removeItem("token");
-    localStorage.removeItem("figjam_token");
-    localStorage.removeItem("figjam_session");
+    localStorage.removeItem("HIXCanvas_token");
+    localStorage.removeItem("HIXCanvas_session");
     window.location.href = "/login";
   }
 

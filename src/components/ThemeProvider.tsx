@@ -24,7 +24,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "figjam-theme",
+  storageKey = "HIXCanvas-theme",
   ...props
 }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(
@@ -48,14 +48,14 @@ export function ThemeProvider({
   // Listen to system theme changes if set to system
   useEffect(() => {
     if (theme !== "system") return;
-    
+
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = () => {
       const root = window.document.documentElement;
       root.classList.remove("light", "dark");
       root.classList.add(mediaQuery.matches ? "dark" : "light");
     };
-    
+
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, [theme]);
@@ -69,8 +69,8 @@ export function ThemeProvider({
           // Update only if different from local storage to avoid redundant writes
           const currentStored = localStorage.getItem(storageKey);
           if (currentStored !== data.theme) {
-             setThemeState(data.theme as Theme);
-             localStorage.setItem(storageKey, data.theme);
+            setThemeState(data.theme as Theme);
+            localStorage.setItem(storageKey, data.theme);
           }
         }
       }).catch((err) => {

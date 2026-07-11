@@ -19,25 +19,25 @@ class WebSocketService {
   private isIntentionalDisconnect: boolean = false;
   private messageQueue: WebSocketMessage[] = [];
   private userInfo: any = {};
-  
+
   // Handlers for consumer to listen to
   public onMessageCallback: ((msg: WebSocketMessage) => void) | null = null;
   public onOpenCallback: (() => void) | null = null;
   public onCloseCallback: (() => void) | null = null;
 
   private getWSUrl(boardId: string): string {
-    const token = localStorage.getItem("figjam_token") || localStorage.getItem("token");
-    const apiHost = import.meta.env.VITE_API_URL 
+    const token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+    const apiHost = import.meta.env.VITE_API_URL
       ? new URL(import.meta.env.VITE_API_URL).host
       : (import.meta.env.DEV ? "127.0.0.1:8000" : window.location.host);
-    
+
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     let wsUrl = `${protocol}//${apiHost}/ws/board/${boardId}`;
-    
+
     if (token) {
       wsUrl += `?token=${encodeURIComponent(token)}`;
     }
-    
+
     console.log({ boardId, tokenExists: !!token, wsUrl });
     return wsUrl;
   }
@@ -54,13 +54,13 @@ class WebSocketService {
     this.boardId = boardId;
     this.userInfo = userInfo;
     this.isIntentionalDisconnect = false;
-    
+
     const oldWs = this.ws;
     this.ws = null;
 
     const url = this.getWSUrl(boardId);
     console.log("Connecting to WebSocket...");
-    
+
     try {
       this.ws = new WebSocket(url);
 
@@ -71,7 +71,7 @@ class WebSocketService {
         // Safely close the old socket
         if (oldWs) {
           if (oldWs.readyState === WebSocket.OPEN) {
-            try { oldWs.send(JSON.stringify({ type: "leave", payload: { message: "User left the room." } })); } catch (e) {}
+            try { oldWs.send(JSON.stringify({ type: "leave", payload: { message: "User left the room." } })); } catch (e) { }
             oldWs.close(1000, "User switched boards");
           } else if (oldWs.readyState === WebSocket.CONNECTING) {
             oldWs.onopen = () => oldWs.close(1000, "User switched boards");
@@ -79,13 +79,13 @@ class WebSocketService {
             oldWs.close();
           }
         }
-        
+
         // Notify the server we joined
-        this.send("join", { 
+        this.send("join", {
           message: "User connected to the room.",
           ...this.userInfo
         });
-        
+
         // Flush queued messages
         while (this.messageQueue.length > 0) {
           const msg = this.messageQueue.shift();
@@ -93,7 +93,7 @@ class WebSocketService {
             this.ws.send(JSON.stringify(msg));
           }
         }
-        
+
         if (this.onOpenCallback) this.onOpenCallback();
       };
 
@@ -111,7 +111,7 @@ class WebSocketService {
       this.ws.onclose = (event) => {
         console.log("WebSocket disconnected");
         this.ws = null;
-        
+
         if (this.onCloseCallback) this.onCloseCallback();
 
         // 1008 is Policy Violation (usually auth failure). Don't retry.
@@ -128,7 +128,7 @@ class WebSocketService {
       this.ws.onerror = (error) => {
         console.error("WebSocket error:", error);
       };
-      
+
     } catch (err) {
       console.error("Failed to initialize WebSocket:", err);
     }
@@ -140,7 +140,7 @@ class WebSocketService {
       window.clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
-    
+
     if (this.ws) {
       if (this.ws.readyState === WebSocket.CONNECTING) {
         const socketToClose = this.ws;
@@ -176,14 +176,14 @@ class WebSocketService {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       return;
     }
-    
+
     if (!this.boardId) return;
 
     this.reconnectAttempts++;
     const timeout = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
-    
+
     console.log(`Reconnecting in ${timeout}ms... (attempt ${this.reconnectAttempts})`);
-    
+
     this.reconnectTimeout = window.setTimeout(() => {
       if (this.boardId) {
         this.connect(this.boardId, this.userInfo);
