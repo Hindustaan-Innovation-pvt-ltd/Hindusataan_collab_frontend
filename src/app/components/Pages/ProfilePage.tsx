@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router";
-import { ArrowLeft, Camera, Edit2, Clock, LayoutDashboard, Shield, Save, X, Trash2, UploadCloud, Loader2 } from "lucide-react";
+import { ArrowLeft, Camera, Edit2, Clock, LayoutDashboard, Shield, Save, X, Trash2, UploadCloud, Loader2, Dices } from "lucide-react";
 import { userService, UserProfile } from "../../../services/userService";
 import { toast } from "sonner";
 import axios from "axios";
-
+import ImageCropperModal from "../../../components/ImageCropperModal";
+import AvatarPickerModal from "../../../components/AvatarPickerModal";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../ui/dropdown-menu";
 export default function ProfilePage() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -16,8 +18,9 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   
   // Avatar states
-  const [stagedAvatar, setStagedAvatar] = useState<File | null>(null);
-  const [stagedAvatarUrl, setStagedAvatarUrl] = useState<string | null>(null);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [isAvatarPickerOpen, setIsAvatarPickerOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   
@@ -104,6 +107,7 @@ export default function ProfilePage() {
     // Validate size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File is too large (max 5MB).");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
@@ -111,18 +115,39 @@ export default function ProfilePage() {
     const validTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
     if (!validTypes.includes(file.type)) {
       toast.error("Only JPG, PNG, and WEBP files are allowed.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
-    setStagedAvatar(file);
-    setStagedAvatarUrl(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    
+    // Validate corrupted image & min resolution
+    const img = new Image();
+    img.onload = () => {
+      if (img.width < 100 || img.height < 100) {
+        toast.error("Image is too small. Minimum resolution is 100x100 pixels.");
+        URL.revokeObjectURL(url);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      setSelectedImageUrl(url);
+      setIsCropperOpen(true);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    img.onerror = () => {
+      toast.error("The selected image file appears to be corrupted.");
+      URL.revokeObjectURL(url);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    img.src = url;
   };
 
-  const handleSaveAvatar = async () => {
-    if (!stagedAvatar || !profile) return;
+  const handleCropComplete = async (croppedBlob: Blob) => {
+    if (!profile) return;
     setIsUploading(true);
     try {
-      const response = await userService.uploadAvatar(stagedAvatar);
+      const croppedFile = new File([croppedBlob], "avatar.jpg", { type: "image/jpeg" });
+      const response = await userService.uploadAvatar(croppedFile);
       toast.success("Profile picture updated");
       const newAvatarUrl = response.avatar_url;
       
@@ -137,21 +162,15 @@ export default function ProfilePage() {
         window.dispatchEvent(new Event("sessionUpdated"));
       }
 
-      setStagedAvatar(null);
-      setStagedAvatarUrl(null);
+      if (selectedImageUrl) {
+        URL.revokeObjectURL(selectedImageUrl);
+      }
+      setSelectedImageUrl(null);
     } catch (e) {
       console.error(e);
       toast.error("Failed to upload profile picture");
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  const handleCancelAvatar = () => {
-    setStagedAvatar(null);
-    setStagedAvatarUrl(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
     }
   };
 
@@ -234,8 +253,8 @@ export default function ProfilePage() {
             <div className="px-6 pb-6 relative text-center">
               <div className="relative inline-block -mt-12 mb-4 group">
                 <div className="w-24 h-24 rounded-full border-4 border-white bg-card overflow-hidden flex items-center justify-center shadow-md relative">
-                  {(stagedAvatarUrl || profile.avatar) ? (
-                    <img src={stagedAvatarUrl || getFullAvatarUrl(profile.avatar)} alt="Avatar" className="w-full h-full object-cover" />
+                  {profile.avatar ? (
+                    <img src={getFullAvatarUrl(profile.avatar)} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full bg-[#1abc9c] text-white flex items-center justify-center text-3xl font-bold uppercase">
                       {profile.name.charAt(0)}
@@ -248,7 +267,7 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  {!stagedAvatarUrl && !isUploading && (
+                  {!isUploading && (
                     <div 
                       onClick={() => fileInputRef.current?.click()}
                       className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white"
@@ -268,43 +287,57 @@ export default function ProfilePage() {
               </div>
 
               {/* Avatar Controls */}
-              {stagedAvatarUrl ? (
+              {profile.avatar ? (
                 <div className="flex justify-center gap-2 mb-4">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button 
+                        disabled={isUploading || isRemoving}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-foreground bg-background hover:bg-muted border border-border rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                      >
+                        <Camera size={14} />
+                        Change Photo
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="w-48 bg-card border-border">
+                      <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="cursor-pointer text-foreground hover:bg-muted">
+                        <UploadCloud size={14} className="mr-2" />
+                        Upload New Photo
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setIsAvatarPickerOpen(true)} className="cursor-pointer text-foreground hover:bg-muted">
+                        <Dices size={14} className="mr-2" />
+                        Choose Avatar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  
                   <button 
-                    onClick={handleCancelAvatar}
-                    disabled={isUploading}
-                    className="px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted rounded-lg transition-colors disabled:opacity-50"
+                    onClick={handleRemoveAvatar}
+                    disabled={isRemoving || isUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-destructive bg-destructive/10 hover:bg-destructive/20 rounded-lg transition-colors shadow-sm disabled:opacity-50"
                   >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleSaveAvatar}
-                    disabled={isUploading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                  >
-                    {isUploading ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                    Save Photo
+                    {isRemoving ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
+                    Remove
                   </button>
                 </div>
               ) : (
                 <div className="flex justify-center gap-2 mb-4">
                   <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-foreground bg-background hover:bg-muted border border-border rounded-lg transition-colors shadow-sm"
+                    disabled={isUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-foreground bg-background hover:bg-muted border border-border rounded-lg transition-colors shadow-sm disabled:opacity-50"
                   >
                     <UploadCloud size={14} />
                     Upload Photo
                   </button>
-                  {profile.avatar && (
-                    <button 
-                      onClick={handleRemoveAvatar}
-                      disabled={isRemoving}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors shadow-sm disabled:opacity-50"
-                    >
-                      {isRemoving ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
-                      Remove Photo
-                    </button>
-                  )}
+                  <button 
+                    onClick={() => setIsAvatarPickerOpen(true)}
+                    disabled={isUploading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-foreground bg-background hover:bg-muted border border-border rounded-lg transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    <Dices size={14} />
+                    Choose Avatar
+                  </button>
                 </div>
               )}
               
@@ -479,6 +512,26 @@ export default function ProfilePage() {
           
         </div>
       </div>
+      
+      {selectedImageUrl && (
+        <ImageCropperModal
+          isOpen={isCropperOpen}
+          onClose={() => {
+            setIsCropperOpen(false);
+            if (selectedImageUrl) URL.revokeObjectURL(selectedImageUrl);
+            setSelectedImageUrl(null);
+          }}
+          imageSrc={selectedImageUrl}
+          onCropComplete={handleCropComplete}
+        />
+      )}
+
+      <AvatarPickerModal
+        isOpen={isAvatarPickerOpen}
+        onClose={() => setIsAvatarPickerOpen(false)}
+        onAvatarComplete={handleCropComplete}
+        defaultName={profile.name}
+      />
     </div>
   );
 }
