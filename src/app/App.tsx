@@ -1533,7 +1533,7 @@ export default function App() {
                     selected={selected}
                     onStartConnect={onStartConnect}
                     editing={editing}
-                    onResize={(id, x, y, w, h) => onUpdateEl(id, { x, y, w, h })}
+                    onResize={onUpdateEl}
                     onDblClick={(id) => setEditId(id)}
                     onBlur={(id, text) => {
                       setEls((current) =>
@@ -1549,7 +1549,7 @@ export default function App() {
                 return (
                   <DeviceFrameNode
                     key={el.id} el={el as any} selected={selected}
-                    onResize={(id, w, h) => onUpdateEl(id, { w, h })}
+                    onResize={onUpdateEl}
                   />
                 );
               case "table":
