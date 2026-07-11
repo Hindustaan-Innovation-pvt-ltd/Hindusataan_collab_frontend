@@ -7,10 +7,10 @@ import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 
 interface QuickInsertPanelProps {
-  onInsertIcon: (name: string) => void;
-  onInsertEmoji: (emoji: string) => void;
-  onInsertShape: (kind: string) => void;
-  onInsertDeviceFrame: (kind: string) => void;
+  onInsertIcon: (name: string, sizeScale: number) => void;
+  onInsertEmoji: (emoji: string, sizeScale: number) => void;
+  onInsertShape: (kind: string, sizeScale: number) => void;
+  onInsertDeviceFrame: (kind: string, sizeScale: number) => void;
   onClose: () => void;
 }
 

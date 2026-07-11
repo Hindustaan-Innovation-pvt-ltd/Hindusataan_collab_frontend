@@ -1714,9 +1714,11 @@ export default function App() {
               case "icon":
                 return (
                   <IconNode
-                    key={el.id} el={el as any}
+                    key={el.id}
+                    el={el as any}
                     selected={selected}
-                    onResize={(id, size) => onUpdateEl(id, { size })}
+                    zoom={cam.z}
+                    onResize={(id, partial) => onUpdateEl(id, partial)}
                   />
                 );
               case "connection":

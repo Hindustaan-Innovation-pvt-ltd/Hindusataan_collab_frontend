@@ -32,7 +32,7 @@ interface ToolbarProps {
   setToolMenuOpen: (o: boolean) => void;
   hasSelection: boolean;
   onDelete: () => void;
-  onInsertIcon?: (iconName: string, sizeScale?: number) => void;
+  onInsertIcon?: (iconName: string, sizeScale: number) => void;
   onUploadImage?: (file: File) => Promise<void>;
   isUploadingImage?: boolean;
   isEditingOrSelectedText?: boolean;
