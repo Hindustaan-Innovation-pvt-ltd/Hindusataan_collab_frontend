@@ -4,7 +4,7 @@ import type { DeviceFrameEl } from "../types";
 interface DeviceFrameNodeProps {
   el: DeviceFrameEl;
   selected: boolean;
-  onResize: (id: string, w: number, h: number) => void;
+  onResize: (id: string, partial: Partial<DeviceFrameEl>) => void;
 }
 
 const MIN_W = 100;
@@ -28,7 +28,7 @@ export default function DeviceFrameNode({ el, selected, onResize }: DeviceFrameN
       if (moveEvent.pointerId !== e.pointerId) return;
       const dx = moveEvent.clientX - startX;
       const dy = moveEvent.clientY - startY;
-      onResize(id, Math.max(MIN_W, startW + dx), Math.max(MIN_H, startH + dy));
+      onResize(id, { w: Math.max(MIN_W, startW + dx), h: Math.max(MIN_H, startH + dy) });
     };
 
     const onPointerUp = (upEvent: PointerEvent) => {

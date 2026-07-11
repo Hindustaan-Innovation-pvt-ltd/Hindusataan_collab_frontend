@@ -6,7 +6,7 @@ import IconNode from "../components/IconNode";
 
 import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Peer, Comment, StickyEl, GraphEl, TableEl, Board } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, INIT_ELS } from "../constants";
-import { uid, worldPt, pathD, getElementBox, getBoundaryPt } from "../utils";
+import { uid, worldPt, pathD, getElementBox } from "../utils";
 
 import StickyNote from "../components/StickyNote";
 import TextNode from "../components/TextNode";
@@ -20,6 +20,7 @@ import { boardService } from "../services/boardService";
 import { websocketService } from '../services/websocketService';
 import { collaborationService } from "../services/collaborationService";
 import { parseMermaidToElements } from "../utils/mermaidParser";
+import ArrowNode from "../components/ArrowNode";
 import TopBar from "../components/TopBar";
 import ContextMenu from "../components/ContextMenu";
 import { BoardChat } from "../components/BoardChat";
@@ -162,6 +163,16 @@ export default function App() {
 
   const wrapRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<El[]>([]);
+  const isCutRef = useRef(false);
+  const lastMouseRef = useRef({ x: typeof window !== 'undefined' ? window.innerWidth / 2 : 0, y: typeof window !== 'undefined' ? window.innerHeight / 2 : 0 });
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      lastMouseRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => window.removeEventListener("pointermove", onMove);
+  }, []);
 
   // Refs for tracking current state during events without causing re-renders
   const camRef = useRef(cam);
@@ -464,23 +475,53 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
         if (selIdsRef.current.length > 0) {
           clipboardRef.current = elsRef.current.filter(ex => selIdsRef.current.includes(ex.id));
+          isCutRef.current = false;
+        }
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "x") {
+        if (selIdsRef.current.length > 0) {
+          clipboardRef.current = elsRef.current.filter(ex => selIdsRef.current.includes(ex.id));
+          setEls(p => p.filter(el => !selIdsRef.current.includes(el.id)));
+          setSelIds([]);
+          isCutRef.current = true;
         }
         return;
       }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         if (clipboardRef.current.length > 0) {
+          let dx = 20, dy = 20;
+
+          if (isCutRef.current) {
+            const rect = wrapRef.current ? wrapRef.current.getBoundingClientRect() : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight } as DOMRect;
+            const pt = worldPt(lastMouseRef.current.x, lastMouseRef.current.y, rect, camRef.current);
+            let minX = Infinity, minY = Infinity;
+            clipboardRef.current.forEach(el => {
+              if ('x' in el) minX = Math.min(minX, el.x);
+              if ('y' in el) minY = Math.min(minY, el.y);
+            });
+            if (minX !== Infinity && minY !== Infinity) {
+              dx = pt.x - minX;
+              dy = pt.y - minY;
+            }
+            isCutRef.current = false;
+          }
+
           const newEls = clipboardRef.current.map(el => {
             const newEl = { ...el, id: uid() };
-            if ('x' in newEl) newEl.x += 20;
-            if ('y' in newEl) newEl.y += 20;
+            if ('x' in newEl) newEl.x += dx;
+            if ('y' in newEl) newEl.y += dy;
             return newEl;
           });
           setEls(p => [...p, ...newEls]);
           setSelIds(newEls.map(e => e.id));
+          clipboardRef.current = newEls;
         }
         return;
       }
+
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
         if (selIdsRef.current.length > 0) {
@@ -589,7 +630,13 @@ export default function App() {
         if (upTarget) {
           const toId = upTarget.getAttribute("data-el-id")!;
           if (toId !== id) {
-            setEls(p => [...p, { id: uid(), type: "connection", from: id, to: toId, color: "var(--color-foreground)", x: 0, y: 0 }]);
+            setEls(p => [...p, {
+              id: uid(), type: "free_arrow",
+              from: id, to: toId,
+              x: startPt.x, y: startPt.y,
+              dx: ue.clientX - startPt.x, dy: ue.clientY - startPt.y,
+              color: "var(--color-foreground)"
+            }]);
           }
         } else {
           const newId = uid();
@@ -598,7 +645,8 @@ export default function App() {
             id: newId, type: "free_arrow",
             x: startPt.x, y: startPt.y,
             dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-            color: "var(--color-foreground)"
+            color: "var(--color-foreground)",
+            from: id
           }]);
           setSelIds([newId]);
         }
@@ -1164,17 +1212,24 @@ export default function App() {
       if (upTarget) {
         const toId = upTarget.getAttribute("data-el-id")!;
         if (toId !== id) {
-          setEls(p => [...p, { id: uid(), type: "connection", from: id, to: toId, color: "var(--color-foreground)", x: 0, y: 0 }]);
+          setEls(p => [...p, {
+            id: uid(), type: "free_arrow",
+            from: id, to: toId,
+            x: startPt.x, y: startPt.y,
+            dx: ue.clientX - startPt.x, dy: ue.clientY - startPt.y,
+            color: "var(--color-foreground)"
+          }]);
         }
       } else {
         const newId = uid();
         const pt = worldPt(ue.clientX, ue.clientY, getRect(), camRef.current);
-        const newShape: ShapeEl = {
-          id: newId, type: "shape", kind: shapeKindRef.current || "rect",
-          x: pt.x - 80, y: pt.y - 60, w: 160, h: 120,
-          color: shapeColorRef.current || "#FF6B6B"
-        };
-        setEls(p => [...p, newShape, { id: uid(), type: "connection", from: id, to: newId, color: "var(--color-foreground)", x: 0, y: 0 }]);
+        setEls(p => [...p, {
+          id: newId, type: "free_arrow",
+          x: startPt.x, y: startPt.y,
+          dx: pt.x - startPt.x, dy: pt.y - startPt.y,
+          color: "var(--color-foreground)",
+          from: id
+        }]);
         setSelIds([newId]);
       }
       arrowRef.current = null;
@@ -1408,10 +1463,6 @@ export default function App() {
             const selected = selIds.includes(el.id);
             const editing = editId === el.id;
 
-            const onResizeShape = (id: string, partial: any) => {
-              setEls(p => p.map(e => e.id === id ? Object.assign({}, e, partial) as any : e));
-            };
-
             switch (el.type) {
               case "sticky":
                 return (
@@ -1439,7 +1490,7 @@ export default function App() {
                     selected={selected}
                     onStartConnect={onStartConnect}
                     editing={editing}
-                    onResize={onResizeShape}
+                    onResize={onUpdateEl}
                     onDblClick={(id) => setEditId(id)}
                     onBlur={(id, text) => {
                       setEls((current) =>
@@ -1455,7 +1506,7 @@ export default function App() {
                 return (
                   <DeviceFrameNode
                     key={el.id} el={el as any} selected={selected}
-                    onResize={onResizeShape}
+                    onResize={onUpdateEl}
                   />
                 );
               case "table":
@@ -1479,63 +1530,25 @@ export default function App() {
                   />
                 );
               case "connection":
+                // Migrate legacy connection visually to use ArrowNode if selected or not, 
+                // but since it's missing dx/dy we just estimate it.
+                // Or better, convert them if they are selected.
+                // We'll just render them using ArrowNode, providing default x,y,dx,dy.
                 const c = el as ConnectionEl;
-                const fromEl = els.find(x => x.id === c.from);
-                const toEl = els.find(x => x.id === c.to);
-                if (!fromEl || !toEl) return null;
-
-                const box1 = getElementBox(fromEl);
-                const box2 = getElementBox(toEl);
-                if (!box1 || !box2) return null;
-
-                const pt1 = getBoundaryPt(box1.cx, box1.cy, box1.w, box1.h, box2.cx, box2.cy);
-                const pt2 = getBoundaryPt(box2.cx, box2.cy, box2.w, box2.h, box1.cx, box1.cy);
-
+                const legacyArrow: FreeArrowEl = {
+                  id: c.id, type: "free_arrow", color: c.color,
+                  from: c.from, to: c.to, x: c.x || 0, y: c.y || 0, dx: 100, dy: 100, locked: c.locked
+                };
                 return (
-                  <svg key={c.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
-                    <defs>
-                      <marker id={`arrowhead-${c.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                        <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
-                      </marker>
-                    </defs>
-                    <g data-el-id={c.id}>
-                      <line
-                        x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
-                        stroke="transparent" strokeWidth="20"
-                        style={{ pointerEvents: "stroke", cursor: tool === "select" ? "pointer" : undefined }}
-                      />
-                      <line
-                        x1={pt1.x} y1={pt1.y} x2={pt2.x} y2={pt2.y}
-                        stroke={c.color} strokeWidth="3" markerEnd={`url(#arrowhead-${c.id})`}
-                        style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
-                      />
-                    </g>
-                  </svg>
+                  <ArrowNode
+                    key={c.id} el={legacyArrow} selected={selected} els={els} zoom={cam.z} onUpdate={onUpdateEl}
+                  />
                 );
               case "free_arrow":
-                const fa = el as FreeArrowEl;
-                const fpt1 = { x: fa.x, y: fa.y };
-                const fpt2 = { x: fa.x + fa.dx, y: fa.y + fa.dy };
                 return (
-                  <svg key={fa.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
-                    <defs>
-                      <marker id={`arrowhead-${fa.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                        <polygon points="0 0, 10 3.5, 0 7" fill={fa.color} />
-                      </marker>
-                    </defs>
-                    <g data-el-id={fa.id}>
-                      <line
-                        x1={fpt1.x} y1={fpt1.y} x2={fpt2.x} y2={fpt2.y}
-                        stroke="transparent" strokeWidth="20"
-                        style={{ pointerEvents: "stroke", cursor: tool === "select" ? "pointer" : undefined }}
-                      />
-                      <line
-                        x1={fpt1.x} y1={fpt1.y} x2={fpt2.x} y2={fpt2.y}
-                        stroke={fa.color} strokeWidth="3" markerEnd={`url(#arrowhead-${fa.id})`}
-                        style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
-                      />
-                    </g>
-                  </svg>
+                  <ArrowNode
+                    key={el.id} el={el as FreeArrowEl} selected={selected} els={els} zoom={cam.z} onUpdate={onUpdateEl}
+                  />
                 );
               case "path":
                 const p = el as PathEl;

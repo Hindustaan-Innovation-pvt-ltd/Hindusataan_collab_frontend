@@ -8,14 +8,14 @@ interface ShapeNodeProps {
   selected: boolean;
   editing: boolean;
   onStartConnect?: (e: React.PointerEvent, id: string) => void;
-  onResize: (id: string, x: number, y: number, w: number, h: number) => void;
+  onResize: (id: string, partial: Partial<ShapeEl>) => void;
   onDblClick: (id: string) => void;
   onBlur: (id: string, text: string) => void;
 }
 
 const MIN_SIZE = 30;
 
-type HandlePosition = "tl" | "tr" | "bl" | "br";
+type HandlePosition = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
 
 function ShapeNode({
   el,
@@ -66,7 +66,9 @@ function ShapeNode({
       let newW = initialW;
       let newH = initialH;
 
-      if (handle === "tl" || handle === "bl") {
+      const ratio = initialW / initialH;
+
+      if (handle === "tl" || handle === "bl" || handle === "l") {
         const potentialW = initialW - dx;
         if (potentialW >= MIN_SIZE) {
           newW = potentialW;
@@ -75,11 +77,11 @@ function ShapeNode({
           newW = MIN_SIZE;
           newX = initialX + (initialW - MIN_SIZE);
         }
-      } else {
+      } else if (handle === "tr" || handle === "br" || handle === "r") {
         newW = Math.max(MIN_SIZE, initialW + dx);
       }
 
-      if (handle === "tl" || handle === "tr") {
+      if (handle === "tl" || handle === "tr" || handle === "t") {
         const potentialH = initialH - dy;
         if (potentialH >= MIN_SIZE) {
           newH = potentialH;
@@ -88,11 +90,41 @@ function ShapeNode({
           newH = MIN_SIZE;
           newY = initialY + (initialH - MIN_SIZE);
         }
-      } else {
+      } else if (handle === "bl" || handle === "br" || handle === "b") {
         newH = Math.max(MIN_SIZE, initialH + dy);
       }
 
-      onResize(el.id, newX, newY, newW, newH);
+      if (moveEvent.shiftKey && handle.length === 2) {
+        if (Math.abs(dx) > Math.abs(dy)) {
+          let adjH = newW / ratio;
+          if (adjH < MIN_SIZE) {
+            adjH = MIN_SIZE;
+            newW = MIN_SIZE * ratio;
+            if (handle === "tl" || handle === "bl") {
+              newX = initialX + (initialW - newW);
+            }
+          }
+          if (handle === "tl" || handle === "tr") {
+            newY = initialY + (initialH - adjH);
+          }
+          newH = adjH;
+        } else {
+          let adjW = newH * ratio;
+          if (adjW < MIN_SIZE) {
+            adjW = MIN_SIZE;
+            newH = MIN_SIZE / ratio;
+            if (handle === "tl" || handle === "tr") {
+              newY = initialY + (initialH - newH);
+            }
+          }
+          if (handle === "tl" || handle === "bl") {
+            newX = initialX + (initialW - adjW);
+          }
+          newW = adjW;
+        }
+      }
+
+      onResize(el.id, { x: newX, y: newY, w: newW, h: newH });
     };
 
     const onPointerUp = (upEvent: PointerEvent) => {
@@ -115,6 +147,10 @@ function ShapeNode({
     { position: "tr", cursor: "nesw-resize", style: { top: -6, right: -6 } },
     { position: "bl", cursor: "nesw-resize", style: { bottom: -6, left: -6 } },
     { position: "br", cursor: "nwse-resize", style: { bottom: -6, right: -6 } },
+    { position: "t", cursor: "ns-resize", style: { top: -6, left: "calc(50% - 6px)" } },
+    { position: "b", cursor: "ns-resize", style: { bottom: -6, left: "calc(50% - 6px)" } },
+    { position: "l", cursor: "ew-resize", style: { top: "calc(50% - 6px)", left: -6 } },
+    { position: "r", cursor: "ew-resize", style: { top: "calc(50% - 6px)", right: -6 } },
   ];
 
   return (
