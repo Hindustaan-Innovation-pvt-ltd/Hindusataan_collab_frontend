@@ -8,6 +8,8 @@ import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
 import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
 import ColorPalette from "./ColorPalette";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
+import EmojiPicker, { Theme } from 'emoji-picker-react';
+import QuickInsertPanel from './QuickInsertPanel';
 
 interface ToolbarProps {
   tool: Tool;
@@ -29,35 +31,16 @@ interface ToolbarProps {
   toolMenuOpen: boolean;
   setToolMenuOpen: (o: boolean) => void;
   hasSelection: boolean;
-  onInsertIcon?: (iconName: string) => void;
+  onInsertIcon?: (iconName: string, sizeScale: number) => void;
   isEditingOrSelectedText?: boolean;
   textFontSize?: number;
   setTextFontSize?: (size: number) => void;
   textFontFamily?: string;
   setTextFontFamily?: (family: string) => void;
+  onInsertEmoji?: (emoji: string, sizeScale: number) => void;
+  onInsertShape?: (kind: string, sizeScale: number) => void;
+  onInsertDeviceFrame?: (kind: string, sizeScale: number) => void;
 }
-
-// Exports from lucide-react that aren't actual icon components —
-// filter these out so search results only contain real icons.
-const NON_ICON_EXPORTS = new Set([
-  "createLucideIcon",
-  "default",
-  "icons",
-  "LucideIcon",
-  "LucideProps",
-]);
-
-// Build the full icon catalog once, at module load — not on every render.
-// Splits "CupSoda" -> "cup soda" so searches match readable words.
-const ALL_ICONS: { name: string; Icon: React.ComponentType<{ size?: number }>; searchText: string }[] =
-  Object.entries(LucideIcons)
-    .filter(([name, value]) => !NON_ICON_EXPORTS.has(name) && typeof value === "object" && /^[A-Z]/.test(name))
-    .map(([name, Icon]) => {
-      const words = name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
-      return { name, Icon: Icon as React.ComponentType<{ size?: number }>, searchText: words };
-    });
-
-const MAX_RESULTS = 60; // cap rendered results for performance on broad/empty queries
 
 function Toolbar({
   tool, setTool, onZoom, zoomLevel,
@@ -74,14 +57,14 @@ function Toolbar({
   setTextFontSize,
   textFontFamily = "sans-serif",
   setTextFontFamily,
+  onInsertEmoji, onInsertShape, onInsertDeviceFrame,
 }: ToolbarProps) {
-  const [iconSearchOpen, setIconSearchOpen] = useState(false);
-  const [iconQuery, setIconQuery] = useState("");
+  const [quickInsertOpen, setQuickInsertOpen] = useState(false);
   const { layout } = useWorkspaceTheme();
   
   const toolbarRef = React.useRef<HTMLDivElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
-  const iconPanelRef = React.useRef<HTMLDivElement>(null);
+  const quickInsertPanelRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -89,15 +72,15 @@ function Toolbar({
       if (
         toolbarRef.current && !toolbarRef.current.contains(target) &&
         (!panelRef.current || !panelRef.current.contains(target)) &&
-        (!iconPanelRef.current || !iconPanelRef.current.contains(target))
+        (!quickInsertPanelRef.current || !quickInsertPanelRef.current.contains(target))
       ) {
-        setIconSearchOpen(false);
+        setQuickInsertOpen(false);
         setToolMenuOpen(false);
       }
     };
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setIconSearchOpen(false);
+        setQuickInsertOpen(false);
         setToolMenuOpen(false);
       }
     };
@@ -108,13 +91,6 @@ function Toolbar({
       document.removeEventListener("keydown", handleEscape);
     };
   }, [setToolMenuOpen]);
-
-  const filteredIcons = useMemo(() => {
-    const q = iconQuery.trim().toLowerCase();
-    if (!q) return ALL_ICONS.slice(0, MAX_RESULTS);
-    const matches = ALL_ICONS.filter((entry) => entry.searchText.includes(q));
-    return matches.slice(0, MAX_RESULTS);
-  }, [iconQuery]);
 
   // Define layout styles for the main toolbar
   let containerClass = "";
@@ -136,7 +112,7 @@ function Toolbar({
     ? "fixed left-5 top-24 z-50 w-64"
     : "fixed left-20 top-24 z-50 w-64";
 
-  const iconPanelPositionClass = layout === "horizontal"
+  const quickInsertPanelPositionClass = layout === "horizontal"
     ? "fixed left-5 top-24 z-50 w-80"
     : "fixed left-20 top-24 z-50 w-80";
 
@@ -161,7 +137,7 @@ function Toolbar({
                     setToolMenuOpen(false);
                   }
                 }
-                setIconSearchOpen(false);
+                setQuickInsertOpen(false);
               }}
               className={`
                 w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer
@@ -176,14 +152,14 @@ function Toolbar({
 
           <div className={dividerClass} />
 
-          {/* Icon search toggle button */}
+          {/* Quick Insert search toggle button (Smile icon) */}
           <button
-            title="Insert icon"
+            title="Quick Insert (Assets)"
             onClick={() => {
-              setIconSearchOpen((prev) => !prev);
+              setQuickInsertOpen((prev) => !prev);
               setToolMenuOpen(false);
             }}
-            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${iconSearchOpen
+            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${quickInsertOpen
                 ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
                 : "text-[#4B5563] hover:bg-muted hover:text-foreground"
               }`}
@@ -389,56 +365,16 @@ function Toolbar({
         </div>
       )}
 
-      {/* Icon search picker docked to the side */}
-      {iconSearchOpen && (
-        <div ref={iconPanelRef} className={`flex flex-col p-3 bg-card/95 backdrop-blur-md rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${iconPanelPositionClass}`}>
-          <div className="flex items-center gap-2 mb-2 px-1">
-            <Search size={14} className="text-gray-400 shrink-0" />
-            <input
-              autoFocus
-              type="text"
-              value={iconQuery}
-              onChange={(e) => setIconQuery(e.target.value)}
-              placeholder="Search 1000+ icons (e.g. cup, mobile, smiley)"
-              className="flex-1 text-xs outline-none text-foreground placeholder:text-gray-400"
-            />
-            <button
-              onClick={() => {
-                setIconSearchOpen(false);
-                setIconQuery("");
-              }}
-              className="text-gray-400 hover:text-muted-foreground cursor-pointer"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <div className="grid grid-cols-7 gap-1.5 max-h-56 overflow-y-auto pr-1">
-            {filteredIcons.length === 0 ? (
-              <div className="col-span-7 text-center text-[11px] text-gray-400 py-4">
-                No icons found
-              </div>
-            ) : (
-              filteredIcons.map(({ name, Icon }) => (
-                <button
-                  key={name}
-                  title={name}
-                  onClick={() => {
-                    onInsertIcon?.(name);
-                    setIconSearchOpen(false);
-                    setIconQuery("");
-                  }}
-                  className="w-9 h-9 flex items-center justify-center rounded-xl text-[#4B5563] hover:bg-muted hover:text-foreground transition-all cursor-pointer"
-                >
-                  <Icon size={17} />
-                </button>
-              ))
-            )}
-          </div>
-          {!iconQuery && (
-            <div className="text-[10px] text-gray-400 text-center mt-2">
-              Showing first {MAX_RESULTS} icons — type to search all
-            </div>
-          )}
+      {/* Quick Insert Panel docked to the side */}
+      {quickInsertOpen && (
+        <div ref={quickInsertPanelRef} className={`absolute z-50 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${quickInsertPanelPositionClass}`}>
+          <QuickInsertPanel
+            onInsertIcon={(name, scale) => { onInsertIcon?.(name, scale); setQuickInsertOpen(false); }}
+            onInsertEmoji={(emoji, scale) => { onInsertEmoji?.(emoji, scale); setQuickInsertOpen(false); }}
+            onInsertShape={(kind, scale) => { onInsertShape?.(kind, scale); setQuickInsertOpen(false); }}
+            onInsertDeviceFrame={(kind, scale) => { onInsertDeviceFrame?.(kind, scale); setQuickInsertOpen(false); }}
+            onClose={() => setQuickInsertOpen(false)}
+          />
         </div>
       )}
     </>
@@ -447,11 +383,6 @@ function Toolbar({
 
 export default Toolbar;
 
-
-
-
-
-// import React from "react";
 // import { Trash2, Minus, Plus, Pencil, Brush, Highlighter } from "lucide-react";
 // import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
 // import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";

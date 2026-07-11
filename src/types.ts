@@ -172,7 +172,7 @@ export interface GraphEl extends BaseEl {
   graphData: any;
 }
 
-export type DeviceFrameKind = "browser" | "phone";
+export type DeviceFrameKind = "browser" | "desktop" | "phone" | "tablet" | "laptop";
 export interface DeviceFrameEl extends BaseEl {
   type: "device_frame";
   kind: DeviceFrameKind;
