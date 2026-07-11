@@ -267,7 +267,7 @@ export default function Signup() {
         {STICKY_NOTES.map((note) => (
           <div
             key={note.text}
-            className="absolute w-36 h-36 rounded-sm shadow-[5px_7px_18px_rgba(0,0,0,0.12)] flex items-center justify-center p-4 text-center text-sm font-semibold text-[#1C1B1F]/80 select-none"
+            className="absolute w-36 h-36 rounded-sm shadow-[5px_7px_18px_rgba(0,0,0,0.12)] flex items-center justify-center p-4 text-center text-sm font-semibold text-foreground/80 select-none"
             style={{
               backgroundColor: note.color,
               top: note.top,
@@ -287,10 +287,10 @@ export default function Signup() {
             <Sparkles size={16} />
             Hindustaan Collab
           </div>
-          <h1 className="text-4xl font-bold text-[#1C1B1F] leading-tight mb-4">
+          <h1 className="text-4xl font-bold text-foreground leading-tight mb-4">
             Where teams think, plan &amp; create together
           </h1>
-          <p className="text-[#7A7870] text-base leading-relaxed">
+          <p className="text-muted-foreground text-base leading-relaxed">
             Infinite whiteboarding canvas, real-time stickies, and seamless sync.
           </p>
         </div>
@@ -313,8 +313,8 @@ export default function Signup() {
               </button>
 
               <div className="mb-8">
-                <h2 className="text-[28px] font-bold text-[#1C1B1F] mb-1.5 tracking-tight">Reset Password</h2>
-                <p className="text-[#7A7870] text-[15px]">
+                <h2 className="text-[28px] font-bold text-foreground mb-1.5 tracking-tight">Reset Password</h2>
+                <p className="text-muted-foreground text-[15px]">
                   {resetOtpSent ? "Enter the OTP code and your new password." : "Verify your identity to reset password."}
                 </p>
               </div>
@@ -326,14 +326,14 @@ export default function Signup() {
                     <button
                       type="button"
                       onClick={() => { setResetType("email"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                       Email
                     </button>
                     <button
                       type="button"
                       onClick={() => { setResetType("phone"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                       Phone Number
                     </button>
@@ -341,7 +341,7 @@ export default function Signup() {
 
                   {resetType === "email" ? (
                     <div className="space-y-1.5">
-                      <Label htmlFor="resetEmail" className="text-[13px] font-bold text-[#1C1B1F]">Email Address</Label>
+                      <Label htmlFor="resetEmail" className="text-[13px] font-bold text-foreground">Email Address</Label>
                       <div className="relative">
                         <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                         <Input
@@ -357,13 +357,13 @@ export default function Signup() {
                     </div>
                   ) : (
                     <div className="space-y-1.5">
-                      <Label htmlFor="resetPhone" className="text-[13px] font-bold text-[#1C1B1F]">Phone Number</Label>
+                      <Label htmlFor="resetPhone" className="text-[13px] font-bold text-foreground">Phone Number</Label>
                       <div className="flex gap-2">
                         <div className="relative w-[100px] flex-shrink-0">
                           <select
                             value={resetCountryCode}
                             onChange={(e) => setResetCountryCode(e.target.value)}
-                            className="w-full h-12 rounded-xl border border-border bg-card px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
+                            className="w-full h-12 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
                           >
                             <option value="+91">+91 (IN)</option>
                             <option value="+1">+1 (US)</option>
@@ -416,7 +416,7 @@ export default function Signup() {
               ) : (
                 <form onSubmit={handleResetPasswordSubmit} className="space-y-5">
                   <div className="space-y-1.5">
-                    <Label htmlFor="resetOtp" className="text-[13px] font-bold text-[#1C1B1F]">6-Digit OTP</Label>
+                    <Label htmlFor="resetOtp" className="text-[13px] font-bold text-foreground">6-Digit OTP</Label>
                     <div className="relative">
                       <CheckCircle2 size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                       <Input
@@ -433,7 +433,7 @@ export default function Signup() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="newPassword" className="text-[13px] font-bold text-[#1C1B1F]">New Password</Label>
+                    <Label htmlFor="newPassword" className="text-[13px] font-bold text-foreground">New Password</Label>
                     <div className="relative">
                       <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                       <Input
@@ -449,7 +449,7 @@ export default function Signup() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <Label htmlFor="confirmNewPassword" className="text-[13px] font-bold text-[#1C1B1F]">Confirm New Password</Label>
+                    <Label htmlFor="confirmNewPassword" className="text-[13px] font-bold text-foreground">Confirm New Password</Label>
                     <div className="relative">
                       <ShieldCheck size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                       <Input
@@ -481,7 +481,7 @@ export default function Signup() {
                       type="button"
                       variant="outline"
                       onClick={() => setResetOtpSent(false)}
-                      className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-[#1C1B1F] shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
+                      className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-foreground shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
                     >
                       <ArrowLeft size={18} className="mr-2" /> Back
                     </Button>
@@ -535,15 +535,15 @@ export default function Signup() {
           {step === 1 && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="mb-8">
-                <h2 className="text-[28px] font-bold text-[#1C1B1F] mb-1.5 tracking-tight">Create Account</h2>
-                <p className="text-[#7A7870] text-[15px]">
+                <h2 className="text-[28px] font-bold text-foreground mb-1.5 tracking-tight">Create Account</h2>
+                <p className="text-muted-foreground text-[15px]">
                   Let's start with your basic information.
                 </p>
               </div>
 
               <div className="space-y-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="name" className="text-[13px] font-bold text-[#1C1B1F]">Full Name</Label>
+                  <Label htmlFor="name" className="text-[13px] font-bold text-foreground">Full Name</Label>
                   <div className="relative">
                     <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                     <Input
@@ -559,7 +559,7 @@ export default function Signup() {
                 </div>
                 
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-[13px] font-bold text-[#1C1B1F]">Email</Label>
+                  <Label htmlFor="email" className="text-[13px] font-bold text-foreground">Email</Label>
                   <div className="relative">
                     <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                     <Input
@@ -587,7 +587,7 @@ export default function Signup() {
                   Next <ArrowRight size={18} className="ml-2" />
                 </Button>
 
-                <p className="text-center text-sm text-[#7A7870] mt-4">
+                <p className="text-center text-sm text-muted-foreground mt-4">
                   Forgot your password?{" "}
                   <button
                     type="button"
@@ -608,15 +608,15 @@ export default function Signup() {
           {step === 2 && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="mb-8">
-                <h2 className="text-[28px] font-bold text-[#1C1B1F] mb-1.5 tracking-tight">Create Password</h2>
-                <p className="text-[#7A7870] text-[15px]">
+                <h2 className="text-[28px] font-bold text-foreground mb-1.5 tracking-tight">Create Password</h2>
+                <p className="text-muted-foreground text-[15px]">
                   Create a secure password for your account.
                 </p>
               </div>
 
               <div className="space-y-5">
                 <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-[13px] font-bold text-[#1C1B1F]">Create Password</Label>
+                  <Label htmlFor="password" className="text-[13px] font-bold text-foreground">Create Password</Label>
                   <div className="relative">
                     <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                     <Input
@@ -649,7 +649,7 @@ export default function Signup() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="confirmPassword" className="text-[13px] font-bold text-[#1C1B1F]">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword" className="text-[13px] font-bold text-foreground">Confirm Password</Label>
                   <div className="relative">
                     <ShieldCheck size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" strokeWidth={2} />
                     <Input
@@ -681,7 +681,7 @@ export default function Signup() {
                     type="button"
                     variant="outline"
                     onClick={handleBack}
-                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-[#1C1B1F] shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
+                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-foreground shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
                   >
                     <ArrowLeft size={18} className="mr-2" /> Back
                   </Button>
@@ -701,8 +701,8 @@ export default function Signup() {
           {step === 3 && (
             <div className="animate-in fade-in slide-in-from-right-4 duration-500">
               <div className="mb-8">
-                <h2 className="text-[28px] font-bold text-[#1C1B1F] mb-1.5 tracking-tight">Terms & Conditions</h2>
-                <p className="text-[#7A7870] text-[15px]">
+                <h2 className="text-[28px] font-bold text-foreground mb-1.5 tracking-tight">Terms & Conditions</h2>
+                <p className="text-muted-foreground text-[15px]">
                   Please review and accept the terms to continue.
                 </p>
               </div>
@@ -740,7 +740,7 @@ export default function Signup() {
                     type="button"
                     variant="outline"
                     onClick={handleBack}
-                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-[#1C1B1F] shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
+                    className="flex-1 h-12 text-[15px] font-semibold rounded-xl border-border text-foreground shadow-sm hover:bg-background transition-all hover:-translate-y-0.5"
                   >
                     <ArrowLeft size={18} className="mr-2" /> Back
                   </Button>
@@ -779,8 +779,8 @@ export default function Signup() {
               <div className="mx-auto w-28 h-28 bg-[#E6F7ED] rounded-full flex items-center justify-center mb-8 relative">
                 <Check size={56} strokeWidth={3} className="text-[#2ED573]" />
               </div>
-              <h2 className="text-[28px] font-bold text-[#1C1B1F] mb-3 tracking-tight">Account Created<br/>Successfully!</h2>
-              <p className="text-[#7A7870] text-[15px] mb-10 max-w-[280px] mx-auto leading-relaxed">
+              <h2 className="text-[28px] font-bold text-foreground mb-3 tracking-tight">Account Created<br/>Successfully!</h2>
+              <p className="text-muted-foreground text-[15px] mb-10 max-w-[280px] mx-auto leading-relaxed">
                 Your account has been created successfully. You can now sign in to your account.
               </p>
               

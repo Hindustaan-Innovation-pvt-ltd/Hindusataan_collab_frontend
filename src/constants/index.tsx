@@ -9,7 +9,7 @@ import type { El, ShapeKind, Tool } from "../types";
 
 export const STICKY_COLORS = ["#FFE566", "#FF9EAF", "#7BC8F6", "#B5EAD7", "#FFBF69", "#D4A1FF"];
 export const SHAPE_COLORS = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#F7C59F", "#C9B1FF"];
-export const PEN_COLORS = ["#1C1B1F", "#000000", "#FFFFFF", "#FF4757", "#2ED573", "#1E90FF", "#FFE566", "#FF6B9D"];
+export const PEN_COLORS = ["var(--color-foreground)", "#000000", "#FFFFFF", "#FF4757", "#2ED573", "#1E90FF", "#FFE566", "#FF6B9D"];
 
 // ── Tools ──────────────────────────────────────────────────────────────────────
 

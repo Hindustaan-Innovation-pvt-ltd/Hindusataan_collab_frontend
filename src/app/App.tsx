@@ -507,7 +507,7 @@ export default function App() {
         if (upTarget) {
           const toId = upTarget.getAttribute("data-el-id")!;
           if (toId !== id) {
-            setEls(p => [...p, { id: uid(), type: "connection", from: id, to: toId, color: "#1C1B1F", x: 0, y: 0 }]);
+            setEls(p => [...p, { id: uid(), type: "connection", from: id, to: toId, color: "var(--color-foreground)", x: 0, y: 0 }]);
           }
         } else {
           const newId = uid();
@@ -516,7 +516,7 @@ export default function App() {
             id: newId, type: "free_arrow",
             x: startPt.x, y: startPt.y,
             dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-            color: "#1C1B1F"
+            color: "var(--color-foreground)"
           }]);
           setSelIds([newId]);
         }
@@ -703,7 +703,7 @@ export default function App() {
               id: newId, type: "free_arrow",
               x: startPt.x, y: startPt.y,
               dx: endPt.x - startPt.x, dy: endPt.y - startPt.y,
-              color: "#1C1B1F"
+              color: "var(--color-foreground)"
             }]);
             setSelIds([newId]);
           }
@@ -847,7 +847,7 @@ export default function App() {
                 type: "connection",
                 from: sourceId,
                 to: targetId,
-                color: "#1C1B1F",
+                color: "var(--color-foreground)",
                 x: 0, y: 0
               });
             }
@@ -964,7 +964,7 @@ export default function App() {
           } as ShapeEl);
           newEls.push({
             id: uid(), type: "connection", from: rootId, to: childId,
-            color: "#1C1B1F", x: 0, y: 0
+            color: "var(--color-foreground)", x: 0, y: 0
           });
         });
       }
@@ -1011,7 +1011,7 @@ export default function App() {
       if (upTarget) {
         const toId = upTarget.getAttribute("data-el-id")!;
         if (toId !== id) {
-          setEls(p => [...p, { id: uid(), type: "connection", from: id, to: toId, color: "#1C1B1F", x: 0, y: 0 }]);
+          setEls(p => [...p, { id: uid(), type: "connection", from: id, to: toId, color: "var(--color-foreground)", x: 0, y: 0 }]);
         }
       } else {
         const newId = uid();
@@ -1021,7 +1021,7 @@ export default function App() {
           x: pt.x - 80, y: pt.y - 60, w: 160, h: 120,
           color: shapeColorRef.current || "#FF6B6B"
         };
-        setEls(p => [...p, newShape, { id: uid(), type: "connection", from: id, to: newId, color: "#1C1B1F", x: 0, y: 0 }]);
+        setEls(p => [...p, newShape, { id: uid(), type: "connection", from: id, to: newId, color: "var(--color-foreground)", x: 0, y: 0 }]);
         setSelIds([newId]);
       }
       arrowRef.current = null;
@@ -1061,7 +1061,7 @@ export default function App() {
       x: centerWorld.x - size / 2,
       y: centerWorld.y - size / 2,
       size,
-      color: "#1C1B1F",
+      color: "var(--color-foreground)",
     }]);
     setSelIds([id]);
   }, []);
@@ -1336,7 +1336,7 @@ export default function App() {
                 <svg key={c.id} className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
                   <defs>
                     <marker id={`arrowhead-${c.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                      <polygon points="0 0, 10 3.5, 0 7" fill="#1C1B1F" />
+                      <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
                     </marker>
                   </defs>
                   <g data-el-id={c.id}>
@@ -1414,7 +1414,7 @@ export default function App() {
             <svg className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none", zIndex: 9999 }}>
               <defs>
                 <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                  <polygon points="0 0, 10 3.5, 0 7" fill="#1C1B1F" />
+                  <polygon points="0 0, 10 3.5, 0 7" fill="currentColor" />
                 </marker>
               </defs>
               {livePts.length > 1 && (() => {
@@ -1427,7 +1427,7 @@ export default function App() {
                 );
               })()}
               {liveArrow && (
-                <line x1={liveArrow.start.x} y1={liveArrow.start.y} x2={liveArrow.end.x} y2={liveArrow.end.y} stroke="#1C1B1F" strokeWidth="3" markerEnd="url(#arrowhead)" opacity={0.5} />
+                <line x1={liveArrow.start.x} y1={liveArrow.start.y} x2={liveArrow.end.x} y2={liveArrow.end.y} stroke="currentColor" strokeWidth="3" markerEnd="url(#arrowhead)" opacity={0.5} />
               )}
             </svg>
           )}

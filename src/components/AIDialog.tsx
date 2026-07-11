@@ -382,7 +382,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
       >
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06] shrink-0"
+          className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0"
           style={{ background: "linear-gradient(135deg, #3742FA 0%, #7B61FF 100%)" }}
         >
           <div className="flex items-center gap-2.5">
@@ -453,7 +453,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
         )}
 
         {/* Input */}
-        <div className="px-4 pb-4 pt-2 shrink-0 border-t border-black/[0.06]">
+        <div className="px-4 pb-4 pt-2 shrink-0 border-t border-border">
           <div className="flex items-end gap-2 bg-muted rounded-xl px-3 py-2">
             <input type="file" ref={fileInputRef} hidden accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.pptx,.md" onChange={handleFileUpload} />
             <button

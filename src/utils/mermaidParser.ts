@@ -76,7 +76,7 @@ export function parseMermaidToElements(mermaid: string, startX: number, startY: 
             type: "connection",
             from: nodes.get(fromKey)!.id,
             to: nodes.get(toKey)!.id,
-            color: "#1C1B1F",
+            color: "var(--color-foreground)",
             label,
             x: 0, y: 0
           });

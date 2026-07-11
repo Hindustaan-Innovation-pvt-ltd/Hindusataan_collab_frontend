@@ -30,7 +30,7 @@ export default function OauthCallback() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-[#F0EEE8] relative">
+    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background relative">
       <div
         className="absolute inset-0 pointer-events-none opacity-50"
         style={{
@@ -38,10 +38,10 @@ export default function OauthCallback() {
           backgroundSize: "24px 24px",
         }}
       />
-      <div className="z-10 flex flex-col items-center gap-4 bg-card p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-black/[0.04]">
+      <div className="z-10 flex flex-col items-center gap-4 bg-card p-8 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-border">
         <Loader2 className="animate-spin text-[#3742FA]" size={36} />
-        <h2 className="text-xl font-bold text-[#1C1B1F]">Completing login...</h2>
-        <p className="text-sm text-[#7A7870]">Please wait while we finalize your account.</p>
+        <h2 className="text-xl font-bold text-foreground">Completing login...</h2>
+        <p className="text-sm text-muted-foreground">Please wait while we finalize your account.</p>
       </div>
     </div>
   );

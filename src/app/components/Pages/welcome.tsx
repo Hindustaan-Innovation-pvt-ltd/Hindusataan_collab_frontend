@@ -5,13 +5,13 @@ import { Button } from "../ui/button";
 export default function Welcome() {
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center bg-[#F0EEE8]"
+      className="min-h-screen w-full flex items-center justify-center bg-background"
       style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
     >
       <div
-        className="absolute inset-0 pointer-events-none"
+        className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20"
         style={{
-          backgroundImage: "radial-gradient(circle, #C0BEB6 1.3px, transparent 1.3px)",
+          backgroundImage: "radial-gradient(circle, var(--color-muted-foreground) 1.3px, transparent 1.3px)",
           backgroundSize: "24px 24px",
         }}
       />
@@ -25,10 +25,10 @@ export default function Welcome() {
           Hindustaan Collab
         </div>
         
-        <h1 className="text-3xl font-bold text-[#1C1B1F] leading-tight mb-3">
+        <h1 className="text-3xl font-bold text-foreground leading-tight mb-3">
           Welcome to Hindustaan Collab
         </h1>
-        <p className="text-[#7A7870] text-sm mb-10 px-4">
+        <p className="text-muted-foreground text-sm mb-10 px-4">
           Where teams think, plan & create together. Choose how you want to proceed.
         </p>
         
@@ -48,7 +48,7 @@ export default function Welcome() {
             <Button
               type="button"
               variant="outline"
-              className="w-full h-14 text-lg font-bold rounded-2xl flex items-center justify-center gap-2 border-2 border-black/[0.08] hover:bg-black/[0.02] hover:border-black/[0.15] text-[#1C1B1F] transition-all hover:-translate-y-0.5"
+              className="w-full h-14 text-lg font-bold rounded-2xl flex items-center justify-center gap-2 border-2 border-border hover:bg-muted text-foreground transition-all hover:-translate-y-0.5"
             >
               <LogIn size={20} />
               Sign In

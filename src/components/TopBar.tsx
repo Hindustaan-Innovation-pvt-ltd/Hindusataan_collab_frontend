@@ -291,7 +291,7 @@ export const TopBar = React.memo(function TopBar({
         <div className="flex flex-col gap-2 relative" ref={boardSelectorRef}>
         <div 
           onClick={() => setBoardSelectorOpen(!boardSelectorOpen)}
-          className="flex items-center justify-between gap-2 bg-card rounded-xl px-3 h-10 shadow-lg border border-black/[0.06] hover:bg-background cursor-pointer min-w-[200px] transition-colors"
+          className="flex items-center justify-between gap-2 bg-card rounded-xl px-3 h-10 shadow-lg border border-border hover:bg-background cursor-pointer min-w-[200px] transition-colors"
         >
           <div className="flex flex-col">
             <span className="text-sm font-bold text-foreground truncate max-w-[150px]">
@@ -302,7 +302,7 @@ export const TopBar = React.memo(function TopBar({
         </div>
         
         {/* Save indicator pill */}
-        <div className="absolute top-11 left-0 flex items-center bg-card/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-black/[0.06] opacity-80 pointer-events-none">
+        <div className="absolute top-11 left-0 flex items-center bg-card/90 backdrop-blur-sm rounded-lg px-2 py-1 shadow-sm border border-border opacity-80 pointer-events-none">
           <span className="text-[10px] font-medium text-muted-foreground">
             {saveState === "saving" && "Saving..."}
             {saveState === "saved" && "Saved to cloud"}
@@ -413,7 +413,7 @@ export const TopBar = React.memo(function TopBar({
       <div ref={searchContainerRef} className="relative">
         <button
           onClick={() => setIsSearchOpen(!isSearchOpen)}
-          className={`flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg border border-black/[0.06] transition-colors ${isSearchOpen ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
+          className={`flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg border border-border transition-colors ${isSearchOpen ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
           title="Search Boards"
         >
           <Search size={16} className="text-gray-600" />
@@ -459,7 +459,7 @@ export const TopBar = React.memo(function TopBar({
 
     {/* RIGHT: Top Bar tools */}
       <div className="flex items-center gap-2 pointer-events-auto">
-        <div className="flex items-center gap-1 bg-card rounded-2xl px-2 py-1.5 shadow-lg border border-black/[0.06]">
+        <div className="flex items-center gap-1 bg-card rounded-2xl px-2 py-1.5 shadow-lg border border-border">
           {/* Avatar / User Menu */}
           <div className="relative" ref={userMenuRef}>
             <button

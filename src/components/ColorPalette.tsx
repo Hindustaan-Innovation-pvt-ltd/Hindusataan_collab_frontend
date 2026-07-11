@@ -6,7 +6,7 @@ interface ColorPaletteProps {
 
 function ColorPalette({ colors, active, onPick }: ColorPaletteProps) {
   return (
-    <div className="flex items-center gap-2.5 bg-card rounded-full px-3 py-2 shadow-lg border border-black/[0.06]">
+    <div className="flex items-center gap-2.5 bg-card rounded-full px-3 py-2 shadow-lg border border-border">
       {colors.map(c => (
         <button
           key={c}

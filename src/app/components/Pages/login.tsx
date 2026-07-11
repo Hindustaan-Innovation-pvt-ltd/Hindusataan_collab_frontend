@@ -356,10 +356,10 @@ export default function Login() {
             <Sparkles size={16} />
             Hindustaan Collab
           </div>
-          <h1 className="text-4xl font-bold text-[#1C1B1F] leading-tight mb-4">
+          <h1 className="text-4xl font-bold text-foreground leading-tight mb-4">
             Pick up right where you left off
           </h1>
-          <p className="text-[#7A7870] text-base leading-relaxed mb-10">
+          <p className="text-muted-foreground text-base leading-relaxed mb-10">
             Your boards, stickies, and sketches are waiting. Sign in to jump back in.
           </p>
 
@@ -384,8 +384,8 @@ export default function Login() {
           </Link>
 
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-[#1C1B1F] mb-2">Welcome back</h2>
-            <p className="text-[#7A7870] text-sm">
+            <h2 className="text-2xl font-bold text-foreground mb-2">Welcome back</h2>
+            <p className="text-muted-foreground text-sm">
               Sign in to access your boards and keep collaborating.
             </p>
           </div>
@@ -397,7 +397,7 @@ export default function Login() {
                 type="button"
                 disabled={loading}
                 onClick={() => resetState("email-otp")}
-                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-[#1C1B1F] border border-black/[0.08] hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
+                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-foreground border border-border hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#F4F5FF] group-hover:bg-[#3742FA] group-hover:text-white flex items-center justify-center text-[#3742FA] transition-colors duration-300">
                   <Mail size={18} strokeWidth={2.5} />
@@ -408,7 +408,7 @@ export default function Login() {
                 type="button"
                 disabled={loading}
                 onClick={() => resetState("phone-otp")}
-                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-[#1C1B1F] border border-black/[0.08] hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
+                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-foreground border border-border hover:border-[#3742FA]/40 hover:shadow-[0_8px_24px_rgba(55,66,250,0.08)] hover:-translate-y-[2px] transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#F4F5FF] group-hover:bg-[#3742FA] group-hover:text-white flex items-center justify-center text-[#3742FA] transition-colors duration-300">
                   <Phone size={18} strokeWidth={2.5} />
@@ -419,7 +419,7 @@ export default function Login() {
                 type="button"
                 disabled={loading}
                 onClick={handleGithubLogin}
-                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-[#1C1B1F] border border-black/[0.08] hover:border-[#24292e]/40 hover:shadow-[0_8px_24px_rgba(36,41,46,0.08)] hover:-translate-y-[2px] transition-all duration-300"
+                className="group w-full h-[60px] text-[15px] font-semibold rounded-2xl flex items-center justify-start px-4 gap-4 bg-card text-foreground border border-border hover:border-[#24292e]/40 hover:shadow-[0_8px_24px_rgba(36,41,46,0.08)] hover:-translate-y-[2px] transition-all duration-300"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#F6F8FA] group-hover:bg-[#24292e] group-hover:text-white flex items-center justify-center text-[#24292e] transition-colors duration-300">
                   <Github size={18} strokeWidth={2.5} />
@@ -428,9 +428,9 @@ export default function Login() {
               </Button>
               
               <div className="relative flex py-2 items-center my-4">
-                <div className="flex-grow border-t border-black/[0.06]"></div>
-                <span className="flex-shrink mx-4 text-[#7A7870] text-xs font-semibold uppercase tracking-wider">or</span>
-                <div className="flex-grow border-t border-black/[0.06]"></div>
+                <div className="flex-grow border-t border-border"></div>
+                <span className="flex-shrink mx-4 text-muted-foreground text-xs font-semibold uppercase tracking-wider">or</span>
+                <div className="flex-grow border-t border-border"></div>
               </div>
 
               <Button
@@ -461,7 +461,7 @@ export default function Login() {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
-                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                    <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -478,7 +478,7 @@ export default function Login() {
                 <div className="space-y-2">
                   <Label htmlFor="otp">Enter 6-digit OTP</Label>
                   <div className="relative">
-                    <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                    <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="otp"
                       type="text"
@@ -536,7 +536,7 @@ export default function Login() {
                       <select
                         value={countryCode}
                         onChange={(e) => setCountryCode(e.target.value)}
-                        className="w-full h-11 rounded-xl border border-black/[0.08] bg-card px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
+                        className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
                       >
                         <option value="+91">+91 (IN)</option>
                         <option value="+1">+1 (US)</option>
@@ -545,12 +545,12 @@ export default function Login() {
                         <option value="+61">+61 (AU)</option>
                         <option value="+81">+81 (JP)</option>
                       </select>
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#7A7870] text-[10px]">
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-[10px]">
                         ▼
                       </div>
                     </div>
                     <div className="relative flex-grow">
-                      <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                      <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="phone"
                         type="tel"
@@ -568,7 +568,7 @@ export default function Login() {
                 <div className="space-y-2">
                   <Label htmlFor="otp">Enter 6-digit OTP</Label>
                   <div className="relative">
-                    <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                    <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="otp"
                       type="text"
@@ -621,7 +621,7 @@ export default function Login() {
               <div className="space-y-2">
                 <Label htmlFor="emailOrPhone">Email</Label>
                 <div className="relative">
-                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                  <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="emailOrPhone"
                     type="email"
@@ -647,7 +647,7 @@ export default function Login() {
                   </button>
                 </div>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                  <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     id="password"
                     type="password"
@@ -667,7 +667,7 @@ export default function Login() {
                   checked={remember}
                   onCheckedChange={(v) => setRemember(v === true)}
                 />
-                <label htmlFor="remember" className="text-sm text-[#7A7870] cursor-pointer">
+                <label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
                   Remember me
                 </label>
               </div>
@@ -702,8 +702,8 @@ export default function Login() {
               </button>
 
               <div className="mb-4">
-                <h3 className="text-xl font-bold text-[#1C1B1F] mb-1">Reset Password</h3>
-                <p className="text-[#7A7870] text-sm">
+                <h3 className="text-xl font-bold text-foreground mb-1">Reset Password</h3>
+                <p className="text-muted-foreground text-sm">
                   {resetOtpSent ? "Enter the OTP code and your new password." : "Verify your identity to reset password."}
                 </p>
               </div>
@@ -715,14 +715,14 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => { setResetType("email"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "email" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                       Email
                     </button>
                     <button
                       type="button"
                       onClick={() => { setResetType("phone"); setError(""); }}
-                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-card text-[#1C1B1F] shadow-sm" : "text-[#7A7870] hover:text-[#1C1B1F]"}`}
+                      className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${resetType === "phone" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                     >
                       Phone Number
                     </button>
@@ -732,7 +732,7 @@ export default function Login() {
                     <div className="space-y-2">
                       <Label htmlFor="resetEmail">Email Address</Label>
                       <div className="relative">
-                        <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                        <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <Input
                           id="resetEmail"
                           type="email"
@@ -752,7 +752,7 @@ export default function Login() {
                           <select
                             value={resetCountryCode}
                             onChange={(e) => setResetCountryCode(e.target.value)}
-                            className="w-full h-11 rounded-xl border border-black/[0.08] bg-card px-3 text-sm font-medium text-[#1C1B1F] focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
+                            className="w-full h-11 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-[#3742FA] appearance-none cursor-pointer"
                           >
                             <option value="+91">+91 (IN)</option>
                             <option value="+1">+1 (US)</option>
@@ -761,12 +761,12 @@ export default function Login() {
                             <option value="+61">+61 (AU)</option>
                             <option value="+81">+81 (JP)</option>
                           </select>
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#7A7870] text-[10px]">
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-[10px]">
                             ▼
                           </div>
                         </div>
                         <div className="relative flex-grow">
-                          <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                          <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                           <Input
                             id="resetPhone"
                             type="tel"
@@ -808,7 +808,7 @@ export default function Login() {
                   <div className="space-y-2">
                     <Label htmlFor="resetOtp">6-Digit OTP</Label>
                     <div className="relative">
-                      <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                      <CheckCircle2 size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="resetOtp"
                         type="text"
@@ -825,7 +825,7 @@ export default function Login() {
                   <div className="space-y-2">
                     <Label htmlFor="newPassword">New Password</Label>
                     <div className="relative">
-                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                      <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="newPassword"
                         type="password"
@@ -841,7 +841,7 @@ export default function Login() {
                   <div className="space-y-2">
                     <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
                     <div className="relative">
-                      <ShieldCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7A7870]" />
+                      <ShieldCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         id="confirmNewPassword"
                         type="password"
@@ -890,7 +890,7 @@ export default function Login() {
             </div>
           )}
 
-          <p className="text-center text-sm text-[#7A7870] mt-8">
+          <p className="text-center text-sm text-muted-foreground mt-8">
             Don&apos;t have an account?{" "}
             <Link to="/signup" className="text-[#3742FA] font-semibold hover:underline">
               Create one
