@@ -85,7 +85,9 @@ function TextNode({ el, selected, editing, onBlur, onDblClick }: TextNodeProps) 
   return (
     <div
       data-el-id={el.id}
-      onPointerDown={(e) => e.stopPropagation()}   // ⬅️ key fix: stop stage from intercepting
+      onPointerDown={(e) => {
+        if (editing) e.stopPropagation();
+      }}
       onDoubleClick={(e) => {
         e.stopPropagation();
         e.preventDefault();                        // ⬅️ stop native word-select on dblclick
