@@ -105,11 +105,11 @@ function Toolbar({
 
   if (layout === "horizontal") {
     containerClass = "absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center pointer-events-none z-50";
-    itemGroupClass = "flex items-center gap-1.5 bg-card/95 backdrop-blur-md rounded-full px-3 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto";
+    itemGroupClass = "flex items-center gap-1 bg-card/95 backdrop-blur-md rounded-full p-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto";
     dividerClass = "w-px h-5 bg-border mx-1";
   } else if (layout === "vertical") {
     containerClass = "absolute left-4 top-20 flex items-center pointer-events-none z-50";
-    itemGroupClass = "flex flex-col items-center gap-1.5 bg-card/95 backdrop-blur-md rounded-full px-2 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto";
+    itemGroupClass = "flex flex-col items-center gap-1 bg-card/95 backdrop-blur-md rounded-full p-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-border/80 pointer-events-auto";
     dividerClass = "w-5 h-px bg-border my-1";
   }
 
@@ -146,7 +146,7 @@ function Toolbar({
                 setQuickInsertOpen(false);
               }}
               className={`
-                w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer
+                w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer
                 ${tool === id
                   ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
                   : "text-[#4B5563] hover:bg-muted hover:text-foreground"}
@@ -165,7 +165,7 @@ function Toolbar({
               setQuickInsertOpen((prev) => !prev);
               setToolMenuOpen(false);
             }}
-            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${quickInsertOpen
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${quickInsertOpen
               ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
               : "text-[#4B5563] hover:bg-muted hover:text-foreground"
               }`}
@@ -193,7 +193,7 @@ function Toolbar({
               setToolMenuOpen(false);
               setQuickInsertOpen(false);
             }}
-            className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 text-[#4B5563] hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer`}
+            className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 text-[#4B5563] hover:bg-muted hover:text-foreground disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer`}
           >
             {isUploadingImage ? <Loader2 size={18} className="animate-spin text-[#3742FA]" /> : <ImageIcon size={18} />}
           </button>
@@ -205,7 +205,7 @@ function Toolbar({
               <button
                 onClick={onDelete}
                 title="Delete selected (Del)"
-                className="w-9 h-9 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
               >
                 <Trash2 size={18} />
               </button>
@@ -221,7 +221,7 @@ function Toolbar({
             <Minus size={16} />
           </button>
           <div
-            className={`text-xs font-semibold text-[#4B5563] text-center cursor-pointer hover:text-foreground flex items-center justify-center ${layout === "horizontal" ? "px-1.5 min-w-[44px]" : "py-1.5 min-h-[44px] w-9"
+            className={`text-xs font-semibold text-[#4B5563] text-center cursor-pointer hover:text-foreground flex items-center justify-center ${layout === "horizontal" ? "px-1 min-w-[40px]" : "py-1 min-h-[40px] w-8"
               }`}
             title="Reset zoom"
             onClick={() => {/* handled outside */ }}
