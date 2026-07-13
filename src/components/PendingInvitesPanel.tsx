@@ -4,10 +4,22 @@ import { collaborationService } from "../services/collaborationService";
 import type { Invite } from "../types";
 import { toast } from "sonner";
 
-export function PendingInvitesPanel() {
+interface PendingInvitesPanelProps {
+  open?: boolean;
+  setOpen?: (open: boolean) => void;
+}
+
+export function PendingInvitesPanel({ open: controlledOpen, setOpen: controlledSetOpen }: PendingInvitesPanelProps) {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
+
+  const open = controlledOpen !== undefined ? controlledOpen : localOpen;
+  const setOpen = controlledSetOpen !== undefined ? controlledSetOpen : setLocalOpen;
+
+  useEffect(() => {
+    loadInvites();
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -73,7 +85,7 @@ export function PendingInvitesPanel() {
               {invites.map(inv => (
                 <div key={inv.id} className="p-2 bg-background rounded-lg border border-border flex flex-col gap-2">
                   <div className="text-xs text-foreground">
-                    <span className="font-semibold text-foreground">Someone</span> invited you to a board.
+                    <span className="font-semibold text-foreground">{inv.inviter_name || "Someone"}</span> invited you to <span className="font-semibold text-foreground">{inv.board_name || "a board"}</span>.
                   </div>
                   <div className="text-[10px] text-muted-foreground bg-card px-2 py-1 rounded border border-border inline-block">
                     Role: <span className="font-bold uppercase text-foreground">{inv.role}</span>
