@@ -1,5 +1,6 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
+import { Icon as IconifyIcon } from "@iconify/react";
 import type { IconEl } from "../types";
 
 interface IconNodeProps {
@@ -34,8 +35,10 @@ function IconNode({ el, selected, zoom, onResize }: IconNodeProps) {
 
   const isAnEmoji = isEmoji(iconName);
   const fluentEmojiUrl = isAnEmoji ? getFluentEmojiUrl(iconName) : null;
+  const isIconify = iconName.startsWith("iconify:");
+  const iconifyName = isIconify ? iconName.replace("iconify:", "") : null;
 
-  const IconComponent = !isAnEmoji
+  const IconComponent = !isAnEmoji && !isIconify
     ? (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName]
     : null;
 
@@ -95,7 +98,7 @@ function IconNode({ el, selected, zoom, onResize }: IconNodeProps) {
   };
 
   // Fallback state agar kuch na mile
-  if (!IconComponent && !isAnEmoji) {
+  if (!IconComponent && !isAnEmoji && !isIconify) {
     return (
       <div
         data-el-id={el.id}
@@ -147,6 +150,10 @@ function IconNode({ el, selected, zoom, onResize }: IconNodeProps) {
             }
           }}
         />
+      ) : isIconify && iconifyName ? (
+        <div style={{ color, display: 'flex', width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+          <IconifyIcon icon={iconifyName} width={size} height={size} />
+        </div>
       ) : (
         IconComponent && <IconComponent size={size} color={color} />
       )}
