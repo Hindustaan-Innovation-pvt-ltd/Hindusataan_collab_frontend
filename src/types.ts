@@ -111,6 +111,8 @@ export interface TextEl extends BaseEl {
   fontSize: number;
   color: string;
   fontFamily?: string;
+  w?: number;
+  h?: number;
 }
 
 export interface ShapeEl extends BaseEl {

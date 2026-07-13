@@ -737,6 +737,13 @@ export default function App() {
       const found = elsRef.current.find(el => el.id === id);
 
       if (found && !found.locked) {
+        if (e.detail === 2) {
+          if (found.type === "sticky" || found.type === "text" || found.type === "shape") {
+            setEditId(id);
+            setSelIds([id]);
+            return;
+          }
+        }
         let newSel = selIdsRef.current;
         const wasAlreadySelected = newSel.includes(id) && newSel.length === 1;
         clickEditRef.current = wasAlreadySelected && found.type === "sticky" ? id : null;
@@ -756,8 +763,6 @@ export default function App() {
           startW: w,
           originalEls: newSel.map(sid => elsRef.current.find(x => x.id === sid)).filter(Boolean) as El[]
         };
-
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       }
       return;
     }
@@ -793,7 +798,6 @@ export default function App() {
           startW,
           originalEls: selIdsRef.current.map(sid => elsRef.current.find(x => x.id === sid)).filter(Boolean) as El[]
         };
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         return;
       }
       
@@ -1029,6 +1033,9 @@ export default function App() {
     }
 
     if (dragRef.current) {
+      if (!hasDraggedRef.current) {
+        try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (err) {}
+      }
       hasDraggedRef.current = true;
       const { startW, originalEls } = dragRef.current;
       const dx = w.x - startW.x;
@@ -1652,8 +1659,9 @@ export default function App() {
                   <TextNode
                     key={el.id} el={el}
                     selected={selected} editing={editing}
+                    zoom={cam.z}
                     onBlur={onBlur} onDblClick={onElDblClick}
-                    onResize={(id, fontSize) => onUpdateEl(id, { fontSize })}
+                    onResize={onUpdateEl}
                   />
                 );
               case "shape":
