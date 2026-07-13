@@ -43,8 +43,29 @@ export const TopBar = React.memo(function TopBar({
   const [userEmail, setUserEmail] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const bgMenuRef = useRef<HTMLDivElement>(null);
+  const musicPlayerRef = useRef<HTMLDivElement>(null);
+  const calPopoverRef = useRef<HTMLDivElement>(null);
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
 
   const navigate = useNavigate();
+
+  const closeAllMenusExcept = (menuName: string) => {
+    if (menuName !== "boardSelector") setBoardSelectorOpen(false);
+    if (menuName !== "search") setIsSearchOpen(false);
+    if (menuName !== "userMenu") setUserMenuOpen(false);
+    if (menuName !== "bgMenu") setBgMenuOpen(false);
+    if (menuName !== "music") setMusicOpen(false);
+    if (menuName !== "calendar") setCalOpen(false);
+    if (menuName !== "onlinePanel") setIsOnlinePanelOpen(false);
+    if (menuName !== "notification") setNotificationOpen(false);
+  };
+
+  const handleToggleNotification = (o: boolean) => {
+    if (o) closeAllMenusExcept("notification");
+    setNotificationOpen(o);
+  };
 
   useEffect(() => {
     try {
@@ -151,11 +172,24 @@ export const TopBar = React.memo(function TopBar({
       if (onlinePanelRef.current && !onlinePanelRef.current.contains(event.target as Node)) {
         setIsOnlinePanelOpen(false);
       }
+      if (bgMenuRef.current && !bgMenuRef.current.contains(event.target as Node)) {
+        setBgMenuOpen(false);
+      }
+      if (musicPlayerRef.current && !musicPlayerRef.current.contains(event.target as Node)) {
+        setMusicOpen(false);
+      }
+      if (calPopoverRef.current && !calPopoverRef.current.contains(event.target as Node)) {
+        setCalOpen(false);
+      }
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setNotificationOpen(false);
+      }
     };
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setUserMenuOpen(false);
+        setNotificationOpen(false);
       }
     };
 
@@ -292,7 +326,11 @@ export const TopBar = React.memo(function TopBar({
       <div className="flex items-start gap-2 pointer-events-auto">
         <div className="flex flex-col gap-2 relative" ref={boardSelectorRef}>
           <div
-            onClick={() => setBoardSelectorOpen(!boardSelectorOpen)}
+            onClick={() => {
+              const next = !boardSelectorOpen;
+              if (next) closeAllMenusExcept("boardSelector");
+              setBoardSelectorOpen(next);
+            }}
             className="flex items-center justify-between gap-2 bg-card rounded-xl px-3 h-10 shadow-lg border border-border hover:bg-background cursor-pointer min-w-[200px] transition-colors"
           >
             <div className="flex flex-col">
@@ -414,7 +452,11 @@ export const TopBar = React.memo(function TopBar({
         {/* Board Search */}
         <div ref={searchContainerRef} className="relative">
           <button
-            onClick={() => setIsSearchOpen(!isSearchOpen)}
+            onClick={() => {
+              const next = !isSearchOpen;
+              if (next) closeAllMenusExcept("search");
+              setIsSearchOpen(next);
+            }}
             className={`flex items-center justify-center w-10 h-10 bg-white rounded-xl shadow-lg border border-border transition-colors ${isSearchOpen ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
             title="Search Boards"
           >
@@ -465,7 +507,11 @@ export const TopBar = React.memo(function TopBar({
           {/* Avatar / User Menu */}
           <div className="relative" ref={userMenuRef}>
             <button
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
+              onClick={() => {
+                const next = !userMenuOpen;
+                if (next) closeAllMenusExcept("userMenu");
+                setUserMenuOpen(next);
+              }}
               className="flex items-center gap-1 pl-1 pr-2 h-8 rounded-xl hover:bg-muted transition-colors focus:outline-none"
               aria-label="User profile menu"
               aria-expanded={userMenuOpen}
@@ -535,10 +581,14 @@ export const TopBar = React.memo(function TopBar({
           <div className="w-px h-5 bg-gray-200" />
 
           {/* Theme & Background Popup */}
-          <div className="relative">
+          <div className="relative" ref={bgMenuRef}>
             <button
               disabled={role === "viewer"}
-              onClick={() => setBgMenuOpen(o => !o)}
+              onClick={() => {
+                const next = !bgMenuOpen;
+                if (next) closeAllMenusExcept("bgMenu");
+                setBgMenuOpen(next);
+              }}
               title="Theme & Background"
               className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all disabled:opacity-50 ${bgMenuOpen ? "bg-[#f2efff] text-[#7B61FF]" : "text-[#7B61FF] hover:bg-[#f2efff] hover:scale-105"}`}
             >
@@ -606,9 +656,13 @@ export const TopBar = React.memo(function TopBar({
           <div className="w-px h-5 bg-gray-200" />
 
           {/* Music */}
-          <div className="relative">
+          <div className="relative" ref={musicPlayerRef}>
             <button
-              onClick={() => setMusicOpen(o => !o)}
+              onClick={() => {
+                const next = !musicOpen;
+                if (next) closeAllMenusExcept("music");
+                setMusicOpen(next);
+              }}
               title="Music Player"
               className={`w-8 h-8 flex items-center justify-center rounded-xl transition-colors ${musicOpen || isPlaying ? "bg-indigo-50 text-indigo-500" : "text-muted-foreground hover:bg-indigo-50 hover:text-indigo-500"}`}
             >
@@ -684,10 +738,12 @@ export const TopBar = React.memo(function TopBar({
           <div className="w-px h-5 bg-gray-200" />
 
           {/* Calendar */}
-          <div className="relative">
+          <div className="relative" ref={calPopoverRef}>
             <button
               onClick={() => {
-                setCalOpen(o => !o);
+                const next = !calOpen;
+                if (next) closeAllMenusExcept("calendar");
+                setCalOpen(next);
                 setCalDate(new Date());
               }}
               title="Calendar"
@@ -747,7 +803,11 @@ export const TopBar = React.memo(function TopBar({
         {onlineUsers.length > 0 && (
           <div className="relative" ref={onlinePanelRef}>
             <button
-              onClick={() => setIsOnlinePanelOpen(!isOnlinePanelOpen)}
+              onClick={() => {
+                const next = !isOnlinePanelOpen;
+                if (next) closeAllMenusExcept("onlinePanel");
+                setIsOnlinePanelOpen(next);
+              }}
               className={`flex items-center ml-2 px-1 py-0.5 rounded-full transition-colors ${isOnlinePanelOpen ? "bg-gray-100" : "hover:bg-gray-50"
                 }`}
               title={`${onlineUsers.length} online`}
@@ -814,7 +874,9 @@ export const TopBar = React.memo(function TopBar({
         )}
 
         {/* Notifications */}
-        <PendingInvitesPanel />
+        <div ref={notificationRef}>
+          <PendingInvitesPanel open={notificationOpen} setOpen={handleToggleNotification} />
+        </div>
 
         {/* Share button */}
         <button
