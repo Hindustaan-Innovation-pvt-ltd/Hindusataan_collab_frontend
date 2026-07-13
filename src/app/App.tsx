@@ -188,7 +188,7 @@ export default function App() {
     try {
       setIsUploadingImage(true);
       const data = await uploadService.uploadImage(file);
-      
+
       // Determine image dimensions
       const img = new Image();
       img.onload = () => {
@@ -205,7 +205,7 @@ export default function App() {
             h = maxDim;
           }
         }
-        
+
         // Place in center of screen
         const vpW = window.innerWidth;
         const vpH = window.innerHeight;
@@ -697,7 +697,7 @@ export default function App() {
         window.removeEventListener("pointerup", onUp);
 
         const elsUnder = document.elementsFromPoint(ue.clientX, ue.clientY);
-          const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
+        const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
 
         if (upTarget) {
           const toId = upTarget.getAttribute("data-el-id")!;
@@ -766,7 +766,7 @@ export default function App() {
     if (toolRef.current === "select") {
       const rect = getRect();
       const startW = worldPt(e.clientX, e.clientY, rect, camRef.current);
-      
+
       let clickedInsideGroup = false;
       if (selIdsRef.current.length > 1 && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -796,13 +796,13 @@ export default function App() {
         (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
         return;
       }
-      
+
       if (!e.shiftKey && !e.ctrlKey && !e.metaKey) {
         setSelIds([]);
         selIdsRef.current = [];
         broadcastPresence(startW.x, startW.y, true);
       }
-      
+
       marqueeStartRef.current = startW;
       setMarquee({ start: startW, end: startW });
       return;
@@ -857,11 +857,11 @@ export default function App() {
       const initialColWidths: Record<number, number> = {};
       for (let r = 0; r < cfg.rows; r++) initialRowHeights[r] = 40;
       for (let c = 0; c < cfg.cols; c++) initialColWidths[c] = 120;
-      
+
       let cells: Record<string, import("../types").TableCell> = {};
       let headerRow = false;
       let altRowColors = false;
-      
+
       // Template generator logic
       if (cfg.template === "comparison") {
         headerRow = true;
@@ -887,12 +887,12 @@ export default function App() {
 
       setEls(p => [...p, {
         id, type: "table",
-        x: w.x - ((cfg.cols * 120) / 2), 
+        x: w.x - ((cfg.cols * 120) / 2),
         y: w.y - ((cfg.rows * 40) / 2),
         rows: cfg.rows, cols: cfg.cols,
         rowHeights: initialRowHeights,
         colWidths: initialColWidths,
-        cells, 
+        cells,
         color: tableColorRef.current,
         headerRow,
         altRowColors
@@ -1005,7 +1005,7 @@ export default function App() {
     if (marqueeStartRef.current) {
       const start = marqueeStartRef.current;
       setMarquee({ start, end: w });
-      
+
       const mx = Math.min(start.x, w.x);
       const my = Math.min(start.y, w.y);
       const mw = Math.abs(start.x - w.x);
@@ -1037,9 +1037,9 @@ export default function App() {
       setEls(p => p.map(el => {
         const orig = originalEls.find(x => x.id === el.id);
         if (!orig) return el;
-        
+
         if (orig.type === "path") {
-           return { ...orig, pts: orig.pts.map(pt => ({ x: pt.x + dx, y: pt.y + dy })) };
+          return { ...orig, pts: orig.pts.map(pt => ({ x: pt.x + dx, y: pt.y + dy })) };
         }
         if (orig.type === "free_arrow") {
           return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy, from: undefined, to: undefined };
@@ -1292,7 +1292,7 @@ export default function App() {
       const colWidths: Record<number, number> = {};
       for (let r = 0; r < data.rows; r++) rowHeights[r] = 40;
       for (let c = 0; c < data.cols; c++) colWidths[c] = 120;
-      
+
       const cells: Record<string, import("../types").TableCell> = {};
       if (data.data) {
         Object.entries(data.data as Record<string, string>).forEach(([key, text]) => {
@@ -1422,7 +1422,7 @@ export default function App() {
     const rect = wrapRef.current?.getBoundingClientRect();
     if (!rect) return;
     const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
-    
+
     const id = uid();
     const size = 60 * sizeScale;
     setEls(p => [...p, { id, type: "text", x: centerWorld.x - size / 2, y: centerWorld.y - size / 2, fontSize: size, color: "var(--color-foreground)", text: emoji }]);
@@ -1434,7 +1434,7 @@ export default function App() {
     const rect = wrapRef.current?.getBoundingClientRect();
     if (!rect) return;
     const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
-    
+
     const id = uid();
     const w = 100 * sizeScale;
     const h = 100 * sizeScale;
@@ -1447,7 +1447,7 @@ export default function App() {
     const rect = wrapRef.current?.getBoundingClientRect();
     if (!rect) return;
     const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
-    
+
     const id = uid();
     let w = 300 * sizeScale, h = 600 * sizeScale;
     if (kind === "browser" || kind === "desktop" || kind === "laptop") {

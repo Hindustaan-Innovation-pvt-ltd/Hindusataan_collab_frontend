@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { 
+import {
   Trash2, Minus, Plus, Pencil, Brush, Highlighter, Smile, Image as ImageIcon, Loader2
 } from "lucide-react";
 
@@ -67,7 +67,7 @@ function Toolbar({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [quickInsertOpen, setQuickInsertOpen] = useState(false);
   const { layout } = useWorkspaceTheme();
-  
+
   const toolbarRef = React.useRef<HTMLDivElement>(null);
   const panelRef = React.useRef<HTMLDivElement>(null);
   const quickInsertPanelRef = React.useRef<HTMLDivElement>(null);
@@ -166,8 +166,8 @@ function Toolbar({
               setToolMenuOpen(false);
             }}
             className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${quickInsertOpen
-                ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
-                : "text-[#4B5563] hover:bg-muted hover:text-foreground"
+              ? "bg-[#3742FA] text-white shadow-md scale-[1.02]"
+              : "text-[#4B5563] hover:bg-muted hover:text-foreground"
               }`}
           >
             <Smile size={18} />
@@ -221,9 +221,8 @@ function Toolbar({
             <Minus size={16} />
           </button>
           <div
-            className={`text-xs font-semibold text-[#4B5563] text-center cursor-pointer hover:text-foreground flex items-center justify-center ${
-              layout === "horizontal" ? "px-1.5 min-w-[44px]" : "py-1.5 min-h-[44px] w-9"
-            }`}
+            className={`text-xs font-semibold text-[#4B5563] text-center cursor-pointer hover:text-foreground flex items-center justify-center ${layout === "horizontal" ? "px-1.5 min-w-[44px]" : "py-1.5 min-h-[44px] w-9"
+              }`}
             title="Reset zoom"
             onClick={() => {/* handled outside */ }}
           >
@@ -242,7 +241,7 @@ function Toolbar({
       {/* Unified Tool Options Panel docked to the side */}
       {showOptionsPanel && (
         <div ref={panelRef} className={`flex flex-col p-4 bg-card/95 backdrop-blur-md rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] border border-border/80 gap-3.5 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${panelPositionClass}`}>
-          
+
           {/* Pen Tool Settings */}
           {tool === "pen" && (
             <>
