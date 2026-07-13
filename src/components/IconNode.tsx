@@ -1,11 +1,13 @@
 import React from "react";
 import * as LucideIcons from "lucide-react";
+import { Icon as IconifyIcon } from "@iconify/react";
 import type { IconEl } from "../types";
 
 interface IconNodeProps {
   el: IconEl;
   selected: boolean;
-  onResize: (id: string, size: number) => void;
+  zoom: number;
+  onResize: (id: string, partial: Partial<IconEl>) => void;
 }
 
 const MIN_SIZE = 16;
@@ -28,18 +30,19 @@ const getFluentEmojiUrl = (emoji: string) => {
   return `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${codePoints}_flat.svg`;
 };
 
-function IconNode({ el, selected, onResize }: IconNodeProps) {
+function IconNode({ el, selected, zoom, onResize }: IconNodeProps) {
   const { x, y, size, color, iconName } = el;
 
   const isAnEmoji = isEmoji(iconName);
   const fluentEmojiUrl = isAnEmoji ? getFluentEmojiUrl(iconName) : null;
+  const isIconify = iconName.startsWith("iconify:");
+  const iconifyName = isIconify ? iconName.replace("iconify:", "") : null;
 
-  // Agar emoji nahi hai, toh Lucide Icons lookup karega
-  const IconComponent = !isAnEmoji
+  const IconComponent = !isAnEmoji && !isIconify
     ? (LucideIcons as unknown as Record<string, React.ComponentType<{ size?: number; color?: string }>>)[iconName]
     : null;
 
-  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>, corner: 'nw' | 'ne' | 'sw' | 'se') => {
     e.stopPropagation();
     e.preventDefault();
 
@@ -49,14 +52,36 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
     const startX = e.clientX;
     const startY = e.clientY;
     const startSize = size;
+    const startElX = x;
+    const startElY = y;
 
     const onPointerMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== e.pointerId) return;
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / zoom;
+      const dy = (moveEvent.clientY - startY) / zoom;
+      
+      // We want to keep it square. We'll use the dominant movement axis.
       const delta = Math.abs(dx) > Math.abs(dy) ? dx : dy;
-      const newSize = Math.max(MIN_SIZE, startSize + delta);
-      onResize(el.id, newSize);
+      
+      let newSize = startSize;
+      let newX = startElX;
+      let newY = startElY;
+
+      if (corner === 'se') {
+        newSize = Math.max(MIN_SIZE, startSize + delta);
+      } else if (corner === 'sw') {
+        newSize = Math.max(MIN_SIZE, startSize - dx);
+        newX = startElX + (startSize - newSize);
+      } else if (corner === 'ne') {
+        newSize = Math.max(MIN_SIZE, startSize + dx);
+        newY = startElY + (startSize - newSize);
+      } else if (corner === 'nw') {
+        newSize = Math.max(MIN_SIZE, startSize - dx);
+        newX = startElX + (startSize - newSize);
+        newY = startElY + (startSize - newSize);
+      }
+
+      onResize(el.id, { size: newSize, x: newX, y: newY });
     };
 
     const onPointerUp = (upEvent: PointerEvent) => {
@@ -73,7 +98,7 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
   };
 
   // Fallback state agar kuch na mile
-  if (!IconComponent && !isAnEmoji) {
+  if (!IconComponent && !isAnEmoji && !isIconify) {
     return (
       <div
         data-el-id={el.id}
@@ -125,28 +150,22 @@ function IconNode({ el, selected, onResize }: IconNodeProps) {
             }
           }}
         />
+      ) : isIconify && iconifyName ? (
+        <div style={{ color, display: 'flex', width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+          <IconifyIcon icon={iconifyName} width={size} height={size} />
+        </div>
       ) : (
         IconComponent && <IconComponent size={size} color={color} />
       )}
 
-      {/* Resize Handle */}
+      {/* Resize Handles */}
       {selected && (
-        <div
-          onPointerDown={handleResizePointerDown}
-          style={{
-            position: "absolute",
-            right: -7,
-            bottom: -7,
-            width: 14,
-            height: 14,
-            borderRadius: "50%",
-            background: "#fff",
-            border: "2px solid #3742FA",
-            cursor: "nwse-resize",
-            touchAction: "none",
-            zIndex: 10,
-          }}
-        />
+        <>
+          <div className="absolute top-0 left-0 w-3.5 h-3.5 bg-card border-[2.5px] border-[#3742FA] rounded-sm -translate-x-1.5 -translate-y-1.5 cursor-nwse-resize z-10 hover:scale-125 transition-transform" onPointerDown={(e) => handleResizePointerDown(e, 'nw')} />
+          <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-card border-[2.5px] border-[#3742FA] rounded-sm translate-x-1.5 -translate-y-1.5 cursor-nesw-resize z-10 hover:scale-125 transition-transform" onPointerDown={(e) => handleResizePointerDown(e, 'ne')} />
+          <div className="absolute bottom-0 left-0 w-3.5 h-3.5 bg-card border-[2.5px] border-[#3742FA] rounded-sm -translate-x-1.5 translate-y-1.5 cursor-nesw-resize z-10 hover:scale-125 transition-transform" onPointerDown={(e) => handleResizePointerDown(e, 'sw')} />
+          <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-card border-[2.5px] border-[#3742FA] rounded-sm translate-x-1.5 translate-y-1.5 cursor-nwse-resize z-10 hover:scale-125 transition-transform" onPointerDown={(e) => handleResizePointerDown(e, 'se')} />
+        </>
       )}
     </div>
   );

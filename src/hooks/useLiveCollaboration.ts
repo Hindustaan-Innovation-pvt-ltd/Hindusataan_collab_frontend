@@ -56,10 +56,21 @@ export function useLiveCollaboration({
   useEffect(() => {
     if (!currentBoardId) return;
 
-    websocketService.connect(currentBoardId, {
-      name: getSessionUser(),
-      color: myColor
-    });
+    let userInfo: any = { name: getSessionUser(), color: myColor };
+    try {
+      const s = localStorage.getItem("HIXCanvas_session");
+      if (s) {
+        const parsed = JSON.parse(s);
+        userInfo = {
+          ...userInfo,
+          name: parsed.name || userInfo.name,
+          id: parsed.id || parsed.user_id || parsed.userId || "",
+          avatar: parsed.avatar || ""
+        };
+      }
+    } catch(e) {}
+
+    websocketService.connect(currentBoardId, userInfo);
 
     return () => {
       websocketService.disconnect();

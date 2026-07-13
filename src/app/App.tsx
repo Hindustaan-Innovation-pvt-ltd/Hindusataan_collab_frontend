@@ -48,6 +48,58 @@ const getSessionUser = () => {
   return "Guest";
 };
 
+const getSessionUserData = () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return { name: "Guest", id: "guest", avatar: "" };
+    const s = localStorage.getItem("HIXCanvas_session");
+    if (s) {
+      const parsed = JSON.parse(s);
+      return {
+        name: parsed.name || "Unknown",
+        id: parsed.id || parsed.user_id || parsed.userId || "",
+        avatar: parsed.avatar || ""
+      };
+    }
+  } catch (e) { }
+  return { name: "Guest", id: "guest", avatar: "" };
+};
+
+const playNotificationSound = () => {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+    oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+    
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
+    gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.15);
+    
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + 0.15);
+  } catch(e) {}
+};
+
+const showBrowserNotification = (title: string, options: NotificationOptions) => {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, options);
+  } else if (Notification.permission !== "denied") {
+    Notification.requestPermission().then(permission => {
+      if (permission === "granted") {
+        new Notification(title, options);
+      }
+    });
+  }
+};
+
 export default function App() {
   const [mySessionId] = useState(() => uid());
   const [myColor] = useState(() => SHAPE_COLORS[Math.floor(Math.random() * SHAPE_COLORS.length)]);
@@ -402,6 +454,7 @@ export default function App() {
       } else if (msg.type === "presence") {
         setOnlineUsers(msg.online_users || []);
       } else if (msg.type === "chat_message") {
+        console.log("Message received by client:", msg.payload);
         setLiveChatMessages(prev => {
           if (msg.payload.message_id) {
             const existsIdx = prev.findIndex(m => m.message_id === msg.payload.message_id);
@@ -413,8 +466,23 @@ export default function App() {
           }
           return [...prev, msg.payload];
         });
-        if (!isChatOpen) {
-          setChatUnreadCount(prev => prev + 1);
+        
+        // Handle notifications
+        const currentUserId = onlineUsers.find(u => u.name === getSessionUser())?.user_id || getSessionUserData().id;
+        if (msg.payload.senderId !== currentUserId && msg.payload.user_id !== currentUserId) {
+          if (!isChatOpen) {
+            setChatUnreadCount(prev => prev + 1);
+            showToast({
+              title: "New Message",
+              description: `${msg.payload.senderName || msg.payload.username}: ${msg.payload.message.substring(0, 50)}${msg.payload.message.length > 50 ? '...' : ''}`,
+              type: "info"
+            });
+            playNotificationSound();
+            showBrowserNotification("New Message in Board", {
+              body: `${msg.payload.senderName || msg.payload.username}: ${msg.payload.message}`,
+              icon: msg.payload.avatar ? import.meta.env.VITE_API_URL + msg.payload.avatar : undefined
+            });
+          }
         }
       } else if (msg.type === "typing_start") {
         setLiveChatTypingUsers(prev => {
@@ -1558,17 +1626,38 @@ export default function App() {
           const content = await boardService.getBoardContent(board.id);
           if (loadingBoardIdRef.current !== id) return;
 
-          const newEls = content.els && content.els.length > 0 ? content.els : INIT_ELS;
+          let loadedEls = content.els && content.els.length > 0 ? content.els : null;
+          let loadedCam = content.cam;
+          
+          if (!loadedEls) {
+            const localEls = localStorage.getItem(`board-${board.id}-els`);
+            if (localEls) { try { loadedEls = JSON.parse(localEls); } catch(e){} }
+          }
+          if (!loadedCam) {
+            const localCam = localStorage.getItem(`board-${board.id}-cam`);
+            if (localCam) { try { loadedCam = JSON.parse(localCam); } catch(e){} }
+          }
+
+          const newEls = loadedEls && loadedEls.length > 0 ? loadedEls : INIT_ELS;
           setEls(newEls);
           setHistory([newEls]);
           setHistoryIndex(0);
-          setCam(content.cam || { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+          setCam(loadedCam || { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
         } catch (e) {
           console.error("Failed to fetch board content", e);
-          setEls(INIT_ELS);
-          setHistory([INIT_ELS]);
+          
+          let parsedEls = INIT_ELS;
+          let parsedCam = { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 };
+          const localEls = localStorage.getItem(`board-${board.id}-els`);
+          const localCam = localStorage.getItem(`board-${board.id}-cam`);
+          
+          try { if (localEls) parsedEls = JSON.parse(localEls); } catch(e){}
+          try { if (localCam) parsedCam = JSON.parse(localCam); } catch(e){}
+          
+          setEls(parsedEls.length > 0 ? parsedEls : INIT_ELS);
+          setHistory([parsedEls.length > 0 ? parsedEls : INIT_ELS]);
           setHistoryIndex(0);
-          setCam({ x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+          setCam(parsedCam);
         }
         setSelIds([]);
         setEditId(null);
@@ -1714,9 +1803,11 @@ export default function App() {
               case "icon":
                 return (
                   <IconNode
-                    key={el.id} el={el as any}
+                    key={el.id}
+                    el={el as any}
                     selected={selected}
-                    onResize={(id, size) => onUpdateEl(id, { size })}
+                    zoom={cam.z}
+                    onResize={(id, partial) => onUpdateEl(id, partial)}
                   />
                 );
               case "connection":
@@ -2197,16 +2288,23 @@ export default function App() {
       {currentBoardId && (
         <BoardChat
           messages={liveChatMessages}
-          currentUserId={onlineUsers.find(u => u.name === getSessionUser())?.user_id || ""}
+          currentUserId={onlineUsers.find(u => u.name === getSessionUser())?.user_id || getSessionUserData().id}
           typingUsers={liveChatTypingUsers}
           onSendMessage={(message) => {
-            const currentUserId = onlineUsers.find(u => u.name === getSessionUser())?.user_id || "";
+            const userData = getSessionUserData();
+            const currentUserId = onlineUsers.find(u => u.name === getSessionUser())?.user_id || userData.id;
             const msgId = uid();
             const optimisticMsg: LiveChatMessage = {
               message_id: msgId,
               board_id: currentBoardId,
+              boardId: currentBoardId,
               user_id: currentUserId,
-              username: getSessionUser(),
+              userId: currentUserId,
+              username: userData.name,
+              sender: userData.name,
+              senderName: userData.name,
+              senderId: currentUserId,
+              avatar: userData.avatar,
               message,
               timestamp: new Date().toISOString()
             };
@@ -2214,7 +2312,8 @@ export default function App() {
               if (prev.some(m => m.message_id === msgId)) return prev;
               return [...prev, optimisticMsg];
             });
-            websocketService.send("chat_message", { message_id: msgId, message });
+            console.log("Message emitted:", optimisticMsg);
+            websocketService.send("chat_message", optimisticMsg);
           }}
           onTyping={(isTyping) => {
             websocketService.send(isTyping ? "typing_start" : "typing_stop", {});

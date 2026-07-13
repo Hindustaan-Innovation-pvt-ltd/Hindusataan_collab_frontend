@@ -52,6 +52,7 @@ export function useBoardSync({
           setCam({ x: cx, y: cy, z: 1 });
         } catch (e) {
           console.error("Failed to create initial board", e);
+          fallbackToLocal(cx, cy);
         }
       } else {
         setBoards(fetchedBoards);
@@ -65,25 +66,81 @@ export function useBoardSync({
         try {
           const content = await boardService.getBoardContent(selectedBoard.id);
           console.log("Board content:", content);
-          setEls(content.els && content.els.length > 0 ? content.els : INIT_ELS);
-          setCam(content.cam || { x: cx, y: cy, z: 1 });
+          
+          let loadedEls = content.els && content.els.length > 0 ? content.els : null;
+          let loadedCam = content.cam;
+          
+          // Fallback to local storage if backend returned empty elements
+          if (!loadedEls) {
+            const localEls = localStorage.getItem(`board-${selectedBoard.id}-els`);
+            if (localEls) {
+              try { loadedEls = JSON.parse(localEls); } catch (err) {}
+            }
+          }
+          if (!loadedCam) {
+            const localCam = localStorage.getItem(`board-${selectedBoard.id}-cam`);
+            if (localCam) {
+              try { loadedCam = JSON.parse(localCam); } catch (err) {}
+            }
+          }
+          
+          setEls(loadedEls && loadedEls.length > 0 ? loadedEls : INIT_ELS);
+          setCam(loadedCam || { x: cx, y: cy, z: 1 });
         } catch (e) {
           console.error("Failed to fetch board content", e);
-          setEls(INIT_ELS);
-          setCam({ x: cx, y: cy, z: 1 });
+          fallbackToLocalLoad(selectedBoard.id, cx, cy);
         }
       }
     }).catch(e => {
       console.error("Failed to fetch boards", e);
+      fallbackToLocal(cx, cy);
     }).finally(() => {
       setIsLoading(false);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fallbackToLocal = (cx: number, cy: number) => {
+    const fallbackId = urlBoardId || "local-board";
+    setCurrentBoardId(fallbackId);
+    
+    const localName = localStorage.getItem(`board-${fallbackId}-name`) || "Untitled Board";
+    setBoardName(localName);
+    
+    const localBg = localStorage.getItem(`board-${fallbackId}-bg`) as any || "white";
+    setBoardBg(localBg);
+    
+    fallbackToLocalLoad(fallbackId, cx, cy);
+  };
+
+  const fallbackToLocalLoad = (id: string, cx: number, cy: number) => {
+    const localEls = localStorage.getItem(`board-${id}-els`);
+    const localCam = localStorage.getItem(`board-${id}-cam`);
+    
+    let parsedEls = INIT_ELS;
+    let parsedCam = { x: cx, y: cy, z: 1 };
+    
+    try { if (localEls) parsedEls = JSON.parse(localEls); } catch(e) {}
+    try { if (localCam) parsedCam = JSON.parse(localCam); } catch(e) {}
+    
+    setEls(parsedEls.length > 0 ? parsedEls : INIT_ELS);
+    setCam(parsedCam);
+  };
+
   // Sync board state updates to local state and backend
   useEffect(() => {
     if (!currentBoardId) return;
+    
+    // Save to LocalStorage immediately as a fallback!
+    try {
+      // Don't save empty board right away on load if we just initialized, but els will always have length unless cleared
+      localStorage.setItem(`board-${currentBoardId}-els`, JSON.stringify(els));
+      localStorage.setItem(`board-${currentBoardId}-cam`, JSON.stringify(cam));
+      localStorage.setItem(`board-${currentBoardId}-name`, boardName);
+      localStorage.setItem(`board-${currentBoardId}-bg`, boardBg);
+    } catch (e) {
+      console.error("Local storage save failed", e);
+    }
     
     // Update local boards list
     setBoards(prev => {
@@ -128,7 +185,7 @@ export function useBoardSync({
             setTimeout(() => performSave(retryCount + 1), 2000);
           } else {
             setSaveState("error");
-            showToast("Autosave failed", "error");
+            showToast("Autosave failed (Saved locally)", "error");
           }
         } finally {
           if (retryCount === 0 || saveState === "error" || saveState === "saved") {
