@@ -1558,17 +1558,38 @@ export default function App() {
           const content = await boardService.getBoardContent(board.id);
           if (loadingBoardIdRef.current !== id) return;
 
-          const newEls = content.els && content.els.length > 0 ? content.els : INIT_ELS;
+          let loadedEls = content.els && content.els.length > 0 ? content.els : null;
+          let loadedCam = content.cam;
+          
+          if (!loadedEls) {
+            const localEls = localStorage.getItem(`board-${board.id}-els`);
+            if (localEls) { try { loadedEls = JSON.parse(localEls); } catch(e){} }
+          }
+          if (!loadedCam) {
+            const localCam = localStorage.getItem(`board-${board.id}-cam`);
+            if (localCam) { try { loadedCam = JSON.parse(localCam); } catch(e){} }
+          }
+
+          const newEls = loadedEls && loadedEls.length > 0 ? loadedEls : INIT_ELS;
           setEls(newEls);
           setHistory([newEls]);
           setHistoryIndex(0);
-          setCam(content.cam || { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+          setCam(loadedCam || { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
         } catch (e) {
           console.error("Failed to fetch board content", e);
-          setEls(INIT_ELS);
-          setHistory([INIT_ELS]);
+          
+          let parsedEls = INIT_ELS;
+          let parsedCam = { x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 };
+          const localEls = localStorage.getItem(`board-${board.id}-els`);
+          const localCam = localStorage.getItem(`board-${board.id}-cam`);
+          
+          try { if (localEls) parsedEls = JSON.parse(localEls); } catch(e){}
+          try { if (localCam) parsedCam = JSON.parse(localCam); } catch(e){}
+          
+          setEls(parsedEls.length > 0 ? parsedEls : INIT_ELS);
+          setHistory([parsedEls.length > 0 ? parsedEls : INIT_ELS]);
           setHistoryIndex(0);
-          setCam({ x: window.innerWidth / 2, y: window.innerHeight / 2, z: 1 });
+          setCam(parsedCam);
         }
         setSelIds([]);
         setEditId(null);
