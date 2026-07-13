@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from "react";
-import type { TableEl, TableCell } from "../types";
+import type { TableEl } from "../types";
 import CellEditor from "./CellEditor";
 
 interface TableNodeProps {
@@ -59,7 +59,8 @@ export default function TableNode({
     const startY = e.clientY;
     const startH = rowHeights[r] || 40;
 
-    const onMove = (me: globalThis.PointerEvent) => {
+    const onMove = (e: Event) => {
+      const me = e as PointerEvent;
       const dy = (me.clientY - startY) / zoom;
       const newH = Math.max(MIN_CELL_H, startH + dy);
       onUpdate(el.id, {
@@ -87,7 +88,8 @@ export default function TableNode({
     const startX = e.clientX;
     const startW = colWidths[c] || 120;
 
-    const onMove = (me: globalThis.PointerEvent) => {
+    const onMove = (e: Event) => {
+      const me = e as PointerEvent;
       const dx = (me.clientX - startX) / zoom;
       const newW = Math.max(MIN_CELL_W, startW + dx);
       onUpdate(el.id, {
@@ -121,7 +123,8 @@ export default function TableNode({
     const avgW = w / cols;
     const avgH = h / rows;
 
-    const onPointerMove = (moveEvent: globalThis.PointerEvent) => {
+    const onPointerMove = (e: Event) => {
+      const moveEvent = e as PointerEvent;
       const dX = (moveEvent.clientX - startX) / zoom;
       const dY = (moveEvent.clientY - startY) / zoom;
 

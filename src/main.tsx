@@ -20,15 +20,18 @@ axios.defaults.baseURL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 
 const SESSION_KEY = "HIXCanvas_session";
 
 function checkSession() {
-  const isEphemeral = localStorage.getItem("figjam_ephemeral") === "true";
-  const isSessionActive = sessionStorage.getItem("figjam_session_active") === "true";
-  
-  if (isEphemeral && !isSessionActive) {
-    // Clear storage if the browser tab/session was closed
-    localStorage.removeItem("token");
-    localStorage.removeItem("figjam_token");
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem("figjam_ephemeral");
+  try {
+    const isEphemeral = localStorage.getItem("figjam_ephemeral") === "true";
+    const isSessionActive = sessionStorage.getItem("figjam_session_active") === "true";
+    
+    if (isEphemeral && !isSessionActive) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("figjam_token");
+      localStorage.removeItem(SESSION_KEY);
+      localStorage.removeItem("figjam_ephemeral");
+    }
+  } catch (e) {
+    console.warn("Storage access is restricted:", e);
   }
 }
 
@@ -36,7 +39,11 @@ function checkSession() {
 checkSession();
 
 function isAuthenticated() {
-  return !!localStorage.getItem(SESSION_KEY);
+  try {
+    return !!localStorage.getItem(SESSION_KEY);
+  } catch (e) {
+    return false;
+  }
 }
 
 function ProtectedApp({ children }: { children?: ReactNode }) {

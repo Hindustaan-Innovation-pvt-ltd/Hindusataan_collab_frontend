@@ -12,7 +12,14 @@ const WorkspaceThemeContext = createContext<WorkspaceThemeContextType | undefine
 export function WorkspaceThemeProvider({ children }: { children: React.ReactNode }) {
   const [layout, setLayoutState] = useState<WorkspaceLayout>(() => {
     const saved = localStorage.getItem("workspace-layout");
-    return (saved as WorkspaceLayout) || "horizontal";
+    if (saved) return saved as WorkspaceLayout;
+    
+    // Default to vertical on mobile
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      return "vertical";
+    }
+    
+    return "horizontal";
   });
 
   const setLayout = (newLayout: WorkspaceLayout) => {

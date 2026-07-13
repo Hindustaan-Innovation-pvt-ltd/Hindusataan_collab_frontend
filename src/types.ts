@@ -76,6 +76,8 @@ export interface Collaborator {
   board_id: string;
   user_id: string;
   role: string;
+  name?: string;
+  email?: string;
 }
 
 export interface Invite {

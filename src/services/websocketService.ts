@@ -26,7 +26,12 @@ class WebSocketService {
   public onCloseCallback: (() => void) | null = null;
 
   private getWSUrl(boardId: string): string {
-    const token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+    let token = null;
+    try {
+      token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+    } catch (e) {
+      console.warn("Storage access restricted:", e);
+    }
     const apiHost = import.meta.env.VITE_API_URL
       ? new URL(import.meta.env.VITE_API_URL).host
       : (import.meta.env.DEV ? "127.0.0.1:8000" : window.location.host);
