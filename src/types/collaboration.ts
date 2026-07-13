@@ -23,4 +23,6 @@ export interface Invite {
   status: "pending" | "accepted" | "rejected";
   created_at: string;
   expires_at: string;
+  inviter_name?: string;
+  board_name?: string;
 }

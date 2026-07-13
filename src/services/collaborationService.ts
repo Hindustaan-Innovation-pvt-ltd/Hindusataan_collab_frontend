@@ -56,6 +56,28 @@ export const collaborationService = {
     const slugifiedBoardName = boardName
       ? boardName.replace(/[^a-zA-Z0-9 -]/g, '').trim().replace(/\s+/g, '-')
       : "board";
-    return `${window.location.origin}/board/${boardId}/${slugifiedBoardName}`;
+    // Always use the live domain for share links so they are clickable in messaging apps.
+    const baseUrl = import.meta.env.VITE_FRONTEND_URL || "https://jam.allindiahub.com";
+    return `${baseUrl}/board/${boardId}/${slugifiedBoardName}`;
+  },
+
+  createOpenSession: async (boardId: string) => {
+    const response = await api.post(`/api/collaboration/board/${boardId}/open-session`);
+    return response.data?.data?.token;
+  },
+
+  validateOpenSession: async (boardId: string, token: string) => {
+    const response = await api.get(`/api/collaboration/board/${boardId}/open-session/${token}/validate`);
+    return response.data?.data?.valid;
+  },
+
+  stopOpenSession: async (boardId: string) => {
+    const response = await api.delete(`/api/collaboration/board/${boardId}/open-session`);
+    return response.data;
+  },
+
+  getOpenSession: async (boardId: string) => {
+    const response = await api.get(`/api/collaboration/board/${boardId}/open-session`);
+    return response.data?.data;
   }
 };

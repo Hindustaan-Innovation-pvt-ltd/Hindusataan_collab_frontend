@@ -11,9 +11,18 @@ const api = axios.create({
   },
 });
 
+function getSafeToken() {
+  try {
+    return localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+  } catch (e) {
+    console.warn("Storage access restricted:", e);
+    return null;
+  }
+}
+
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+    const token = getSafeToken();
 
     if (config.url && config.url.includes("/api/collaboration")) {
       if (!token) {
@@ -40,11 +49,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem("HIXCanvas_token");
-      localStorage.removeItem("token");
-      localStorage.removeItem("HIXCanvas_session");
-      localStorage.removeItem("HIXCanvas_ephemeral");
-      sessionStorage.removeItem("HIXCanvas_session_active");
+      try {
+        localStorage.removeItem("HIXCanvas_token");
+        localStorage.removeItem("token");
+        localStorage.removeItem("HIXCanvas_session");
+        localStorage.removeItem("HIXCanvas_ephemeral");
+        sessionStorage.removeItem("HIXCanvas_session_active");
+      } catch (e) {}
       window.location.href = "/login";
     }
     return Promise.reject(error);
@@ -59,7 +70,7 @@ export default api;
  * Checks both "HIXCanvas_token" and "token" keys in localStorage.
  */
 export async function fetchWithAuth(endpoint: string, options: RequestInit = {}) {
-  const token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+  const token = getSafeToken();
   const headers = new Headers(options.headers || {});
 
   if (token) {

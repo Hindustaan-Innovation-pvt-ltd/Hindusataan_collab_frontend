@@ -24,6 +24,17 @@ export function useLiveCollaboration({
     editIdRef.current = id;
   }, []);
 
+  const getSessionUser = useCallback(() => {
+    try {
+      const s = localStorage.getItem("HIXCanvas_session");
+      if (s) {
+        const parsed = JSON.parse(s);
+        if (parsed && parsed.name) return parsed.name;
+      }
+    } catch (e) { }
+    return "Collaborator";
+  }, []);
+
   const broadcastPresence = useCallback((x: number, y: number, force: boolean = false) => {
     if (!currentBoardId) return;
     const now = Date.now();
@@ -32,24 +43,39 @@ export function useLiveCollaboration({
 
     websocketService.send("cursor_update", {
       id: mySessionId,
+      name: getSessionUser(),
       color: myColor,
       x, y,
       selIds: selIdsRef.current,
       isTyping: !!editIdRef.current,
       editingId: editIdRef.current
     });
-  }, [currentBoardId, mySessionId, selIdsRef, myColor]);
+  }, [currentBoardId, mySessionId, selIdsRef, myColor, getSessionUser]);
 
   // Connect to WebSocket on board change
   useEffect(() => {
     if (!currentBoardId) return;
 
-    websocketService.connect(currentBoardId);
+    let userInfo: any = { name: getSessionUser(), color: myColor };
+    try {
+      const s = localStorage.getItem("HIXCanvas_session");
+      if (s) {
+        const parsed = JSON.parse(s);
+        userInfo = {
+          ...userInfo,
+          name: parsed.name || userInfo.name,
+          id: parsed.id || parsed.user_id || parsed.userId || "",
+          avatar: parsed.avatar || ""
+        };
+      }
+    } catch(e) {}
+
+    websocketService.connect(currentBoardId, userInfo);
 
     return () => {
       websocketService.disconnect();
     };
-  }, [currentBoardId]);
+  }, [currentBoardId, myColor, getSessionUser]);
 
   // Cleanup inactive peers
   useEffect(() => {

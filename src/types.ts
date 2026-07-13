@@ -35,6 +35,7 @@ export interface Board {
   cam: Cam;
   updatedAt: number;
   bg?: "white" | "black" | "green";
+  visibility?: string;
 }
 
 export interface Peer {
@@ -76,6 +77,8 @@ export interface Collaborator {
   board_id: string;
   user_id: string;
   role: string;
+  name?: string;
+  email?: string;
 }
 
 export interface Invite {

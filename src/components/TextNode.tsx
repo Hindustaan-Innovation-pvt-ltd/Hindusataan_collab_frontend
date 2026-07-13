@@ -70,7 +70,6 @@ interface TextNodeProps {
 }
 
 type HandlePosition = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
-
 function TextNode({ el, selected, editing, zoom, onBlur, onDblClick, onResize }: TextNodeProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const [textVal, setTextVal] = useState(el.text);
@@ -135,7 +134,6 @@ function TextNode({ el, selected, editing, zoom, onBlur, onDblClick, onResize }:
 
     const startX = e.clientX;
     const startY = e.clientY;
-
     const initialX = el.x;
     const initialY = el.y;
 
@@ -214,7 +212,6 @@ function TextNode({ el, selected, editing, zoom, onBlur, onDblClick, onResize }:
     { position: "l", cursor: "ew-resize", style: { top: "calc(50% - 6px)", left: -6 } },
     { position: "r", cursor: "ew-resize", style: { top: "calc(50% - 6px)", right: -6 } },
   ];
-
   return (
     <div
       data-el-id={el.id}
