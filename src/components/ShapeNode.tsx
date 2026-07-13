@@ -33,8 +33,17 @@ function ShapeNode({
   useEffect(() => {
     if (editing) {
       const raf = requestAnimationFrame(() => {
-        textareaRef.current?.focus();
-        textareaRef.current?.select();
+        const textarea = textareaRef.current;
+        if (textarea) {
+          textarea.focus();
+          const val = textarea.value;
+          if (val === "" || val === "Text" || val === "Shape") {
+            textarea.select();
+          } else {
+            const length = val.length;
+            textarea.setSelectionRange(length, length);
+          }
+        }
       });
       return () => cancelAnimationFrame(raf);
     }
