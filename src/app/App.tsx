@@ -1573,8 +1573,13 @@ export default function App() {
         setSelIds([]);
         setEditId(null);
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to load board details", e);
+      if (e.response?.status === 401 || e.response?.status === 403) {
+        showToast("You do not have access to this board.", "error");
+        navigate("/welcome", { replace: true });
+        return;
+      }
       const board = boards.find(b => b.id === id);
       if (board) {
         setCurrentBoardId(board.id);

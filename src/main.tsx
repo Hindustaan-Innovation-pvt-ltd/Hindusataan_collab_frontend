@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router";
 import { Toaster } from "sonner";
 import App from "./app/App.tsx";
 import Welcome from "./app/components/Pages/welcome.tsx";
@@ -47,7 +47,12 @@ function isAuthenticated() {
 }
 
 function ProtectedApp({ children }: { children?: ReactNode }) {
-  if (!isAuthenticated()) {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const hasSession = searchParams.has("session");
+  const isBoardRoute = location.pathname.startsWith("/board/");
+
+  if (!isAuthenticated() && !hasSession && !isBoardRoute) {
     return <Navigate to="/welcome" replace />;
   }
   return <>{children}</>;

@@ -9,6 +9,8 @@ import type { Board } from "../types";
 import { useShareDialog } from "../hooks/useShareDialog";
 import { PendingInvitesPanel } from "./PendingInvitesPanel";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
+import RenameBoardModal from "./RenameBoardModal";
+import api from "../services/api";
 
 interface TopBarProps {
   currentBoardId: string;
@@ -39,6 +41,7 @@ export const TopBar = React.memo(function TopBar({
   const { layout, setLayout } = useWorkspaceTheme();
   const [seconds, setSeconds] = useState(3 * 60);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [userName, setUserName] = useState("Guest");
   const [userEmail, setUserEmail] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
@@ -96,6 +99,24 @@ export const TopBar = React.memo(function TopBar({
   };
   const [running, setRunning] = useState(false);
   const [bgMenuOpen, setBgMenuOpen] = useState(false);
+  const [forceRender, setForceRender] = useState(0);
+
+  const handleChangeVisibility = async (visibility: string) => {
+    if (!currentBoardId || role !== "owner") return;
+    try {
+      await api.put(`/boards/${currentBoardId}`, { visibility });
+      const board = boards.find(b => b.id === currentBoardId);
+      if (board) {
+        board.visibility = visibility;
+      }
+      showToast(`Board visibility changed to ${visibility}`, "success");
+      setVisibilityPopoverOpen(false);
+      setForceRender(f => f + 1);
+    } catch (e: any) {
+      console.error(e);
+      showToast("Failed to change visibility", "error");
+    }
+  };
   const [calOpen, setCalOpen] = useState(false);
   const [calDate, setCalDate] = useState(new Date());
 
@@ -120,7 +141,8 @@ export const TopBar = React.memo(function TopBar({
     copyStatus, inviteEmail, setInviteEmail, collaborators,
     classroomShared,
     showMeetInfo, setShowMeetInfo, isLoadingCollaborators,
-    isInviteEnabled, handleCopyLink, handleInvite, handleRoleChange, handleClassroomShare
+    isInviteEnabled, handleCopyLink, handleInvite, handleRoleChange, handleClassroomShare,
+    handleStartOpenSession, isOpenSessionCreating, isOpenSessionActive, handleStopOpenSession, openSessionExpiry
   } = useShareDialog(currentBoardId, boardName, showToast);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -188,7 +210,15 @@ export const TopBar = React.memo(function TopBar({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<string | null>(null);
 
+  const [accessDeniedOpen, setAccessDeniedOpen] = useState(false);
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState("");
+
   const confirmDeleteBoard = (id: string) => {
+    if (role !== "owner") {
+      setAccessDeniedMessage("You do not have access to delete it. Only the owner of this board can delete it.");
+      setAccessDeniedOpen(true);
+      return;
+    }
     setDeleteError(null);
     setBoardToDelete(id);
     setDeleteConfirmOpen(true);
@@ -868,57 +898,87 @@ export const TopBar = React.memo(function TopBar({
                   <h3 className="text-muted-foreground font-semibold text-xs mb-3 tracking-wide">Who has access</h3>
 
                   {/* Lock Row */}
-                  <div ref={visibilityRef} className="relative">
-                    <div
-                      onClick={() => setVisibilityPopoverOpen(o => !o)}
-                      className="flex items-center justify-between py-3 px-1.5 rounded-xl hover:bg-background cursor-pointer transition-colors group"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:bg-muted transition-colors">
-                          <Lock size={15} />
-                        </div>
-                        <div className="text-left">
-                          <div className="text-sm font-semibold text-foreground">Private Board</div>
-                          <div className="text-xs text-gray-400">
-                            Only invited collaborators can view and edit this board.
+                    <div ref={visibilityRef} className="relative">
+                      <div
+                        onClick={() => {
+                           if (role === "owner") {
+                             setVisibilityPopoverOpen(o => !o);
+                           } else {
+                             setAccessDeniedMessage("You do not have access to change visibility. Only the owner of this board can change its visibility.");
+                             setAccessDeniedOpen(true);
+                           }
+                        }}
+                        className={`flex items-center justify-between py-3 px-1.5 rounded-xl transition-colors group hover:bg-background cursor-pointer`}
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-8 h-8 rounded-lg bg-background flex items-center justify-center text-muted-foreground group-hover:bg-muted transition-colors">
+                            {boards.find(b => b.id === currentBoardId)?.visibility === "public" ? <Globe size={15} /> : boards.find(b => b.id === currentBoardId)?.visibility === "organization" ? <Users size={15} /> : <Lock size={15} />}
+                          </div>
+                          <div className="text-left">
+                            <div className="text-sm font-semibold text-foreground capitalize">
+                              {boards.find(b => b.id === currentBoardId)?.visibility || "private"} Board
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {boards.find(b => b.id === currentBoardId)?.visibility === "public" ? "Anyone on the internet can view." : boards.find(b => b.id === currentBoardId)?.visibility === "organization" ? "Anyone in your org can access." : "Only invited collaborators can view and edit this board."}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border shadow-sm">
-                          <Lock size={10} className="text-gray-400" />
-                          <span>Private</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border shadow-sm capitalize">
+                            {boards.find(b => b.id === currentBoardId)?.visibility === "public" ? <Globe size={10} className="text-gray-400" /> : boards.find(b => b.id === currentBoardId)?.visibility === "organization" ? <Users size={10} className="text-gray-400" /> : <Lock size={10} className="text-gray-400" />}
+                            <span>{boards.find(b => b.id === currentBoardId)?.visibility || "private"}</span>
+                          </div>
+                          {role === "owner" && (
+                            <ChevronRight size={15} className={`text-gray-400 transition-transform duration-200 ${visibilityPopoverOpen ? "rotate-90" : "group-hover:translate-x-0.5"}`} />
+                          )}
                         </div>
-                        <ChevronRight size={15} className={`text-gray-400 transition-transform duration-200 ${visibilityPopoverOpen ? "rotate-90" : "group-hover:translate-x-0.5"}`} />
                       </div>
-                    </div>
-                    {visibilityPopoverOpen && (
+                      {visibilityPopoverOpen && (
                       <div className="mt-1 w-full bg-card rounded-xl shadow-sm border border-border p-2 animate-in fade-in slide-in-from-top-1 duration-200">
                         <div className="px-3 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">Board Visibility</div>
 
-                        <button className="w-full text-left flex items-start gap-3 p-3 rounded-lg bg-indigo-50 border border-indigo-100 hover:bg-indigo-50 transition-colors cursor-default">
-                          <Lock size={16} className="text-indigo-600 mt-0.5 shrink-0" />
+                        <button
+                          onClick={() => {
+                            handleChangeVisibility("private");
+                          }}
+                          className={`w-full text-left flex items-start gap-3 p-3 rounded-lg transition-colors mt-1 ${boards.find(b => b.id === currentBoardId)?.visibility === "private" || !boards.find(b => b.id === currentBoardId)?.visibility ? "bg-indigo-50 border border-indigo-100" : "hover:bg-background border border-transparent"}`}
+                        >
+                          <Lock size={16} className={`${boards.find(b => b.id === currentBoardId)?.visibility === "private" || !boards.find(b => b.id === currentBoardId)?.visibility ? "text-indigo-600" : "text-muted-foreground"} mt-0.5 shrink-0`} />
                           <div>
-                            <div className="text-sm font-semibold text-indigo-900">Private</div>
-                            <div className="text-xs text-indigo-700/80 mt-0.5">Only invited collaborators can view and edit this board.</div>
+                            <div className={`text-sm font-semibold ${boards.find(b => b.id === currentBoardId)?.visibility === "private" || !boards.find(b => b.id === currentBoardId)?.visibility ? "text-indigo-900" : "text-foreground"}`}>Private</div>
+                            <div className={`text-xs ${boards.find(b => b.id === currentBoardId)?.visibility === "private" || !boards.find(b => b.id === currentBoardId)?.visibility ? "text-indigo-700/80" : "text-muted-foreground"} mt-0.5`}>Only invited collaborators can view and edit this board.</div>
                           </div>
-                          <Check size={16} className="text-indigo-600 ml-auto mt-1" />
+                          {(boards.find(b => b.id === currentBoardId)?.visibility === "private" || !boards.find(b => b.id === currentBoardId)?.visibility) && (
+                            <Check size={16} className="text-indigo-600 ml-auto mt-1" />
+                          )}
                         </button>
 
-                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-background transition-colors opacity-50 cursor-not-allowed mt-1">
-                          <Globe size={16} className="text-muted-foreground mt-0.5 shrink-0" />
+                        <button 
+                          onClick={() => handleChangeVisibility("public")}
+                          className={`w-full text-left flex items-start gap-3 p-3 rounded-lg transition-colors mt-1 ${boards.find(b => b.id === currentBoardId)?.visibility === "public" ? "bg-indigo-50 border border-indigo-100" : "hover:bg-background border border-transparent"}`}
+                        >
+                          <Globe size={16} className={`${boards.find(b => b.id === currentBoardId)?.visibility === "public" ? "text-indigo-600" : "text-muted-foreground"} mt-0.5 shrink-0`} />
                           <div>
-                            <div className="text-sm font-semibold text-foreground flex items-center gap-2">Public <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-muted-foreground">Coming Soon</span></div>
-                            <div className="text-xs text-muted-foreground mt-0.5">Anyone on the internet can view.</div>
+                            <div className={`text-sm font-semibold flex items-center gap-2 ${boards.find(b => b.id === currentBoardId)?.visibility === "public" ? "text-indigo-900" : "text-foreground"}`}>Public</div>
+                            <div className={`text-xs mt-0.5 ${boards.find(b => b.id === currentBoardId)?.visibility === "public" ? "text-indigo-700/80" : "text-muted-foreground"}`}>Anyone on the internet can view.</div>
                           </div>
+                          {boards.find(b => b.id === currentBoardId)?.visibility === "public" && (
+                            <Check size={16} className="text-indigo-600 ml-auto mt-1" />
+                          )}
                         </button>
 
-                        <button disabled className="w-full text-left flex items-start gap-3 p-3 rounded-lg hover:bg-background transition-colors opacity-50 cursor-not-allowed mt-1">
-                          <Users size={16} className="text-muted-foreground mt-0.5 shrink-0" />
+                        <button 
+                          onClick={() => handleChangeVisibility("organization")}
+                          className={`w-full text-left flex items-start gap-3 p-3 rounded-lg transition-colors mt-1 ${boards.find(b => b.id === currentBoardId)?.visibility === "organization" ? "bg-indigo-50 border border-indigo-100" : "hover:bg-background border border-transparent"}`}
+                        >
+                          <Users size={16} className={`${boards.find(b => b.id === currentBoardId)?.visibility === "organization" ? "text-indigo-600" : "text-muted-foreground"} mt-0.5 shrink-0`} />
                           <div>
-                            <div className="text-sm font-semibold text-foreground flex items-center gap-2">Organization <span className="text-[9px] bg-gray-200 px-1.5 py-0.5 rounded uppercase font-bold text-muted-foreground">Coming Soon</span></div>
-                            <div className="text-xs text-muted-foreground mt-0.5">Anyone in your org can access.</div>
+                            <div className={`text-sm font-semibold flex items-center gap-2 ${boards.find(b => b.id === currentBoardId)?.visibility === "organization" ? "text-indigo-900" : "text-foreground"}`}>Organization</div>
+                            <div className={`text-xs mt-0.5 ${boards.find(b => b.id === currentBoardId)?.visibility === "organization" ? "text-indigo-700/80" : "text-muted-foreground"}`}>Anyone in your org can access.</div>
                           </div>
+                          {boards.find(b => b.id === currentBoardId)?.visibility === "organization" && (
+                            <Check size={16} className="text-indigo-600 ml-auto mt-1" />
+                          )}
                         </button>
                       </div>
                     )}
@@ -1163,9 +1223,9 @@ export const TopBar = React.memo(function TopBar({
                   <div className="text-left">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground">Start open session</span>
-                      {sessionActive && (
+                      {isOpenSessionActive && (
                         <span className="text-[10px] bg-green-50 text-green-600 font-bold px-1.5 py-0.5 rounded animate-pulse">
-                          Active ({sessionTime})
+                          Active {openSessionExpiry ? `(Ends ${new Date(openSessionExpiry).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})` : ""}
                         </span>
                       )}
                     </div>
@@ -1175,13 +1235,14 @@ export const TopBar = React.memo(function TopBar({
                   </div>
                 </div>
                 <button
-                  onClick={() => setSessionActive(!sessionActive)}
-                  className={`px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all border shrink-0 ${sessionActive
+                  onClick={isOpenSessionActive ? handleStopOpenSession : handleStartOpenSession}
+                  disabled={isOpenSessionCreating}
+                  className={`px-4 py-1.5 rounded-xl font-bold text-xs shadow-sm transition-all border shrink-0 disabled:opacity-50 ${isOpenSessionActive
                     ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100 cursor-pointer"
                     : "bg-card text-foreground border-border hover:bg-background cursor-pointer"
                     }`}
                 >
-                  {sessionActive ? "Stop" : "Start"}
+                  {isOpenSessionCreating ? (isOpenSessionActive ? "Stopping..." : "Starting...") : (isOpenSessionActive ? "Stop" : "Start")}
                 </button>
               </div>
 
@@ -1264,10 +1325,8 @@ export const TopBar = React.memo(function TopBar({
                       <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1.5">⚙ Board</div>
                       <button
                         onClick={() => {
-                          const newName = window.prompt("Rename Board", boardName);
-                          if (newName !== null && newName.trim() !== "") {
-                            onRenameBoard(currentBoardId, newName);
-                          }
+                          setIsRenameModalOpen(true);
+                          setUserMenuOpen(false);
                         }}
                         className="w-full text-left px-2 py-1.5 text-xs font-semibold text-foreground hover:bg-card hover:shadow-sm rounded-lg transition-all"
                       >
@@ -1281,20 +1340,53 @@ export const TopBar = React.memo(function TopBar({
                         <span>Duplicate Board</span>
                         <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
                       </button>
-                      {role === "owner" && (
-                        <button
-                          onClick={() => confirmDeleteBoard(currentBoardId)}
-                          disabled={!onDeleteBoard}
-                          className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
-                        >
-                          Delete Board
-                        </button>
-                      )}
+                      <button
+                        onClick={() => confirmDeleteBoard(currentBoardId)}
+                        disabled={!onDeleteBoard}
+                        className={`w-full text-left px-2 py-1.5 text-xs font-semibold rounded-lg transition-all ${onDeleteBoard ? "text-red-600 hover:bg-red-50 hover:shadow-sm cursor-pointer" : "text-gray-300 cursor-not-allowed"}`}
+                      >
+                        Delete Board
+                      </button>
                     </div>
 
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Access Denied Modal */}
+      {accessDeniedOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-auto">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+            onClick={() => setAccessDeniedOpen(false)}
+          />
+          {/* Modal */}
+          <div className="relative bg-card rounded-2xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 shrink-0">
+                  <Lock size={20} />
+                </div>
+                <h2 className="text-lg font-bold text-foreground">Access Denied</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+                {accessDeniedMessage}
+              </p>
+            </div>
+
+            <div className="px-6 py-4 bg-background flex items-center justify-end rounded-b-2xl">
+              <button
+                onClick={() => setAccessDeniedOpen(false)}
+                autoFocus
+                className="px-4 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-colors focus:outline-none flex items-center gap-2 shadow-sm"
+              >
+                Understood
+              </button>
             </div>
           </div>
         </div>
@@ -1351,6 +1443,13 @@ export const TopBar = React.memo(function TopBar({
           </div>
         </div>
       )}
+
+      <RenameBoardModal
+        isOpen={isRenameModalOpen}
+        onClose={() => setIsRenameModalOpen(false)}
+        currentName={boardName}
+        onSave={(newName) => onRenameBoard(currentBoardId, newName)}
+      />
     </div>
   );
 });

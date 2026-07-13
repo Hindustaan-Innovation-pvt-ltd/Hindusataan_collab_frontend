@@ -35,6 +35,7 @@ export interface Board {
   cam: Cam;
   updatedAt: number;
   bg?: "white" | "black" | "green";
+  visibility?: string;
 }
 
 export interface Peer {

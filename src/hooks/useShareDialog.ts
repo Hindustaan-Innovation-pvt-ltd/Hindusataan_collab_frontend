@@ -13,6 +13,25 @@ export function useShareDialog(currentBoardId: string, boardName: string, showTo
   const [classroomShared, setClassroomShared] = useState(false);
   const [showMeetInfo, setShowMeetInfo] = useState(false);
   const [isLoadingCollaborators, setIsLoadingCollaborators] = useState(false);
+  const [isOpenSessionCreating, setIsOpenSessionCreating] = useState(false);
+  const [isOpenSessionActive, setIsOpenSessionActive] = useState(false);
+  const [openSessionExpiry, setOpenSessionExpiry] = useState<string | null>(null);
+
+  const checkOpenSession = useCallback(async () => {
+    if (!currentBoardId) return;
+    try {
+      const sessionData = await collaborationService.getOpenSession(currentBoardId);
+      if (sessionData?.active) {
+        setIsOpenSessionActive(true);
+        setOpenSessionExpiry(sessionData.expires_at);
+      } else {
+        setIsOpenSessionActive(false);
+        setOpenSessionExpiry(null);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }, [currentBoardId]);
 
   const fetchCollaborators = useCallback(async () => {
     if (shareOpen && currentBoardId) {
@@ -30,8 +49,11 @@ export function useShareDialog(currentBoardId: string, boardName: string, showTo
   }, [shareOpen, currentBoardId, showToast]);
 
   useEffect(() => {
-    fetchCollaborators();
-  }, [fetchCollaborators]);
+    if (shareOpen) {
+      fetchCollaborators();
+      checkOpenSession();
+    }
+  }, [shareOpen, fetchCollaborators, checkOpenSession]);
 
   const isValidEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
   const emails = inviteEmail.split(",").map(e => e.trim()).filter(Boolean);
@@ -135,8 +157,50 @@ export function useShareDialog(currentBoardId: string, boardName: string, showTo
   };
 
   const handleClassroomShare = () => {
+    if (!currentBoardId) return;
+
+    const shareLink = collaborationService.generateBoardShareLink(currentBoardId, boardName);
+    const googleClassroomUrl = `https://classroom.google.com/share?url=${encodeURIComponent(shareLink)}`;
+    
+    // Open the Google Classroom share popup
+    window.open(googleClassroomUrl, "Share to Google Classroom", "width=600,height=400,scrollbars=yes");
+
     setClassroomShared(true);
     setTimeout(() => setClassroomShared(false), 3000);
+  };
+
+  const handleStartOpenSession = async () => {
+    if (!currentBoardId) return;
+    setIsOpenSessionCreating(true);
+    try {
+      const token = await collaborationService.createOpenSession(currentBoardId);
+      const shareLink = collaborationService.generateBoardShareLink(currentBoardId, boardName) + `?session=${token}`;
+      await navigator.clipboard.writeText(shareLink);
+      showToast?.("Open session started! Link copied to clipboard.", "success");
+      setIsOpenSessionActive(true);
+      checkOpenSession();
+    } catch (err: any) {
+      console.error("Failed to start open session", err);
+      showToast?.(err.response?.data?.message || err.message || "Failed to start open session", "error");
+    } finally {
+      setIsOpenSessionCreating(false);
+    }
+  };
+
+  const handleStopOpenSession = async () => {
+    if (!currentBoardId) return;
+    setIsOpenSessionCreating(true);
+    try {
+      await collaborationService.stopOpenSession(currentBoardId);
+      setIsOpenSessionActive(false);
+      setOpenSessionExpiry(null);
+      showToast?.("Open session stopped successfully.", "success");
+    } catch (err: any) {
+      console.error("Failed to stop open session", err);
+      showToast?.(err.response?.data?.message || err.message || "Failed to stop open session", "error");
+    } finally {
+      setIsOpenSessionCreating(false);
+    }
   };
 
   return {
@@ -156,9 +220,14 @@ export function useShareDialog(currentBoardId: string, boardName: string, showTo
     setShowMeetInfo,
     isLoadingCollaborators,
     isInviteEnabled,
+    isOpenSessionCreating,
+    isOpenSessionActive,
+    openSessionExpiry,
     handleCopyLink,
     handleInvite,
     handleRoleChange,
-    handleClassroomShare
+    handleClassroomShare,
+    handleStartOpenSession,
+    handleStopOpenSession
   };
 }

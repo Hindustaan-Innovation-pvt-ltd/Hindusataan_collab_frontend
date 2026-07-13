@@ -27,8 +27,11 @@ class WebSocketService {
 
   private getWSUrl(boardId: string): string {
     let token = null;
+    let sessionToken = null;
     try {
       token = localStorage.getItem("HIXCanvas_token") || localStorage.getItem("token");
+      const urlParams = new URLSearchParams(window.location.search);
+      sessionToken = urlParams.get("session");
     } catch (e) {
       console.warn("Storage access restricted:", e);
     }
@@ -37,13 +40,19 @@ class WebSocketService {
       : (import.meta.env.DEV ? "127.0.0.1:8000" : window.location.host);
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    let wsUrl = `${protocol}//${apiHost}/ws/board/${boardId}`;
+    let wsUrl = `${protocol}//${apiHost}/ws/board/${boardId}?`;
 
+    if (sessionToken) {
+      wsUrl += `session_token=${encodeURIComponent(sessionToken)}&`;
+    }
     if (token) {
-      wsUrl += `?token=${encodeURIComponent(token)}`;
+      wsUrl += `token=${encodeURIComponent(token)}&`;
     }
 
-    console.log({ boardId, tokenExists: !!token, wsUrl });
+    // Remove trailing ? or &
+    wsUrl = wsUrl.replace(/[?&]$/, "");
+
+    console.log({ boardId, tokenExists: !!token, sessionTokenExists: !!sessionToken, wsUrl });
     return wsUrl;
   }
 
