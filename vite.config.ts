@@ -24,7 +24,7 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
-  base: './',
+  base: '/',
   server: {
     port: 5173,
     proxy: {
