@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import type { ShapeEl, ShapeKind } from "../types";
 import { shapePathD } from "../utils/util";
 import ConnectionNodes from "./ConnectionNodes";
@@ -29,6 +29,36 @@ function ShapeNode({
   const { x, y, w, h, color, kind } = el;
   const sel = selected ? "#3742FA" : "transparent";
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [textVal, setTextVal] = useState(el.text ?? "");
+  const textValRef = useRef(textVal);
+  const hasCommitted = useRef(false);
+
+  useEffect(() => {
+    setTextVal(el.text ?? "");
+    textValRef.current = el.text ?? "";
+  }, [el.text]);
+
+  const commit = (val: string) => {
+    if (hasCommitted.current) return;
+    hasCommitted.current = true;
+    onBlur(el.id, val);
+  };
+
+  useEffect(() => {
+    hasCommitted.current = false;
+    textValRef.current = textVal;
+  }, [textVal]);
+
+  useEffect(() => {
+    if (editing) {
+      hasCommitted.current = false;
+    } else if (textValRef.current !== (el.text ?? "")) {
+      commit(textValRef.current);
+    }
+    return () => {
+      commit(textValRef.current);
+    };
+  }, [editing]);
 
   useEffect(() => {
     if (editing) {
@@ -253,7 +283,8 @@ function ShapeNode({
         {editing ? (
           <textarea
             ref={textareaRef}
-            defaultValue={el.text ?? ""}
+            value={textVal}
+            onChange={(e) => setTextVal(e.target.value)}
             className="w-full h-full bg-transparent resize-none outline-none text-center font-semibold pointer-events-auto overflow-hidden break-words"
             style={{
               color,
@@ -261,11 +292,12 @@ function ShapeNode({
               lineHeight: 1.3,
               fontSize: Math.max(12, h / 6),
             }}
-            onBlur={(e) => onBlur(el.id, e.target.value)}
+            onBlur={() => commit(textVal)}
             onPointerDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
+                commit(textVal);
                 textareaRef.current?.blur();
               }
             }}
