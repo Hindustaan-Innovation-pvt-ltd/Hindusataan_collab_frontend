@@ -22,7 +22,8 @@
 //       className="absolute"
 //       style={{
 //         left: el.x, top: el.y,
-//         outline: selected ? "2.5px solid #3742FA" : "2px dashed transparent",
+//         outline: selected ? "2.5px solid
+//  #3742FA" : "2px dashed transparent",
 //         outlineOffset: 6,
 //         cursor: editing ? "text" : "grab",
 //         borderRadius: 5,
