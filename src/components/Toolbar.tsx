@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 
 import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
-import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
+import { STICKY_COLORS, STICKY_TEXT_COLORS, SHAPE_COLORS, PEN_COLORS, ARROW_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
 import ColorPalette from "./ColorPalette";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 
@@ -17,12 +17,21 @@ interface ToolbarProps {
   zoomLevel: number;
   stickyColor: string;
   setStickyColor: (c: string) => void;
+  stickyTextColor?: string;
+  setStickyTextColor?: (c: string) => void;
+  isEditingOrSelectedSticky?: boolean;
   shapeColor: string;
   setShapeColor: (c: string) => void;
   shapeKind: ShapeKind;
   setShapeKind: (k: ShapeKind) => void;
   penColor: string;
   setPenColor: (c: string) => void;
+  arrowColor?: string;
+  setArrowColor?: (c: string) => void;
+  arrowWidth?: number;
+  setArrowWidth?: (w: number) => void;
+  arrowDash?: string;
+  setArrowDash?: (d: string) => void;
 
   penType: PenType;
   setPenType: (t: PenType) => void;
@@ -43,13 +52,17 @@ interface ToolbarProps {
   onInsertEmoji?: (emoji: string, sizeScale: number) => void;
   onInsertShape?: (kind: string, sizeScale: number) => void;
   onInsertDeviceFrame?: (kind: string, sizeScale: number) => void;
+  onInsertSticker?: (svgUrl: string, sizeScale: number) => void;
 }
 
 function Toolbar({
   tool, setTool, onZoom, zoomLevel,
-  stickyColor, setStickyColor,
+  stickyColor, setStickyColor, stickyTextColor = "#1E293B", setStickyTextColor, isEditingOrSelectedSticky = false,
   shapeColor, setShapeColor, shapeKind, setShapeKind,
   penColor, setPenColor,
+  arrowColor = "#6B7280", setArrowColor,
+  arrowWidth = 4, setArrowWidth,
+  arrowDash = "solid", setArrowDash,
   penType, setPenType,
   penThickness, setPenThickness,
   toolMenuOpen, setToolMenuOpen,
@@ -62,7 +75,7 @@ function Toolbar({
   setTextFontSize,
   textFontFamily = "sans-serif",
   setTextFontFamily,
-  onInsertEmoji, onInsertShape, onInsertDeviceFrame,
+  onInsertEmoji, onInsertShape, onInsertDeviceFrame, onInsertSticker,
 }: ToolbarProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [quickInsertOpen, setQuickInsertOpen] = useState(false);
@@ -122,7 +135,7 @@ function Toolbar({
     ? "fixed left-5 top-24 z-50 w-80"
     : "fixed left-20 top-24 z-50 w-80";
 
-  const showOptionsPanel = toolMenuOpen && (tool === "pen" || tool === "shape" || tool === "sticky" || isEditingOrSelectedText);
+  const showOptionsPanel = toolMenuOpen && (tool === "pen" || tool === "shape" || tool === "sticky" || tool === "arrow" || isEditingOrSelectedText || isEditingOrSelectedSticky);
 
   return (
     <>
@@ -137,7 +150,7 @@ function Toolbar({
                   setToolMenuOpen(!toolMenuOpen);
                 } else {
                   setTool(id as Tool);
-                  if (id === "pen" || id === "shape" || id === "sticky" || id === "text") {
+                  if (id === "pen" || id === "shape" || id === "sticky" || id === "text" || id === "arrow") {
                     setToolMenuOpen(true);
                   } else {
                     setToolMenuOpen(false);
@@ -224,7 +237,7 @@ function Toolbar({
             className={`text-xs font-semibold text-[#4B5563] text-center cursor-pointer hover:text-foreground flex items-center justify-center ${layout === "horizontal" ? "px-1 min-w-[40px]" : "py-1 min-h-[40px] w-8"
               }`}
             title="Reset zoom"
-            onClick={() => {/* handled outside */ }}
+            onClick={() => onZoom(0)}
           >
             {Math.round(zoomLevel * 100)}%
           </div>
@@ -330,11 +343,64 @@ function Toolbar({
           )}
 
           {/* Sticky Note Settings */}
-          {tool === "sticky" && (
-            <div>
-              <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Sticky Colors</div>
-              <ColorPalette colors={STICKY_COLORS} active={stickyColor} onPick={setStickyColor} flat={true} />
-            </div>
+          {(tool === "sticky" || isEditingOrSelectedSticky) && (
+            <>
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-1.5 px-1 uppercase tracking-wider">Note Color</div>
+                <ColorPalette colors={STICKY_COLORS} active={stickyColor} onPick={setStickyColor} flat={true} />
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-1.5 px-1 uppercase tracking-wider">Text Color</div>
+                <ColorPalette colors={STICKY_TEXT_COLORS} active={stickyTextColor || "#1E293B"} onPick={(c) => setStickyTextColor?.(c)} flat={true} />
+              </div>
+            </>
+          )}
+
+          {/* Arrow Tool Settings */}
+          {tool === "arrow" && (
+            <>
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Line Style</div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    onClick={() => setArrowDash?.("solid")}
+                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowDash !== "dashed" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Solid
+                  </button>
+                  <button
+                    onClick={() => setArrowDash?.("dashed")}
+                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowDash === "dashed" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Dashed
+                  </button>
+                </div>
+              </div>
+
+              <div className="h-px bg-border/60 my-0.5" />
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Thickness</div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[2, 4, 6, 8].map((w) => (
+                    <button
+                      key={w}
+                      onClick={() => setArrowWidth?.(w)}
+                      className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowWidth === w ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {w}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="h-px bg-border/60 my-0.5" />
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Colors</div>
+                <ColorPalette colors={ARROW_COLORS} active={arrowColor || "#6B7280"} onPick={(c) => setArrowColor?.(c)} flat={true} />
+              </div>
+            </>
           )}
 
           {/* Font Settings for Text Editing / Text Tool */}
@@ -403,6 +469,7 @@ function Toolbar({
             onInsertEmoji={(emoji: string) => { onInsertEmoji?.(emoji, 1); setQuickInsertOpen(false); }}
             onInsertShape={(kind: string) => { onInsertShape?.(kind, 1); setQuickInsertOpen(false); }}
             onInsertDeviceFrame={(kind: string) => { onInsertDeviceFrame?.(kind, 1); setQuickInsertOpen(false); }}
+            onInsertSticker={(svgUrl: string, sizeScale: number) => { onInsertSticker?.(svgUrl, sizeScale); }}
             onClose={() => setQuickInsertOpen(false)}
           />
         </div>

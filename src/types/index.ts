@@ -1,6 +1,6 @@
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type Tool = "select" | "hand" | "sticky" | "text" | "shape" | "pen" | "eraser" | "arrow" | "table" | "comment";
+export type Tool = "select" | "hand" | "sticky" | "text" | "shape" | "pen" | "eraser" | "arrow" | "table" | "comment" | "stamp" | "sticker" | "icon" | "image";
 export type ShapeKind = "rect" | "ellipse" | "diamond" | "triangle" | "hexagon" | "star" | "parallelogram" | "arrow_right" | "document" | "cross" | "pentagon" | "octagon";
 
 export interface Pt { x: number; y: number }
@@ -12,8 +12,8 @@ export type ShapeEl = Base & { type: "shape"; kind: ShapeKind; w: number; h: num
 export type PenType = "pen" | "marker" | "highlighter";
 export type PenThickness = number;
 export type PathEl = Base & { type: "path"; pts: Pt[]; color: string; sw: number; penType?: PenType };
-export type ConnectionEl = Base & { type: "connection"; from: string; to: string; color: string; label?: string };
-export type FreeArrowEl = Base & { type: "free_arrow"; dx: number; dy: number; color: string };
+export type ConnectionEl = Base & { type: "connection"; from: string; to: string; color: string; label?: string; sw?: number; dash?: string };
+export type FreeArrowEl = Base & { type: "free_arrow"; dx: number; dy: number; color: string; sw?: number; dash?: string };
 export type TableEl = Base & { type: "table"; rows: number; cols: number; cellW: number; cellH: number; data: Record<string, string>; color: string };
 export type GraphEl = Base & { type: "graph"; w: number; h: number; graphData: any; color: string };
 export type El = StickyEl | TextEl | ShapeEl | PathEl | ConnectionEl | TableEl | FreeArrowEl | GraphEl;

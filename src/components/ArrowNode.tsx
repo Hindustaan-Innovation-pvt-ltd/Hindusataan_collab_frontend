@@ -75,18 +75,38 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
 
       if (handle === "start") {
         currentFrom = finalSnapId;
+        let newX = initX + dX;
+        let newY = initY + dY;
+        if (me.shiftKey) {
+          const endPtX = initX + initDx;
+          const endPtY = initY + initDy;
+          const ang = Math.atan2(newY - endPtY, newX - endPtX);
+          const dist = Math.hypot(newX - endPtX, newY - endPtY);
+          const snapAng = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+          newX = endPtX + dist * Math.cos(snapAng);
+          newY = endPtY + dist * Math.sin(snapAng);
+        }
         onUpdate(el.id, {
-          x: initX + dX,
-          y: initY + dY,
-          dx: initDx - dX,
-          dy: initDy - dY,
+          x: newX,
+          y: newY,
+          dx: (initX + initDx) - newX,
+          dy: (initY + initDy) - newY,
           from: currentFrom,
         });
       } else if (handle === "end") {
         currentTo = finalSnapId;
+        let newDx = initDx + dX;
+        let newDy = initDy + dY;
+        if (me.shiftKey) {
+          const ang = Math.atan2(newDy, newDx);
+          const dist = Math.hypot(newDx, newDy);
+          const snapAng = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+          newDx = dist * Math.cos(snapAng);
+          newDy = dist * Math.sin(snapAng);
+        }
         onUpdate(el.id, {
-          dx: initDx + dX,
-          dy: initDy + dY,
+          dx: newDx,
+          dy: newDy,
           to: currentTo,
         });
       }
@@ -103,36 +123,60 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
     window.addEventListener("pointerup", onUp);
   };
 
+  const sw = el.sw || 4;
+  const dash = el.dash === "dashed" ? `${sw * 2.5}, ${sw * 2.5}` : undefined;
+  const color = el.color || "#6B7280";
+
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const angle = Math.atan2(dy, dx);
+
+  // Open V-shaped arrowhead (not filled triangle, proportionally scaled with sw)
+  const wingLen = Math.max(16, sw * 3.8);
+  const wingAngle = 26 * (Math.PI / 180);
+
+  const wing1X = endX - wingLen * Math.cos(angle - wingAngle);
+  const wing1Y = endY - wingLen * Math.sin(angle - wingAngle);
+  const wing2X = endX - wingLen * Math.cos(angle + wingAngle);
+  const wing2Y = endY - wingLen * Math.sin(angle + wingAngle);
+
+  const arrowheadD = `M ${wing1X} ${wing1Y} L ${endX} ${endY} L ${wing2X} ${wing2Y}`;
+
   return (
-    <svg className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none" }}>
-      <defs>
-        <marker id={`arrowhead-${el.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill={el.color} />
-        </marker>
-      </defs>
+    <svg className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none", shapeRendering: "geometricPrecision" }}>
       <g data-el-id={el.id}>
+        {/* Invisible thick hit target for easy clicking/dragging */}
         <line
           x1={startX} y1={startY} x2={endX} y2={endY}
-          stroke="transparent" strokeWidth="20"
+          stroke="transparent" strokeWidth={Math.max(20, sw + 14)}
           style={{ pointerEvents: "stroke", cursor: "move" }}
         />
+        {/* Main stem line */}
         <line
           x1={startX} y1={startY} x2={endX} y2={endY}
-          stroke={el.color} strokeWidth="3" markerEnd={`url(#arrowhead-${el.id})`}
-          style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 4px #3742FA)" : undefined }}
+          stroke={color} strokeWidth={sw} strokeDasharray={dash}
+          strokeLinecap="round" strokeLinejoin="round"
+          style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 5px #3742FA)" : undefined }}
+        />
+        {/* Hollow V-shaped arrowhead */}
+        <path
+          d={arrowheadD}
+          stroke={color} strokeWidth={sw} fill="none"
+          strokeLinecap="round" strokeLinejoin="round"
+          style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 5px #3742FA)" : undefined }}
         />
         {selected && (
           <>
             <circle
-              cx={startX} cy={startY} r="5"
-              fill="#fff" stroke="#3742FA" strokeWidth="2"
-              style={{ pointerEvents: "all", cursor: "crosshair" }}
+              cx={startX} cy={startY} r="6"
+              fill="#fff" stroke="#3742FA" strokeWidth="2.5"
+              style={{ pointerEvents: "all", cursor: "crosshair", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}
               onPointerDown={(e) => handlePointerDown(e, "start")}
             />
             <circle
-              cx={endX} cy={endY} r="5"
-              fill="#fff" stroke="#3742FA" strokeWidth="2"
-              style={{ pointerEvents: "all", cursor: "crosshair" }}
+              cx={endX} cy={endY} r="6"
+              fill="#fff" stroke="#3742FA" strokeWidth="2.5"
+              style={{ pointerEvents: "all", cursor: "crosshair", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}
               onPointerDown={(e) => handlePointerDown(e, "end")}
             />
           </>

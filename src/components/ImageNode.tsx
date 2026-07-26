@@ -18,7 +18,46 @@ export const ImageNode = React.memo(function ImageNode({
   onUpdate,
   scale,
 }: ImageNodeProps) {
-  const { x, y, w, h, url, id } = el;
+  const { x, y, w, h, url, id, rotation = 0, isSticker } = el;
+
+  const handleRotatePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const target = e.currentTarget;
+    target.setPointerCapture(e.pointerId);
+
+    const onMove = (moveEv: PointerEvent | React.PointerEvent) => {
+      const elNode = document.querySelector(`[data-el-id="${id}"]`) as HTMLElement;
+      if (!elNode) return;
+      const rect = elNode.getBoundingClientRect();
+      const rectCenterX = rect.left + rect.width / 2;
+      const rectCenterY = rect.top + rect.height / 2;
+
+      const dx = moveEv.clientX - rectCenterX;
+      const dy = moveEv.clientY - rectCenterY;
+
+      let angleDeg = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+      if (angleDeg < 0) angleDeg += 360;
+
+      if (moveEv.shiftKey) {
+        angleDeg = Math.round(angleDeg / 15) * 15;
+      } else {
+        angleDeg = Math.round(angleDeg);
+      }
+
+      onUpdate(id, { rotation: angleDeg });
+    };
+
+    const onUp = (upEv: PointerEvent | React.PointerEvent) => {
+      target.releasePointerCapture(upEv.pointerId);
+      target.removeEventListener("pointermove", onMove as EventListener);
+      target.removeEventListener("pointerup", onUp as EventListener);
+    };
+
+    target.addEventListener("pointermove", onMove as EventListener);
+    target.addEventListener("pointerup", onUp as EventListener);
+  };
 
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>, handle: HandlePosition) => {
     e.stopPropagation();
@@ -139,6 +178,8 @@ export const ImageNode = React.memo(function ImageNode({
         width: w,
         height: h,
         cursor: "grab",
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transformOrigin: "center center",
       }}
     >
       <div
@@ -152,29 +193,79 @@ export const ImageNode = React.memo(function ImageNode({
           src={url}
           alt="Board element"
           draggable={false}
-          className="w-full h-full object-fill pointer-events-none rounded-[4px]"
+          className={`w-full h-full pointer-events-none rounded-[4px] ${
+            isSticker || url.includes("image/svg+xml") ? "object-contain" : "object-fill"
+          }`}
+          style={
+            isSticker || url.includes("image/svg+xml")
+              ? {
+                  filter:
+                    "drop-shadow(0px 0px 0px 4px #ffffff) drop-shadow(0px 0px 1.5px #ffffff) drop-shadow(0px 6px 16px rgba(0, 0, 0, 0.22))",
+                }
+              : undefined
+          }
         />
       </div>
 
-      {selected &&
-        handles.map((hnd) => (
+      {selected && (
+        <>
+          {/* Rotate handle line */}
           <div
-            key={hnd.position}
-            onPointerDown={(e) => handleResizePointerDown(e, hnd.position)}
             style={{
               position: "absolute",
-              width: 12,
-              height: 12,
+              width: 1,
+              height: 20,
+              background: "#3742FA",
+              top: -20,
+              left: "calc(50% - 0.5px)",
+              pointerEvents: "none",
+              zIndex: 49,
+            }}
+          />
+          {/* Rotate handle circle */}
+          <div
+            onPointerDown={handleRotatePointerDown}
+            title="Rotate"
+            style={{
+              position: "absolute",
+              width: 16,
+              height: 16,
               borderRadius: "50%",
               background: "#fff",
               border: "2px solid #3742FA",
-              cursor: hnd.cursor,
+              cursor: "grab",
+              top: -28,
+              left: "calc(50% - 8px)",
               touchAction: "none",
-              zIndex: 50,
-              ...hnd.style,
+              zIndex: 51,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
             }}
-          />
-        ))}
+          >
+            <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3742FA" }} />
+          </div>
+          {handles.map((hnd) => (
+            <div
+              key={hnd.position}
+              onPointerDown={(e) => handleResizePointerDown(e, hnd.position)}
+              style={{
+                position: "absolute",
+                width: 12,
+                height: 12,
+                borderRadius: "50%",
+                background: "#fff",
+                border: "2px solid #3742FA",
+                cursor: hnd.cursor,
+                touchAction: "none",
+                zIndex: 50,
+                ...hnd.style,
+              }}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 });

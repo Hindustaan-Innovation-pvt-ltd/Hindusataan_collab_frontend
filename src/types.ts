@@ -12,7 +12,9 @@ export type Tool =
   | "eraser"
   | "arrow"
   | "comment"
-  | "image";
+  | "image"
+  | "stamp"
+  | "sticker";
 
 export type PenType = "pen" | "marker" | "highlighter";
 export type PenThickness = number;
@@ -165,6 +167,8 @@ export interface ConnectionEl extends BaseEl {
   to: string;
   color: string;
   label?: string;
+  sw?: number;
+  dash?: string;
 }
 
 export interface FreeArrowEl extends BaseEl {
@@ -174,6 +178,8 @@ export interface FreeArrowEl extends BaseEl {
   color: string;
   from?: string;
   to?: string;
+  sw?: number;
+  dash?: string;
 }
 
 export interface PathEl extends BaseEl {
@@ -207,6 +213,7 @@ export interface ImageEl extends BaseEl {
   w: number;
   h: number;
   rotation?: number;
+  isSticker?: boolean;
 }
 
 export type El =

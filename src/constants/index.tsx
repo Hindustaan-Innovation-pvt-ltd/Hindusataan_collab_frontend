@@ -8,6 +8,7 @@ import type { El, ShapeKind, Tool } from "../types";
 // ── Colors ─────────────────────────────────────────────────────────────────────
 
 export const STICKY_COLORS = ["#FFE566", "#FF9EAF", "#7BC8F6", "#B5EAD7", "#FFBF69", "#D4A1FF"];
+export const STICKY_TEXT_COLORS = ["#1E293B", "#000000", "#FFFFFF", "#FF4757", "#1E90FF", "#2ED573", "#5F27CD", "#D980FA", "#FF9F43", "#0ABDE3"];
 export const SHAPE_COLORS = [
   "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#F7C59F", "#C9B1FF",
   "#FF9F43", "#0ABDE3", "#10AC84", "#5F27CD", "#FF3400", "#222F3E",
@@ -19,7 +20,7 @@ export const PEN_COLORS = [
   "#FF9F43", "#0ABDE3", "#10AC84", "#5F27CD", "#FF3400", "#222F3E"
 ];
 export const ARROW_COLORS = [
-  "var(--color-foreground)", "#000000", "#FFFFFF", "#FF4757", "#2ED573", "#1E90FF", "#FFE566", "#FF6B9D",
+  "#6B7280", "var(--color-foreground)", "#000000", "#FFFFFF", "#FF4757", "#2ED573", "#1E90FF", "#FFE566", "#FF6B9D",
   "#FF9F43", "#0ABDE3", "#10AC84", "#5F27CD",
   "#A3CB38", "#1289A7", "#D980FA", "#B53471", "#EE5A24", "#009432", "#0652DD", "#9980FA"
 ];

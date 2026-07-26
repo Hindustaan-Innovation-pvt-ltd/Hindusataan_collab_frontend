@@ -35,6 +35,15 @@ import { useToast } from "../hooks/useToast";
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
+const snapShiftAngle = (start: Pt, end: Pt, shift: boolean): Pt => {
+  if (!shift) return end;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const ang = Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4);
+  const dist = Math.hypot(dx, dy);
+  return { x: start.x + dist * Math.cos(ang), y: start.y + dist * Math.sin(ang) };
+};
+
 const getSessionUser = () => {
   try {
     const token = localStorage.getItem("token");
@@ -129,10 +138,13 @@ export default function App() {
 
   const [cam, setCam] = useState<Cam>({ x: 0, y: 0, z: 1 });
   const [stickyColor, setStickyColor] = useState(STICKY_COLORS[0]);
+  const [stickyTextColor, setStickyTextColor] = useState("#1E293B");
   const [shapeColor, setShapeColor] = useState(SHAPE_COLORS[0]);
   const [shapeKind, setShapeKind] = useState<ShapeKind>("rect");
   const [penColor, setPenColor] = useState(PEN_COLORS[0]);
-  const [arrowColor] = useState(ARROW_COLORS[0]);
+  const [arrowColor, setArrowColor] = useState("#6B7280");
+  const [arrowWidth, setArrowWidth] = useState(4);
+  const [arrowDash, setArrowDash] = useState("solid");
   const [textColor] = useState(TEXT_COLORS[0]);
   const [tableColor] = useState(TABLE_COLORS[0]);
   const [tableConfig] = useState({ rows: 3, cols: 3, template: "basic" });
@@ -293,10 +305,13 @@ export default function App() {
   const editIdRef = useRef(editId);
   const selIdsRef = useRef(selIds);
   const stickyColorRef = useRef(stickyColor);
+  const stickyTextColorRef = useRef(stickyTextColor);
   const shapeColorRef = useRef(shapeColor);
   const shapeKindRef = useRef(shapeKind);
   const penColorRef = useRef(penColor);
   const arrowColorRef = useRef(arrowColor);
+  const arrowWidthRef = useRef(arrowWidth);
+  const arrowDashRef = useRef(arrowDash);
   const textColorRef = useRef(textColor);
   const tableColorRef = useRef(tableColor);
   const tableConfigRef = useRef(tableConfig);
@@ -311,20 +326,25 @@ export default function App() {
   useEffect(() => { editIdRef.current = editId; }, [editId]);
   useEffect(() => { selIdsRef.current = selIds; }, [selIds]);
   useEffect(() => { stickyColorRef.current = stickyColor; }, [stickyColor]);
+  useEffect(() => { stickyTextColorRef.current = stickyTextColor; }, [stickyTextColor]);
   useEffect(() => { shapeColorRef.current = shapeColor; }, [shapeColor]);
   useEffect(() => { shapeKindRef.current = shapeKind; }, [shapeKind]);
   useEffect(() => {
     penColorRef.current = penColor;
     arrowColorRef.current = arrowColor;
+    arrowWidthRef.current = arrowWidth;
+    arrowDashRef.current = arrowDash;
     textColorRef.current = textColor;
     tableColorRef.current = tableColor;
     tableConfigRef.current = tableConfig;
     penTypeRef.current = penType;
     penThicknessRef.current = penThickness;
     toolRef.current = tool;
-  }, [penColor, arrowColor, textColor, tableColor, tableConfig, penType, penThickness, tool]);
+  }, [penColor, arrowColor, arrowWidth, arrowDash, textColor, tableColor, tableConfig, penType, penThickness, tool]);
   useEffect(() => { boardBgRef.current = boardBg; }, [boardBg]);
 
+  const activeStickerRef = useRef<{ url: string; scale: number } | null>(null);
+  const stickerInsertCountRef = useRef<number>(0);
   const textFontSizeRef = useRef(textFontSize);
   const textFontFamilyRef = useRef(textFontFamily);
   useEffect(() => {
@@ -339,6 +359,10 @@ export default function App() {
       if (selectedEl && selectedEl.type === "text") {
         setTextFontSize(selectedEl.fontSize || 20);
         setTextFontFamily(selectedEl.fontFamily || "sans-serif");
+        setToolMenuOpen(true);
+      } else if (selectedEl && selectedEl.type === "sticky") {
+        setStickyColor(selectedEl.color || STICKY_COLORS[0]);
+        setStickyTextColor(selectedEl.textColor || "#1E293B");
         setToolMenuOpen(true);
       }
     }
@@ -379,6 +403,14 @@ export default function App() {
     if (tool === "text") return true;
     if (tool === "select" && selIds.length > 0) {
       return els.some(el => selIds.includes(el.id) && el.type === "text");
+    }
+    return false;
+  }, [tool, selIds, els]);
+
+  const isEditingOrSelectedSticky = useMemo(() => {
+    if (tool === "sticky") return true;
+    if (tool === "select" && selIds.length > 0) {
+      return els.some(el => selIds.includes(el.id) && el.type === "sticky");
     }
     return false;
   }, [tool, selIds, els]);
@@ -556,9 +588,18 @@ export default function App() {
 
   // ── Zoom ──────────────────────────────────────────────────────────────────
 
-  const doZoom = useCallback((dir: number, cx?: number, cy?: number) => {
+  const doZoom = useCallback((dir: number, cx?: number, cy?: number, customFactor?: number) => {
     setCam(prev => {
-      const factor = dir > 0 ? 1.02 : 1 / 1.02;
+      if (dir === 0) {
+        const px = cx ?? (wrapRef.current ? wrapRef.current.clientWidth / 2 : 0);
+        const py = cy ?? (wrapRef.current ? wrapRef.current.clientHeight / 2 : 0);
+        return {
+          z: 1,
+          x: px - (px - prev.x) * (1 / prev.z),
+          y: py - (py - prev.y) * (1 / prev.z),
+        };
+      }
+      const factor = customFactor ?? (dir > 0 ? 1.20 : 1 / 1.20);
       const nz = Math.max(0.08, Math.min(6, prev.z * factor));
       const px = cx ?? (wrapRef.current ? wrapRef.current.clientWidth / 2 : 0);
       const py = cy ?? (wrapRef.current ? wrapRef.current.clientHeight / 2 : 0);
@@ -592,7 +633,7 @@ export default function App() {
         return;
       }
 
-      if (e.key === "Escape") { setSelIds([]); setEditId(null); return; }
+      if (e.key === "Escape") { setSelIds([]); setEditId(null); activeStickerRef.current = null; setTool("select"); return; }
 
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         if (e.shiftKey) {
@@ -708,16 +749,34 @@ export default function App() {
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
+    let rafId: number | null = null;
+    let pendingDeltaX = 0;
+    let pendingDeltaY = 0;
+
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        doZoom(e.deltaY < 0 ? 1 : -1, e.clientX, e.clientY);
+        const zoomStep = Math.min(Math.max(Math.abs(e.deltaY) * 0.003, 0.08), 0.35);
+        const factor = e.deltaY < 0 ? (1 + zoomStep) : (1 / (1 + zoomStep));
+        doZoom(e.deltaY < 0 ? 1 : -1, e.clientX, e.clientY, factor);
       } else {
-        setCam(p => ({ ...p, x: p.x - e.deltaX * 0.8, y: p.y - e.deltaY * 0.8 }));
+        pendingDeltaX += e.deltaX * 1.2;
+        pendingDeltaY += e.deltaY * 1.2;
+        if (rafId === null) {
+          rafId = requestAnimationFrame(() => {
+            setCam(p => ({ ...p, x: p.x - pendingDeltaX, y: p.y - pendingDeltaY }));
+            pendingDeltaX = 0;
+            pendingDeltaY = 0;
+            rafId = null;
+          });
+        }
       }
     };
     el.addEventListener("wheel", handler, { passive: false });
-    return () => el.removeEventListener("wheel", handler);
+    return () => {
+      el.removeEventListener("wheel", handler);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [doZoom, isLoading]);
 
   // ── Pointer events ────────────────────────────────────────────────────────
@@ -757,13 +816,14 @@ export default function App() {
       setLiveArrow({ start: startPt, end: startPt });
 
       const onMove = (me: PointerEvent) => {
-        const pt = worldPt(me.clientX, me.clientY, getRect(), camRef.current);
+        const pt = snapShiftAngle(startPt, worldPt(me.clientX, me.clientY, getRect(), camRef.current), me.shiftKey);
         setLiveArrow({ start: startPt, end: pt });
       };
       const onUp = (ue: PointerEvent) => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
 
+        const pt = snapShiftAngle(startPt, worldPt(ue.clientX, ue.clientY, getRect(), camRef.current), ue.shiftKey);
         const elsUnder = document.elementsFromPoint(ue.clientX, ue.clientY);
         const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
 
@@ -774,18 +834,21 @@ export default function App() {
               id: uid(), type: "free_arrow",
               from: id, to: toId,
               x: startPt.x, y: startPt.y,
-              dx: ue.clientX - startPt.x, dy: ue.clientY - startPt.y,
-              color: "var(--color-foreground)"
+              dx: pt.x - startPt.x, dy: pt.y - startPt.y,
+              color: arrowColorRef.current || "#6B7280",
+              sw: arrowWidthRef.current || 4,
+              dash: arrowDashRef.current || "solid"
             }]);
           }
         } else {
           const newId = uid();
-          const pt = worldPt(ue.clientX, ue.clientY, getRect(), camRef.current);
           setEls(p => [...p, {
             id: newId, type: "free_arrow",
             x: startPt.x, y: startPt.y,
             dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-            color: arrowColorRef.current,
+            color: arrowColorRef.current || "#6B7280",
+            sw: arrowWidthRef.current || 4,
+            dash: arrowDashRef.current || "solid",
             from: id
           }]);
           setSelIds([newId]);
@@ -893,7 +956,7 @@ export default function App() {
       const id = uid();
       setEls(p => [...p, {
         id, type: "sticky", x: w.x - 100, y: w.y - 100, w: 200, h: 200,
-        text: "", color: stickyColorRef.current,
+        text: "", color: stickyColorRef.current, textColor: stickyTextColorRef.current,
       }]);
       setSelIds([id]);
       setTool("select");
@@ -920,6 +983,29 @@ export default function App() {
       setSelIds([id]);
       setTool("select");
       return;
+    }
+
+    if (toolRef.current === "stamp" || (toolRef.current as any) === "sticker") {
+      const activeSticker = activeStickerRef.current;
+      if (activeSticker) {
+        const id = uid();
+        const size = 72 * activeSticker.scale;
+        const newEl: import("../types").ImageEl & { isSticker?: boolean } = {
+          id,
+          type: "image",
+          url: activeSticker.url,
+          x: w.x - size / 2,
+          y: w.y - size / 2,
+          w: size,
+          h: size,
+          isSticker: true,
+          rotation: (Math.random() - 0.5) * 14,
+        };
+        setEls(p => [...p, newEl]);
+        setSelIds([id]);
+        // Keep stamp mode active for rapid multi-insertion on canvas!
+        return;
+      }
     }
 
     if (toolRef.current === "table") {
@@ -1035,19 +1121,22 @@ export default function App() {
         setLiveArrow({ start: startPt, end: startPt });
 
         const onMove = (me: PointerEvent) => {
-          setLiveArrow({ start: startPt, end: worldPt(me.clientX, me.clientY, getRect(), camRef.current) });
+          const pt = snapShiftAngle(startPt, worldPt(me.clientX, me.clientY, getRect(), camRef.current), me.shiftKey);
+          setLiveArrow({ start: startPt, end: pt });
         };
         const onUp = (ue: PointerEvent) => {
           window.removeEventListener("pointermove", onMove);
           window.removeEventListener("pointerup", onUp);
-          const endPt = worldPt(ue.clientX, ue.clientY, getRect(), camRef.current);
+          const endPt = snapShiftAngle(startPt, worldPt(ue.clientX, ue.clientY, getRect(), camRef.current), ue.shiftKey);
           if (Math.hypot(endPt.x - startPt.x, endPt.y - startPt.y) > 5) {
             const newId = uid();
             setEls(p => [...p, {
               id: newId, type: "free_arrow",
               x: startPt.x, y: startPt.y,
               dx: endPt.x - startPt.x, dy: endPt.y - startPt.y,
-              color: arrowColorRef.current
+              color: arrowColorRef.current || "#6B7280",
+              sw: arrowWidthRef.current || 4,
+              dash: arrowDashRef.current || "solid"
             }]);
             setSelIds([newId]);
           }
@@ -1402,13 +1491,14 @@ export default function App() {
     setLiveArrow({ start: startPt, end: startPt });
 
     const onMove = (me: PointerEvent) => {
-      const pt = worldPt(me.clientX, me.clientY, getRect(), camRef.current);
+      const pt = snapShiftAngle(startPt, worldPt(me.clientX, me.clientY, getRect(), camRef.current), me.shiftKey);
       setLiveArrow({ start: startPt, end: pt });
     };
     const onUp = (ue: PointerEvent) => {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
 
+      const pt = snapShiftAngle(startPt, worldPt(ue.clientX, ue.clientY, getRect(), camRef.current), ue.shiftKey);
       const elsUnder = document.elementsFromPoint(ue.clientX, ue.clientY);
       const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
 
@@ -1419,18 +1509,21 @@ export default function App() {
             id: uid(), type: "free_arrow",
             from: id, to: toId,
             x: startPt.x, y: startPt.y,
-            dx: ue.clientX - startPt.x, dy: ue.clientY - startPt.y,
-            color: "var(--color-foreground)"
+            dx: pt.x - startPt.x, dy: pt.y - startPt.y,
+            color: arrowColorRef.current || "#6B7280",
+            sw: arrowWidthRef.current || 4,
+            dash: arrowDashRef.current || "solid"
           }]);
         }
       } else {
         const newId = uid();
-        const pt = worldPt(ue.clientX, ue.clientY, getRect(), camRef.current);
         setEls(p => [...p, {
           id: newId, type: "free_arrow",
           x: startPt.x, y: startPt.y,
           dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-          color: arrowColorRef.current,
+          color: arrowColorRef.current || "#6B7280",
+          sw: arrowWidthRef.current || 4,
+          dash: arrowDashRef.current || "solid",
           from: id
         }]);
         setSelIds([newId]);
@@ -1502,6 +1595,39 @@ export default function App() {
     const size = 60 * sizeScale;
     setEls(p => [...p, { id, type: "text", x: centerWorld.x - size / 2, y: centerWorld.y - size / 2, fontSize: size, color: "var(--color-foreground)", text: emoji }]);
     setSelIds([id]);
+  }, []);
+
+  const onInsertSticker = useCallback((svgUrl: string, sizeScale: number = 1) => {
+    const centerScreen = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerWorld = worldPt(centerScreen.x, centerScreen.y, rect, camRef.current);
+
+    stickerInsertCountRef.current = (stickerInsertCountRef.current || 0) + 1;
+    const count = stickerInsertCountRef.current;
+    const col = (count - 1) % 5;
+    const row = Math.floor(((count - 1) % 25) / 5);
+    const offsetX = (col - 2) * 35 + (Math.random() - 0.5) * 15;
+    const offsetY = (row - 2) * 35 + (Math.random() - 0.5) * 15;
+
+    const id = uid();
+    const size = 72 * sizeScale;
+    const newEl: import("../types").ImageEl & { isSticker?: boolean } = {
+      id,
+      type: "image",
+      url: svgUrl,
+      x: centerWorld.x - size / 2 + offsetX,
+      y: centerWorld.y - size / 2 + offsetY,
+      w: size,
+      h: size,
+      isSticker: true,
+      rotation: (Math.random() - 0.5) * 14,
+    };
+    setEls(p => [...p, newEl]);
+    setSelIds([id]);
+
+    activeStickerRef.current = { url: svgUrl, scale: sizeScale };
+    setTool("stamp" as any);
   }, []);
 
   const onInsertShape = useCallback((kind: string, sizeScale: number = 1) => {
@@ -1817,7 +1943,7 @@ export default function App() {
                 // We'll just render them using ArrowNode, providing default x,y,dx,dy.
                 const c = el as ConnectionEl;
                 const legacyArrow: FreeArrowEl = {
-                  id: c.id, type: "free_arrow", color: c.color,
+                  id: c.id, type: "free_arrow", color: c.color, sw: c.sw, dash: c.dash,
                   from: c.from, to: c.to, x: c.x || 0, y: c.y || 0, dx: 100, dy: 100, locked: c.locked
                 };
                 return (
@@ -1921,9 +2047,27 @@ export default function App() {
                   <path d={pathD(livePts)} stroke={penColor} strokeWidth={liveSw} fill="none" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: isHighlighter ? 0.3 : 1, mixBlendMode: isHighlighter ? "multiply" : undefined }} />
                 );
               })()}
-              {liveArrow && (
-                <line x1={liveArrow.start.x} y1={liveArrow.start.y} x2={liveArrow.end.x} y2={liveArrow.end.y} stroke="currentColor" strokeWidth="3" markerEnd="url(#arrowhead)" opacity={0.5} />
-              )}
+              {liveArrow && (() => {
+                const sw = arrowWidthRef.current || 4;
+                const dash = arrowDashRef.current === "dashed" ? `${sw * 2.5}, ${sw * 2.5}` : undefined;
+                const color = arrowColorRef.current || "#6B7280";
+                const dx = liveArrow.end.x - liveArrow.start.x;
+                const dy = liveArrow.end.y - liveArrow.start.y;
+                const angle = Math.atan2(dy, dx);
+                const wingLen = Math.max(16, sw * 3.8);
+                const wingAngle = 26 * (Math.PI / 180);
+                const wing1X = liveArrow.end.x - wingLen * Math.cos(angle - wingAngle);
+                const wing1Y = liveArrow.end.y - wingLen * Math.sin(angle - wingAngle);
+                const wing2X = liveArrow.end.x - wingLen * Math.cos(angle + wingAngle);
+                const wing2Y = liveArrow.end.y - wingLen * Math.sin(angle + wingAngle);
+                const arrowheadD = `M ${wing1X} ${wing1Y} L ${liveArrow.end.x} ${liveArrow.end.y} L ${wing2X} ${wing2Y}`;
+                return (
+                  <g opacity={0.75}>
+                    <line x1={liveArrow.start.x} y1={liveArrow.start.y} x2={liveArrow.end.x} y2={liveArrow.end.y} stroke={color} strokeWidth={sw} strokeDasharray={dash} strokeLinecap="round" strokeLinejoin="round" />
+                    <path d={arrowheadD} stroke={color} strokeWidth={sw} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  </g>
+                );
+              })()}
             </svg>
           )}
 
@@ -2092,6 +2236,102 @@ export default function App() {
           )}
         </div>
 
+        {/* Active Stamp Mode Floating Pill */}
+        {((tool as any) === "stamp" || (tool as any) === "sticker") && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 pointer-events-auto bg-[#3742FA] text-white px-4 py-2 rounded-full shadow-[0_8px_24px_rgba(55,66,250,0.35)] flex items-center gap-3 animate-in fade-in slide-in-from-top-3 duration-200 border border-white/20">
+            <span className="text-sm">✨</span>
+            <span className="text-xs font-semibold tracking-wide">
+              Sticker Stamp Mode Active <span className="opacity-80 font-normal">(Click canvas to stamp)</span>
+            </span>
+            <button
+              onClick={() => {
+                activeStickerRef.current = null;
+                setTool("select");
+              }}
+              className="ml-1 px-2.5 py-1 bg-white/20 hover:bg-white/30 text-white rounded-full text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+              title="Exit stamp mode (Esc)"
+            >
+              <span>Done / Exit (Esc)</span>
+              <span>✕</span>
+            </button>
+          </div>
+        )}
+
+        {/* Sticker / Image Resize & Actions Overlay */}
+        {selIds.length === 1 && (() => {
+          const selectedEl = els.find(e => e.id === selIds[0]);
+          if (!selectedEl || (selectedEl.type !== "image" && !selectedEl.isSticker)) return null;
+          const currentW = Math.round(selectedEl.w || 72);
+          return (
+            <div className="absolute top-24 right-6 z-50 pointer-events-auto bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-xl p-3 flex flex-col gap-2.5 min-w-[260px] animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="flex items-center justify-between border-b border-border/60 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">✨</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    {selectedEl.isSticker ? "Sticker Resize" : "Image Resize"}
+                  </span>
+                </div>
+                <span className="text-[11px] font-mono font-semibold px-2 py-0.5 bg-muted rounded-md text-muted-foreground">
+                  {currentW}px
+                </span>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Quick Sizes</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { label: "S", size: 48, desc: "Mini" },
+                    { label: "M", size: 72, desc: "Normal" },
+                    { label: "L", size: 120, desc: "Large" },
+                    { label: "XL", size: 180, desc: "Huge" },
+                  ].map((preset) => {
+                    const isActive = Math.abs(currentW - preset.size) < 8;
+                    return (
+                      <button
+                        key={preset.label}
+                        onClick={() => {
+                          onUpdateEl(selectedEl.id, { w: preset.size, h: preset.size });
+                        }}
+                        className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border text-xs font-bold transition-all ${
+                          isActive
+                            ? "bg-[#3742FA] text-white border-[#3742FA] shadow-sm scale-105"
+                            : "bg-muted/40 hover:bg-muted text-foreground border-border/60"
+                        }`}
+                        title={`Resize to ${preset.desc} (${preset.size}px)`}
+                      >
+                        <span>{preset.label}</span>
+                        <span className={`text-[9px] font-normal ${isActive ? "text-white/80" : "text-muted-foreground"}`}>
+                          {preset.size}px
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 border-t border-border/60">
+                <button
+                  onClick={() => {
+                    onUpdateEl(selectedEl.id, { rotation: 0 });
+                  }}
+                  className="px-2.5 py-1 text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <span>🔄 Reset Angle</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEls(p => p.filter(e => e.id !== selectedEl.id));
+                    setSelIds([]);
+                  }}
+                  className="px-2.5 py-1 text-xs font-semibold text-red-500 hover:bg-red-500/10 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <span>🗑️ Delete</span>
+                </button>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Table Formatting Menu Overlay */}
         {selIds.length === 1 && els.find(e => e.id === selIds[0])?.type === "table" && (
           <div
@@ -2188,6 +2428,12 @@ export default function App() {
           setStickyColor(c);
           setEls(p => p.map(el => selIds.includes(el.id) && el.type === "sticky" ? { ...el, color: c } : el));
         }}
+        stickyTextColor={stickyTextColor}
+        setStickyTextColor={(c) => {
+          setStickyTextColor(c);
+          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "sticky" ? { ...el, textColor: c } : el));
+        }}
+        isEditingOrSelectedSticky={isEditingOrSelectedSticky}
         shapeColor={shapeColor}
         setShapeColor={(c) => {
           setShapeColor(c);
@@ -2202,6 +2448,21 @@ export default function App() {
         setPenColor={(c) => {
           setPenColor(c);
           setEls(p => p.map(el => selIds.includes(el.id) && el.type === "path" ? { ...el, color: c } : el));
+        }}
+        arrowColor={arrowColor}
+        setArrowColor={(c) => {
+          setArrowColor(c);
+          setEls(p => p.map(el => selIds.includes(el.id) && (el.type === "free_arrow" || el.type === "connection") ? { ...el, color: c } : el));
+        }}
+        arrowWidth={arrowWidth}
+        setArrowWidth={(w) => {
+          setArrowWidth(w);
+          setEls(p => p.map(el => selIds.includes(el.id) && (el.type === "free_arrow" || el.type === "connection") ? { ...el, sw: w } : el));
+        }}
+        arrowDash={arrowDash}
+        setArrowDash={(d) => {
+          setArrowDash(d);
+          setEls(p => p.map(el => selIds.includes(el.id) && (el.type === "free_arrow" || el.type === "connection") ? { ...el, dash: d } : el));
         }}
         penType={penType}
         setPenType={handlePenTypeChange}
@@ -2223,6 +2484,7 @@ export default function App() {
         onInsertEmoji={onInsertEmoji}
         onInsertShape={onInsertShape}
         onInsertDeviceFrame={onInsertDeviceFrame}
+        onInsertSticker={onInsertSticker}
       />
 
       {/* Toast Notification */}

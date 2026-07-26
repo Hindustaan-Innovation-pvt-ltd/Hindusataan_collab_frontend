@@ -6,12 +6,14 @@ import { Icon as IconifyIcon } from "@iconify/react";
 import { SHAPE_KINDS } from "../constants";
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
+import { FIGJAM_STICKERS } from "../constants/stickers";
 
 interface QuickInsertPanelProps {
   onInsertIcon: (name: string, sizeScale: number) => void;
   onInsertEmoji: (emoji: string, sizeScale: number) => void;
   onInsertShape: (kind: string, sizeScale: number) => void;
   onInsertDeviceFrame: (kind: string, sizeScale: number) => void;
+  onInsertSticker?: (svgUrl: string, sizeScale: number) => void;
   onClose: () => void;
 }
 
@@ -188,9 +190,11 @@ const fuse = new Fuse(SEARCH_DATA, {
   ignoreLocation: true,
 });
 
-export default function QuickInsertPanel({ onInsertIcon, onInsertEmoji, onInsertShape, onInsertDeviceFrame, onClose }: QuickInsertPanelProps) {
+export default function QuickInsertPanel({ onInsertIcon, onInsertEmoji, onInsertShape, onInsertDeviceFrame, onInsertSticker, onClose }: QuickInsertPanelProps) {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"library" | "emojis" | "technical_icons">("library");
+  const [emojiSubTab, setEmojiSubTab] = useState<"all" | "stickers" | "emojis">("all");
+  const [stickerQuery, setStickerQuery] = useState("");
   const [sizeScale, setSizeScale] = useState<number>(1);
   const { layout } = useWorkspaceTheme();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -398,17 +402,103 @@ export default function QuickInsertPanel({ onInsertIcon, onInsertEmoji, onInsert
       )}
 
       {activeTab === "emojis" && (
-        <div className="flex flex-col">
-          <EmojiPicker
-            theme={layout === "horizontal" ? Theme.LIGHT : Theme.DARK}
-            onEmojiClick={(emojiData) => {
-              onInsertEmoji(emojiData.emoji, sizeScale);
-              onClose();
-            }}
-            width={318}
-            height={380}
-            style={{ border: 'none', borderRadius: 0 }}
-          />
+        <div className="flex flex-col bg-background h-[380px]">
+          {/* Sub-navigation inside Emojis section */}
+          <div className="flex border-b border-border bg-muted/20 px-2 pt-1.5 gap-1 shrink-0">
+            <button
+              onClick={() => { setEmojiSubTab("all"); setStickerQuery(""); }}
+              className={`flex-1 py-1.5 text-[11px] font-bold rounded-t-lg border-b-2 transition-all ${emojiSubTab === "all" ? "text-[#3742FA] border-[#3742FA] bg-background shadow-sm" : "text-gray-400 border-transparent hover:text-foreground hover:bg-muted/30"}`}
+            >
+              ✨ All
+            </button>
+            <button
+              onClick={() => { setEmojiSubTab("stickers"); setStickerQuery(""); }}
+              className={`flex-1 py-1.5 text-[11px] font-bold rounded-t-lg border-b-2 transition-all ${emojiSubTab === "stickers" ? "text-[#3742FA] border-[#3742FA] bg-background shadow-sm" : "text-gray-400 border-transparent hover:text-foreground hover:bg-muted/30"}`}
+            >
+              🎨 Stickers
+            </button>
+            <button
+              onClick={() => { setEmojiSubTab("emojis"); setStickerQuery(""); }}
+              className={`flex-1 py-1.5 text-[11px] font-bold rounded-t-lg border-b-2 transition-all ${emojiSubTab === "emojis" ? "text-[#3742FA] border-[#3742FA] bg-background shadow-sm" : "text-gray-400 border-transparent hover:text-foreground hover:bg-muted/30"}`}
+            >
+              😀 Emojis
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+            {(emojiSubTab === "all" || emojiSubTab === "stickers") && (
+              <div className="p-2 flex flex-col gap-2">
+                {emojiSubTab === "stickers" && (
+                  <div className="flex items-center gap-2 p-1.5 border border-border rounded-lg bg-muted/10 mb-1">
+                    <Search size={13} className="text-gray-400 shrink-0 ml-1" />
+                    <input
+                      type="text"
+                      value={stickerQuery}
+                      onChange={(e) => setStickerQuery(e.target.value)}
+                      placeholder="Search FigJam stickers..."
+                      className="flex-1 text-xs outline-none bg-transparent text-foreground placeholder:text-gray-400 font-medium"
+                    />
+                    {stickerQuery && (
+                      <button onClick={() => setStickerQuery("")} className="text-gray-400 hover:text-foreground">
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                <div className="text-[10px] font-bold text-gray-400 px-1 uppercase tracking-wider flex items-center justify-between">
+                  <span>✨ FigJam Stickers</span>
+                  <span className="text-[9px] text-[#3742FA] font-semibold lowercase bg-[#3742FA]/10 px-1.5 py-0.5 rounded">click adds instantly</span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-1.5">
+                  {FIGJAM_STICKERS.filter(st => !stickerQuery || st.name.toLowerCase().includes(stickerQuery.toLowerCase()) || st.category.toLowerCase().includes(stickerQuery.toLowerCase())).map((st) => (
+                    <button
+                      key={st.id}
+                      title={`${st.name} (Click to add instantly)`}
+                      onClick={() => {
+                        if (onInsertSticker) {
+                          onInsertSticker(st.svgUrl, sizeScale);
+                        }
+                      }}
+                      className="flex flex-col items-center justify-center p-2 rounded-xl bg-background hover:bg-muted border border-border/60 hover:border-[#3742FA]/40 transition-all duration-150 group active:scale-95 shadow-sm hover:shadow"
+                    >
+                      <div className="w-10 h-10 flex items-center justify-center group-hover:scale-110 transition-transform duration-150">
+                        <img src={st.svgUrl} alt={st.name} className="w-9 h-9 object-contain" />
+                      </div>
+                      <span className="text-[9px] font-semibold text-gray-500 group-hover:text-foreground truncate w-full text-center mt-1">
+                        {st.name.split(" ")[0]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {emojiSubTab === "all" && (
+                  <>
+                    <div className="w-full h-px bg-border my-2" />
+                    <div className="text-[10px] font-bold text-gray-400 px-1 uppercase tracking-wider mb-1">
+                      😀 Standard Emojis
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {(emojiSubTab === "all" || emojiSubTab === "emojis") && (
+              <div className="flex justify-center shrink-0">
+                <EmojiPicker
+                  theme={layout === "horizontal" ? Theme.LIGHT : Theme.DARK}
+                  onEmojiClick={(emojiData) => {
+                    onInsertEmoji(emojiData.emoji, sizeScale);
+                    if (emojiSubTab === "emojis") onClose();
+                  }}
+                  width={318}
+                  height={320}
+                  style={{ border: 'none', borderRadius: 0 }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -96,18 +96,18 @@ function StickyNote({
         <textarea
           ref={ref}
           defaultValue={el.text}
-          className="absolute inset-x-0 bottom-0 bg-transparent resize-none p-2.5 text-sm leading-relaxed text-foreground outline-none w-full"
-          style={{ top: "1.75rem", fontFamily: "inherit", fontWeight: 500 }}
+          className="absolute inset-x-0 bottom-0 bg-transparent resize-none p-2.5 text-sm leading-relaxed outline-none w-full"
+          style={{ top: "1.75rem", fontFamily: "inherit", fontWeight: 600, color: el.textColor || "#1E293B" }}
           onBlur={(e) => onBlur(el.id, e.target.value)}
           onPointerDown={(e) => e.stopPropagation()}
         />
       ) : (
         <div
-          className="px-2.5 pb-2.5 pt-1.5 text-sm leading-relaxed text-foreground font-medium whitespace-pre-wrap break-words overflow-hidden"
-          style={{ height: "calc(100% - 1.75rem)" }}
+          className="px-2.5 pb-2.5 pt-1.5 text-sm leading-relaxed font-semibold whitespace-pre-wrap break-words overflow-hidden"
+          style={{ height: "calc(100% - 1.75rem)", color: el.textColor || "#1E293B" }}
         >
           {el.text || (
-            <span className="text-muted-foreground/60 text-xs italic">Double-click to edit…</span>
+            <span style={{ color: el.textColor ? `${el.textColor}99` : "#1E293B99" }} className="text-xs italic font-normal">Double-click to edit…</span>
           )}
         </div>
       )}
