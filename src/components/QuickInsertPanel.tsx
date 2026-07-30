@@ -250,7 +250,21 @@ export default function QuickInsertPanel({ onInsertIcon, onInsertEmoji, onInsert
   };
 
   return (
-    <div className="flex flex-col bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border w-[320px] mb-1 overflow-hidden" onPointerDown={(e) => e.stopPropagation()}>
+    <div 
+      className="flex flex-col bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border w-[320px] mb-1 overflow-hidden" 
+      onPointerDown={(e) => e.stopPropagation()}
+      style={{
+        '--background': '#F0EEE8',
+        '--foreground': '#1C1B1F',
+        '--card': '#ffffff',
+        '--card-foreground': '#1C1B1F',
+        '--popover': '#ffffff',
+        '--popover-foreground': '#1C1B1F',
+        '--muted': '#E8E6E0',
+        '--muted-foreground': '#7A7870',
+        '--border': 'rgba(0, 0, 0, 0.08)',
+      } as React.CSSProperties}
+    >
       {(activeTab === "library" || activeTab === "emojis") && (
         <div className="flex border-b border-border bg-muted/30">
           <button
@@ -487,7 +501,7 @@ export default function QuickInsertPanel({ onInsertIcon, onInsertEmoji, onInsert
             {(emojiSubTab === "all" || emojiSubTab === "emojis") && (
               <div className="flex justify-center shrink-0">
                 <EmojiPicker
-                  theme={layout === "horizontal" ? Theme.LIGHT : Theme.DARK}
+                  theme={Theme.LIGHT}
                   onEmojiClick={(emojiData) => {
                     onInsertEmoji(emojiData.emoji, sizeScale);
                     if (emojiSubTab === "emojis") onClose();

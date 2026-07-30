@@ -4,7 +4,7 @@ import {
 } from "lucide-react";
 
 import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
-import { STICKY_COLORS, STICKY_TEXT_COLORS, SHAPE_COLORS, PEN_COLORS, ARROW_COLORS, TOOLS, SHAPE_KINDS } from "../constants";
+import { STICKY_COLORS, STICKY_TEXT_COLORS, SHAPE_COLORS, PEN_COLORS, ARROW_COLORS, TOOLS, SHAPE_KINDS, TEXT_COLORS } from "../constants";
 import ColorPalette from "./ColorPalette";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 
@@ -45,6 +45,8 @@ interface ToolbarProps {
   onUploadImage?: (file: File) => Promise<void>;
   isUploadingImage?: boolean;
   isEditingOrSelectedText?: boolean;
+  textColor?: string;
+  setTextColor?: (c: string) => void;
   textFontSize?: number;
   setTextFontSize?: (size: number) => void;
   textFontFamily?: string;
@@ -71,6 +73,8 @@ function Toolbar({
   onUploadImage,
   isUploadingImage,
   isEditingOrSelectedText = false,
+  textColor = "#1E293B",
+  setTextColor,
   textFontSize = 20,
   setTextFontSize,
   textFontFamily = "sans-serif",
@@ -137,9 +141,21 @@ function Toolbar({
 
   const showOptionsPanel = toolMenuOpen && (tool === "pen" || tool === "shape" || tool === "sticky" || tool === "arrow" || isEditingOrSelectedText || isEditingOrSelectedSticky);
 
+  const lightThemeVars = {
+    '--background': '#F0EEE8',
+    '--foreground': '#1C1B1F',
+    '--card': '#ffffff',
+    '--card-foreground': '#1C1B1F',
+    '--popover': '#ffffff',
+    '--popover-foreground': '#1C1B1F',
+    '--muted': '#E8E6E0',
+    '--muted-foreground': '#7A7870',
+    '--border': 'rgba(0, 0, 0, 0.08)',
+  } as React.CSSProperties;
+
   return (
     <>
-      <div ref={toolbarRef} className={containerClass}>
+      <div ref={toolbarRef} className={containerClass} style={lightThemeVars}>
         <div className={itemGroupClass}>
           {TOOLS.map(({ id, label, key, icon }) => (
             <button
@@ -253,7 +269,7 @@ function Toolbar({
 
       {/* Unified Tool Options Panel docked to the side */}
       {showOptionsPanel && (
-        <div ref={panelRef} className={`flex flex-col p-4 bg-card/95 backdrop-blur-md rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] border border-border/80 gap-3.5 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${panelPositionClass}`}>
+        <div ref={panelRef} className={`flex flex-col p-4 bg-card/95 backdrop-blur-md rounded-2xl shadow-[0_12px_36px_rgba(0,0,0,0.12)] border border-border/80 gap-3.5 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${panelPositionClass}`} style={lightThemeVars}>
 
           {/* Pen Tool Settings */}
           {tool === "pen" && (
@@ -361,10 +377,10 @@ function Toolbar({
             <>
               <div>
                 <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Line Style</div>
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   <button
                     onClick={() => setArrowDash?.("solid")}
-                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowDash !== "dashed" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowDash === "solid" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
                   >
                     Solid
                   </button>
@@ -373,6 +389,12 @@ function Toolbar({
                     className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowDash === "dashed" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
                   >
                     Dashed
+                  </button>
+                  <button
+                    onClick={() => setArrowDash?.("marker")}
+                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowDash === "marker" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Marker
                   </button>
                 </div>
               </div>
@@ -419,6 +441,8 @@ function Toolbar({
                     <option value="monospace">Monospace (Code)</option>
                     <option value="cursive">Cursive (Handwritten)</option>
                     <option value="'Outfit', sans-serif">Outfit (Geometric)</option>
+                    <option value="'Kalam', cursive">Kalam (Excalidraw-like)</option>
+                    <option value="'Architects Daughter', cursive">Architects Daughter (Hand)</option>
                     <option value="'Playfair Display', serif">Playfair Display (Elegant Serif)</option>
                     <option value="'Poppins', sans-serif">Poppins (Clean Sans-Serif)</option>
                     <option value="'Lobster', cursive">Lobster (Vintage/Bold)</option>
@@ -434,7 +458,7 @@ function Toolbar({
 
               <div>
                 <div className="text-[10px] font-bold text-muted-foreground mb-1.5 px-1 uppercase tracking-wider">Font Size</div>
-                <div className="flex items-center justify-between gap-1.5">
+                <div className="flex items-center justify-between gap-1.5 mb-3">
                   <button
                     onClick={() => setTextFontSize?.(Math.max(10, textFontSize - 2))}
                     className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center text-foreground hover:bg-background border border-border font-bold text-sm cursor-pointer transition-all active:scale-90"
@@ -454,6 +478,13 @@ function Toolbar({
                     +
                   </button>
                 </div>
+              </div>
+
+              <div className="h-px bg-border/60 my-0.5" />
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-1.5 px-1 uppercase tracking-wider">Text Color</div>
+                <ColorPalette colors={TEXT_COLORS} active={textColor} onPick={(c) => setTextColor?.(c)} flat={true} />
               </div>
             </>
           )}

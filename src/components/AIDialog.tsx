@@ -367,7 +367,7 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
   return (
     <div
       className="absolute inset-0 z-50 flex items-end justify-end pointer-events-none"
-      style={{ padding: "0 24px 90px 0" }}
+      style={{ padding: "0 24px 90px 0", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
     >
       <div
         className="pointer-events-auto flex flex-col rounded-2xl overflow-hidden"
@@ -377,7 +377,13 @@ export const AIDialog = React.memo(function AIDialog({ open, onClose, boardId, b
           background: "#ffffff",
           boxShadow: "0 24px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)",
           border: "1px solid rgba(0,0,0,0.07)",
-        }}
+          '--card': '#ffffff',
+          '--background': '#ffffff',
+          '--foreground': '#1C1B1F',
+          '--border': '#e4e4e7',
+          '--muted': '#f4f4f5',
+          '--muted-foreground': '#71717a'
+        } as React.CSSProperties}
         onPointerDown={(e) => e.stopPropagation()}
       >
         {/* Header */}

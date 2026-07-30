@@ -35,6 +35,12 @@ export const TABLE_COLORS = [
 
 // ── Tools ──────────────────────────────────────────────────────────────────────
 
+const TeardropIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 3.5C16.69 3.5 20.5 7.31 20.5 12C20.5 16.69 16.69 20.5 12 20.5H4.5V12C4.5 7.31 8.31 3.5 12 3.5Z" />
+  </svg>
+);
+
 export const TOOLS: { id: Tool; label: string; key: string; icon: JSX.Element }[] = [
   { id: "select", label: "Select", key: "V", icon: <MousePointer2 size={18} /> },
   { id: "hand", label: "Hand", key: "H", icon: <Hand size={18} /> },
@@ -45,7 +51,7 @@ export const TOOLS: { id: Tool; label: string; key: string; icon: JSX.Element }[
   { id: "eraser", label: "Eraser", key: "E", icon: <Eraser size={18} /> },
   { id: "arrow", label: "Arrow", key: "A", icon: <ArrowUpRight size={18} /> },
   { id: "table", label: "Table", key: "L", icon: <Table size={18} /> },
-  { id: "comment", label: "Comment", key: "C", icon: <MessageSquare size={18} /> },
+  { id: "comment", label: "Comment", key: "C", icon: <TeardropIcon size={18} /> },
 ];
 
 // ── Shape Kinds ────────────────────────────────────────────────────────────────

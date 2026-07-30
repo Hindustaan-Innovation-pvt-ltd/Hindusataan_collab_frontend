@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Sparkles, X, MessageSquare } from "lucide-react";
+import { Sparkles, X, MessageSquare, ArrowUp } from "lucide-react";
 import { useParams, useNavigate } from "react-router";
 import IconNode from "../components/IconNode";
 // import { toPng } from "html-to-image";
@@ -145,7 +145,7 @@ export default function App() {
   const [arrowColor, setArrowColor] = useState("#6B7280");
   const [arrowWidth, setArrowWidth] = useState(4);
   const [arrowDash, setArrowDash] = useState("solid");
-  const [textColor] = useState(TEXT_COLORS[0]);
+  const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
   const [tableColor] = useState(TABLE_COLORS[0]);
   const [tableConfig] = useState({ rows: 3, cols: 3, template: "basic" });
 
@@ -417,6 +417,7 @@ export default function App() {
   // Interaction state refs
   const panRef = useRef<{ px: number; py: number; cx: number; cy: number } | null>(null);
   const dragRef = useRef<{ startW: Pt; originalEls: El[] } | null>(null);
+  const dragCommentRef = useRef<{ id: string; startW: Pt; origX: number; origY: number } | null>(null);
   const hasDraggedRef = useRef(false);
   const clickEditRef = useRef<string | null>(null);
   const drawRef = useRef<Pt[]>([]);
@@ -1189,6 +1190,19 @@ export default function App() {
       return;
     }
 
+    if (dragCommentRef.current) {
+      if (!hasDraggedRef.current) {
+        try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (err) {}
+      }
+      hasDraggedRef.current = true;
+      const { id, startW, origX, origY } = dragCommentRef.current;
+      const dx = w.x - startW.x;
+      const dy = w.y - startW.y;
+      
+      setComments(prev => prev.map(c => c.id === id ? { ...c, x: origX + dx, y: origY + dy } : c));
+      return;
+    }
+
     if (dragRef.current) {
       if (!hasDraggedRef.current) {
         try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch (err) {}
@@ -1235,7 +1249,15 @@ export default function App() {
       dragRef.current = null;
       return;
     }
-  }, []);
+    
+    if (dragCommentRef.current) {
+      if (!hasDraggedRef.current) {
+        setSelectedCommentId(dragCommentRef.current.id === selectedCommentId ? null : dragCommentRef.current.id);
+      }
+      dragCommentRef.current = null;
+      return;
+    }
+  }, [selectedCommentId]);
 
   const onElDblClick = useCallback((id: string) => {
     if (id.includes("-")) {
@@ -2110,52 +2132,52 @@ export default function App() {
             .map((c) => (
               <div
                 key={c.id}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
+                onPointerDown={(e) => {
                   e.stopPropagation();
-                  setSelectedCommentId(c.id === selectedCommentId ? null : c.id);
+                  dragCommentRef.current = {
+                    id: c.id,
+                    startW: worldPt(e.clientX, e.clientY, getRect(), camRef.current),
+                    origX: c.x,
+                    origY: c.y
+                  };
+                  hasDraggedRef.current = false;
                 }}
-                className="absolute flex items-center justify-center cursor-pointer hover:scale-110 transition-transform duration-150 z-50 group pointer-events-auto"
+                className="absolute flex items-start gap-2 cursor-pointer z-50 pointer-events-auto"
                 style={{
-                  left: c.x - 16,
-                  top: c.y - 16,
-                  width: 32,
-                  height: 32,
+                  left: c.x,
+                  top: c.y,
                 }}
               >
-                <div
-                  className="w-full.h-full rounded-full flex items-center justify-center text-white font-semibold text-xs shadow-md border-[2.5px] border-white w-8 h-8"
-                  style={{ backgroundColor: c.color || "#3742FA" }}
-                >
-                  {c.author ? c.author.slice(0, 2).toUpperCase() : "C"}
+                {/* Teardrop Icon */}
+                <div className={`w-10 h-10 bg-[#9747FF] rounded-tl-full rounded-tr-full rounded-br-full rounded-bl-sm shadow-md flex items-center justify-center transition-transform ${selectedCommentId !== c.id ? "hover:scale-110" : ""}`}>
+                   <div className="w-8 h-8 rounded-full flex flex-shrink-0 items-center justify-center text-[#9747FF] bg-white font-semibold text-[12px]">
+                      {c.author ? c.author.slice(0, 1).toUpperCase() : "C"}
+                   </div>
                 </div>
-                {/* Popover content if selected or hovered */}
-                {selectedCommentId === c.id ? (
-                  <div
-                    onPointerDown={(e) => e.stopPropagation()}
-                    className="absolute top-10 left-1/2 -translate-x-1/2 bg-card rounded-xl shadow-xl border border-border p-3 min-w-[200px] z-50"
-                  >
-                    <div className="flex items-center justify-between gap-2 border-b border-border pb-1.5 mb-1.5">
-                      <span className="font-semibold text-xs text-foreground">{c.author}</span>
-                      <span className="text-[10px] text-gray-400">
-                        {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-foreground whitespace-pre-wrap select-text">{c.text}</p>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setComments(prev => prev.filter(x => x.id !== c.id));
-                        setSelectedCommentId(null);
-                      }}
-                      className="mt-2 text-[10px] font-medium text-red-500 hover:text-red-700 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ) : (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-gray-900/95 text-white text-xs py-1 px-2 rounded-lg shadow-md whitespace-nowrap z-50 pointer-events-none">
-                    <span className="font-semibold">{c.author}:</span> {c.text.length > 25 ? c.text.slice(0, 25) + "..." : c.text}
+
+                {/* Expanded text bubble (when selected) */}
+                {selectedCommentId === c.id && (
+                  <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-3 min-w-[200px] max-w-[280px] flex flex-col relative animate-in fade-in slide-in-from-left-2 duration-200 cursor-auto">
+                     <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-xs text-gray-800">{c.author}</span>
+                        <span className="text-[10px] text-gray-400">
+                           {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                     </div>
+                     <p className="text-xs text-gray-700 whitespace-pre-wrap select-text break-words">{c.text}</p>
+                     
+                     <div className="flex justify-end mt-2 pt-2 border-t border-gray-50">
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setComments(prev => prev.filter(x => x.id !== c.id));
+                           setSelectedCommentId(null);
+                         }}
+                         className="text-[10px] font-medium text-red-500 hover:text-red-700 hover:underline"
+                       >
+                         Resolve
+                       </button>
+                     </div>
                   </div>
                 )}
               </div>
@@ -2164,52 +2186,46 @@ export default function App() {
           {activePlacement && (
             <div
               onPointerDown={(e) => e.stopPropagation()}
-              className="absolute bg-card rounded-xl shadow-xl border border-border p-3 w-64 z-50 pointer-events-auto"
+              className="absolute z-50 pointer-events-auto flex items-start gap-2 shadow-2xl"
               style={{
                 left: activePlacement.x,
                 top: activePlacement.y,
               }}
             >
-              <div className="text-xs font-semibold text-muted-foreground mb-1">New comment by {getSessionUser()}</div>
-              <textarea
-                autoFocus
-                placeholder="Write a comment..."
-                value={newCommentText}
-                onChange={(e) => setNewCommentText(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (newCommentText.trim()) {
-                      setComments(prev => [...prev, {
-                        id: uid(),
-                        boardId: currentBoardId,
-                        x: activePlacement.x,
-                        y: activePlacement.y,
-                        text: newCommentText.trim(),
-                        author: getSessionUser(),
-                        createdAt: Date.now(),
-                        color: "#3742FA"
-                      }]);
+              <div className="w-10 h-10 bg-[#9747FF] rounded-tl-full rounded-tr-full rounded-br-full rounded-bl-sm shadow-md flex-shrink-0" />
+              
+              <div className="flex items-center bg-white rounded-full shadow-lg border border-gray-100 overflow-hidden w-[350px] h-10 px-1">
+                <input
+                  autoFocus
+                  placeholder="Add a comment"
+                  value={newCommentText}
+                  onChange={(e) => setNewCommentText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (newCommentText.trim()) {
+                        setComments(prev => [...prev, {
+                          id: uid(),
+                          boardId: currentBoardId,
+                          x: activePlacement.x,
+                          y: activePlacement.y,
+                          text: newCommentText.trim(),
+                          author: getSessionUser(),
+                          createdAt: Date.now(),
+                          color: "#9747FF"
+                        }]);
+                        setActivePlacement(null);
+                        setTool("select");
+                        setNewCommentText("");
+                      }
+                    } else if (e.key === "Escape") {
                       setActivePlacement(null);
                       setTool("select");
+                      setNewCommentText("");
                     }
-                  } else if (e.key === "Escape") {
-                    setActivePlacement(null);
-                    setTool("select");
-                  }
-                }}
-                className="w-full border border-border rounded-lg p-2 text-xs focus:ring-2 focus:ring-[#3742FA]/20 focus:border-[#3742FA] outline-none resize-none h-16 text-foreground"
-              />
-              <div className="flex justify-end gap-1.5 mt-2">
-                <button
-                  onClick={() => {
-                    setActivePlacement(null);
-                    setTool("select");
                   }}
-                  className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-background rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
+                  className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 px-3 placeholder-gray-400"
+                />
                 <button
                   onClick={() => {
                     if (newCommentText.trim()) {
@@ -2221,15 +2237,16 @@ export default function App() {
                         text: newCommentText.trim(),
                         author: getSessionUser(),
                         createdAt: Date.now(),
-                        color: "#3742FA"
+                        color: "#9747FF"
                       }]);
                       setActivePlacement(null);
                       setTool("select");
+                      setNewCommentText("");
                     }
                   }}
-                  className="px-2.5 py-1 text-xs font-semibold text-white bg-[#3742FA] hover:bg-[#5B4FE8] rounded-lg transition-colors shadow-sm"
+                  className="w-8 h-8 rounded-full bg-gray-200 hover:bg-[#9747FF] hover:text-white flex items-center justify-center transition-colors flex-shrink-0 group"
                 >
-                  Post
+                  <ArrowUp size={16} className="text-white group-hover:text-white" fill="currentColor" />
                 </button>
               </div>
             </div>
@@ -2263,7 +2280,17 @@ export default function App() {
           if (!selectedEl || (selectedEl.type !== "image" && !selectedEl.isSticker)) return null;
           const currentW = Math.round(selectedEl.w || 72);
           return (
-            <div className="absolute top-24 right-6 z-50 pointer-events-auto bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-xl p-3 flex flex-col gap-2.5 min-w-[260px] animate-in fade-in slide-in-from-top-2 duration-200">
+            <div 
+              className="absolute top-24 right-6 z-50 pointer-events-auto bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-xl p-3 flex flex-col gap-2.5 min-w-[260px] animate-in fade-in slide-in-from-top-2 duration-200"
+              style={{
+                '--card': '#ffffff',
+                '--background': '#ffffff',
+                '--foreground': '#1C1B1F',
+                '--border': '#e4e4e7',
+                '--muted': '#f4f4f5',
+                '--muted-foreground': '#71717a'
+              } as React.CSSProperties}
+            >
               <div className="flex items-center justify-between border-b border-border/60 pb-2">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">✨</span>
@@ -2477,6 +2504,11 @@ export default function App() {
         onUploadImage={handleUploadImage}
         isUploadingImage={isUploadingImage}
         isEditingOrSelectedText={isEditingOrSelectedText}
+        textColor={textColor}
+        setTextColor={(c) => {
+          setTextColor(c);
+          setEls(p => p.map(el => selIds.includes(el.id) && el.type === "text" ? { ...el, color: c } : el));
+        }}
         textFontSize={textFontSize}
         setTextFontSize={handleTextFontSizeChange}
         textFontFamily={textFontFamily}
@@ -2518,7 +2550,7 @@ export default function App() {
       />
 
       {/* Real-time Multiplayer Cursors */}
-      {peers.map(p => {
+      {peers.filter(p => p.name !== getSessionUser()).map(p => {
         const screenX = p.x * cam.z + cam.x;
         const screenY = p.y * cam.z + cam.y;
         return (
@@ -2591,7 +2623,7 @@ export default function App() {
       )}
 
       {isCommentWindowOpen && (
-        <div className="absolute top-24 right-6 w-80 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border flex flex-col z-50 pointer-events-auto overflow-hidden max-h-[500px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+        <div className="absolute top-24 right-6 w-80 bg-card rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border flex flex-col z-50 pointer-events-auto overflow-hidden max-h-[500px]" style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", '--card': '#ffffff', '--background': '#ffffff', '--foreground': '#1C1B1F', '--border': '#e4e4e7', '--muted': '#f4f4f5', '--muted-foreground': '#71717a' } as React.CSSProperties}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-background border-b border-border">
             <div className="flex items-center gap-2 text-foreground">
@@ -2639,7 +2671,7 @@ export default function App() {
                         {new Date(c.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-650 pl-6 whitespace-pre-wrap select-text">{c.text}</p>
+                    <p className="text-xs text-gray-800 pl-6 whitespace-pre-wrap select-text">{c.text}</p>
                     <div className="flex justify-between items-center mt-1 pl-6">
                       <button
                         onClick={() => {
@@ -2673,7 +2705,11 @@ export default function App() {
 
       {/* Floating AI Button */}
       {!aiOpen && (
-        <div className="absolute bottom-6 right-6 z-50 pointer-events-auto">
+        <div className="absolute bottom-6 right-6 z-50 pointer-events-auto" style={{
+          '--card': '#ffffff',
+          '--foreground': '#1C1B1F',
+          '--border': 'rgba(0, 0, 0, 0.08)'
+        } as React.CSSProperties}>
           <button
             onClick={() => setAiOpen(true)}
             title="Open AI Assistant"

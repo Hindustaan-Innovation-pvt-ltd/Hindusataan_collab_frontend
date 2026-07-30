@@ -70,14 +70,18 @@ export function useBoardSync({
           let loadedEls = content.els && content.els.length > 0 ? content.els : null;
           let loadedCam = content.cam;
           
-          // Fallback to local storage if backend returned empty elements
-          if (!loadedEls) {
+          const localUpdatedStr = localStorage.getItem(`board-${selectedBoard.id}-updatedAt`);
+          const localUpdated = localUpdatedStr ? parseInt(localUpdatedStr, 10) : 0;
+          const backendUpdated = selectedBoard.updatedAt || 0;
+
+          // Fallback to local storage if backend is empty OR if local storage is newer (e.g. refresh before debounce save)
+          if (!loadedEls || localUpdated > backendUpdated) {
             const localEls = localStorage.getItem(`board-${selectedBoard.id}-els`);
             if (localEls) {
               try { loadedEls = JSON.parse(localEls); } catch (err) {}
             }
           }
-          if (!loadedCam) {
+          if (!loadedCam || localUpdated > backendUpdated) {
             const localCam = localStorage.getItem(`board-${selectedBoard.id}-cam`);
             if (localCam) {
               try { loadedCam = JSON.parse(localCam); } catch (err) {}
@@ -129,7 +133,7 @@ export function useBoardSync({
 
   // Sync board state updates to local state and backend
   useEffect(() => {
-    if (!currentBoardId) return;
+    if (!currentBoardId || isLoading) return;
     
     // Save to LocalStorage immediately as a fallback!
     try {
@@ -138,6 +142,7 @@ export function useBoardSync({
       localStorage.setItem(`board-${currentBoardId}-cam`, JSON.stringify(cam));
       localStorage.setItem(`board-${currentBoardId}-name`, boardName);
       localStorage.setItem(`board-${currentBoardId}-bg`, boardBg);
+      localStorage.setItem(`board-${currentBoardId}-updatedAt`, Date.now().toString());
     } catch (e) {
       console.error("Local storage save failed", e);
     }
@@ -153,7 +158,7 @@ export function useBoardSync({
 
     // Broadcast local changes via WebSocket
     if (!isRemoteUpdateRef.current) {
-      websocketService.send({ type: "update", els, cam });
+      websocketService.send("board_update", { els, cam });
     }
 
     // Sync URL
