@@ -11,6 +11,7 @@ import { PendingInvitesPanel } from "./PendingInvitesPanel";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 import RenameBoardModal from "./RenameBoardModal";
 import api from "../services/api";
+import { SubscriptionBadge } from "./Subscription/SubscriptionBadge";
 
 interface TopBarProps {
   currentBoardId: string;
@@ -490,6 +491,8 @@ export const TopBar = React.memo(function TopBar({
             </div>
           )}
         </div>
+
+        <SubscriptionBadge />
 
         {/* Board Search */}
         <div ref={searchContainerRef} className="relative">
