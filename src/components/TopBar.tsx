@@ -13,6 +13,7 @@ import { PendingInvitesPanel } from "./PendingInvitesPanel";
 import { useWorkspaceTheme } from "../contexts/WorkspaceThemeContext";
 import RenameBoardModal from "./RenameBoardModal";
 import api from "../services/api";
+import { SubscriptionBadge } from "./Subscription/SubscriptionBadge";
 
 interface TopBarProps {
   currentBoardId: string;
@@ -352,8 +353,20 @@ export const TopBar = React.memo(function TopBar({
 
   const currentAudioSrc = playlist.length > 0 && playlist[currentTrack] ? URL.createObjectURL(playlist[currentTrack]) : undefined;
 
+  const lightThemeVars = {
+    '--background': '#F0EEE8',
+    '--foreground': '#1C1B1F',
+    '--card': '#ffffff',
+    '--card-foreground': '#1C1B1F',
+    '--popover': '#ffffff',
+    '--popover-foreground': '#1C1B1F',
+    '--muted': '#E8E6E0',
+    '--muted-foreground': '#7A7870',
+    '--border': 'rgba(0, 0, 0, 0.08)',
+  } as React.CSSProperties;
+
   return (
-    <div className="absolute top-4 left-4 right-4 z-50 flex items-start justify-between pointer-events-none">
+    <div className="absolute top-4 left-4 right-4 z-50 flex items-start justify-between pointer-events-none" style={lightThemeVars}>
       {/* LEFT: Board Selector and Search */}
       <div className="flex items-start gap-2 pointer-events-auto">
         <div className="flex flex-col gap-2 relative" ref={boardSelectorRef}>
@@ -480,6 +493,8 @@ export const TopBar = React.memo(function TopBar({
             </div>
           )}
         </div>
+
+        <SubscriptionBadge />
 
         {/* Board Search */}
         <div ref={searchContainerRef} className="relative">

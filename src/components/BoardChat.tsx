@@ -67,7 +67,17 @@ export function BoardChat({
   }
 
   return (
-    <div className="fixed bottom-28 right-4 md:right-6 left-4 md:left-auto w-auto md:w-80 h-[55vh] md:h-[60vh] lg:h-[500px] max-h-[55vh] md:max-h-[60vh] lg:max-h-[80vh] bg-card rounded-2xl shadow-2xl flex flex-col z-50 border border-border overflow-hidden font-sans animate-in slide-in-from-bottom-5">
+    <div 
+      className="fixed bottom-28 right-4 md:right-6 left-4 md:left-auto w-auto md:w-80 h-[55vh] md:h-[60vh] lg:h-[500px] max-h-[55vh] md:max-h-[60vh] lg:max-h-[80vh] bg-card rounded-2xl shadow-2xl flex flex-col z-50 border border-border overflow-hidden font-sans animate-in slide-in-from-bottom-5"
+      style={{
+        '--card': '#ffffff',
+        '--background': '#ffffff',
+        '--foreground': '#1C1B1F',
+        '--border': '#e4e4e7',
+        '--muted': '#f4f4f5',
+        '--muted-foreground': '#71717a'
+      } as React.CSSProperties}
+    >
       {/* Header */}
       <div className="bg-[#7B61FF] px-4 py-3 flex justify-between items-center text-white">
         <div className="flex items-center gap-2">

@@ -123,6 +123,7 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
   };
 
   const sw = el.sw || 4;
+  const isMarker = el.dash === "marker";
   const dash = el.dash === "dashed" ? `${sw * 2.5}, ${sw * 2.5}` : undefined;
   const color = el.color || "#6B7280";
 
@@ -133,8 +134,12 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
     el.bend,
     routingType
   );
+  
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const length = Math.sqrt(dx * dx + dy * dy);
 
-  // Open V-shaped arrowhead (not filled triangle, proportionally scaled with sw)
+  // Open V-shaped arrowhead
   const wingLen = Math.max(16, sw * 3.8);
   const wingAngle = 26 * (Math.PI / 180);
 
@@ -145,8 +150,34 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
 
   const arrowheadD = `M ${wing1X} ${wing1Y} L ${endX} ${endY} L ${wing2X} ${wing2Y}`;
 
+  // For Excalidraw/marker style, create slightly curved paths
+  let mainStemD = d;
+  let roughLines = null;
+
+  if (isMarker && length > 10 && routingType === "straight") {
+    // Add a slight bow (curve) to the main line
+    const bowOffset = length * 0.05;
+    const midX = startX + dx / 2 - dy / length * bowOffset;
+    const midY = startY + dy / 2 + dx / length * bowOffset;
+    mainStemD = `M ${startX} ${startY} Q ${midX} ${midY} ${endX} ${endY}`;
+    
+    // Create multiple imperfect overlapping strokes for the "rough" look
+    const r1MidX = midX + 2; const r1MidY = midY - 2;
+    const r2MidX = midX - 2; const r2MidY = midY + 2;
+    roughLines = (
+      <>
+        <path d={`M ${startX} ${startY} Q ${r1MidX} ${r1MidY} ${endX} ${endY}`} stroke={color} strokeWidth={sw * 0.6} fill="none" opacity={0.6} strokeLinecap="round" />
+        <path d={`M ${startX} ${startY} Q ${r2MidX} ${r2MidY} ${endX} ${endY}`} stroke={color} strokeWidth={sw * 0.4} fill="none" opacity={0.4} strokeLinecap="round" />
+        
+        {/* Rough arrowhead */}
+        <path d={`M ${wing1X-1} ${wing1Y+1} L ${endX} ${endY} L ${wing2X+1} ${wing2Y-1}`} stroke={color} strokeWidth={sw * 0.6} fill="none" opacity={0.7} strokeLinecap="round" strokeLinejoin="round" />
+        <path d={`M ${wing1X+1} ${wing1Y-1} L ${endX} ${endY} L ${wing2X-1} ${wing2Y+1}`} stroke={color} strokeWidth={sw * 0.5} fill="none" opacity={0.5} strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    );
+  }
+
   return (
-    <svg className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none", shapeRendering: "geometricPrecision" }}>
+    <svg className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none", shapeRendering: isMarker ? "auto" : "geometricPrecision" }}>
       <g data-el-id={el.id}>
         {/* Invisible thick hit target for easy clicking/dragging */}
         <path
@@ -156,10 +187,11 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
         />
         {/* Main stem line */}
         <path
-          d={d}
+          d={mainStemD}
           stroke={color} strokeWidth={sw} strokeDasharray={dash} fill="none"
           strokeLinecap="round" strokeLinejoin="round"
           style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 5px #3742FA)" : undefined }}
+          opacity={isMarker ? 0.9 : 1}
         />
         {/* Hollow V-shaped arrowhead */}
         {el.arrowHead !== false && (
@@ -168,8 +200,10 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
             stroke={color} strokeWidth={sw} fill="none"
             strokeLinecap="round" strokeLinejoin="round"
             style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 5px #3742FA)" : undefined }}
+            opacity={isMarker ? 0.9 : 1}
           />
         )}
+        {roughLines}
         {selected && (
           <>
             <circle
