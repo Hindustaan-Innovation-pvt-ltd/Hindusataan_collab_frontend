@@ -7,7 +7,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
 
-const USERS_KEY = "HIXCanvas_users";
+// const USERS_KEY = "HIXCanvas_users";
 const SESSION_KEY = "HIXCanvas_session";
 
 interface StoredUser {
@@ -16,13 +16,13 @@ interface StoredUser {
   password?: string;
 }
 
-function getUsers(): StoredUser[] {
-  try {
-    return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
-  } catch {
-    return [];
-  }
-}
+// function getUsers(): StoredUser[] {
+//   try {
+//     return JSON.parse(localStorage.getItem(USERS_KEY) || "[]");
+//   } catch {
+//     return [];
+//   }
+// }
 
 function setSession(user: Omit<StoredUser, "password">) {
   localStorage.setItem(SESSION_KEY, JSON.stringify({ name: user.name, email: user.email }));

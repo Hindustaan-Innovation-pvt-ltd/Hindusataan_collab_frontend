@@ -7,6 +7,7 @@ export interface LiveChatMessage {
   username: string;
   message: string;
   timestamp: string;
+  [key: string]: any;
 }
 
 export const liveChatService = {

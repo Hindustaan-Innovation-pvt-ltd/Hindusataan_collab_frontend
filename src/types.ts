@@ -92,6 +92,8 @@ export interface Invite {
   status: string;
   created_at: string;
   expires_at: string;
+  inviter_name?: string;
+  board_name?: string;
 }
 
 // Fields shared by every canvas element
@@ -100,6 +102,10 @@ interface BaseEl {
   x: number;
   y: number;
   locked?: boolean;
+  isSticker?: boolean;
+  w?: number;
+  h?: number;
+  groupId?: string;
 }
 
 export interface StickyEl extends BaseEl {
@@ -108,6 +114,7 @@ export interface StickyEl extends BaseEl {
   h: number;
   text: string;
   color: string;
+  textColor?: string;
 }
 
 export interface TextEl extends BaseEl {
@@ -180,6 +187,9 @@ export interface FreeArrowEl extends BaseEl {
   to?: string;
   sw?: number;
   dash?: string;
+  arrowHead?: boolean;
+  routing?: "straight" | "elbow" | "curved";
+  bend?: { ratio: number, offset: number }; 
 }
 
 export interface PathEl extends BaseEl {

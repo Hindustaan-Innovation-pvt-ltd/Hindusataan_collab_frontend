@@ -5,6 +5,8 @@ import {
   FileMusic, Play, Pause, SkipForward, SkipBack, Volume2,
   Link as LinkIcon, Lock, ChevronRight, MoreHorizontal, Info, Globe, Users, Check, X, LogOut, Trash2, Search, MessageSquare, User, Settings
 } from "lucide-react";
+import { toPng } from "html-to-image";
+import { jsPDF } from "jspdf";
 import type { Board } from "../types";
 import { useShareDialog } from "../hooks/useShareDialog";
 import { PendingInvitesPanel } from "./PendingInvitesPanel";
@@ -120,7 +122,7 @@ export const TopBar = React.memo(function TopBar({
   };
   const [running, setRunning] = useState(false);
   const [bgMenuOpen, setBgMenuOpen] = useState(false);
-  const [forceRender, setForceRender] = useState(0);
+  const [, setForceRender] = useState(0);
 
   const handleChangeVisibility = async (visibility: string) => {
     if (!currentBoardId || role !== "owner") return;
@@ -130,12 +132,12 @@ export const TopBar = React.memo(function TopBar({
       if (board) {
         board.visibility = visibility;
       }
-      showToast(`Board visibility changed to ${visibility}`, "success");
+      showToast?.(`Board visibility changed to ${visibility}`, "success");
       setVisibilityPopoverOpen(false);
       setForceRender(f => f + 1);
     } catch (e: any) {
       console.error(e);
-      showToast("Failed to change visibility", "error");
+      showToast?.("Failed to change visibility", "error");
     }
   };
   const [calOpen, setCalOpen] = useState(false);
@@ -234,7 +236,7 @@ export const TopBar = React.memo(function TopBar({
   };
 
   const [sessionActive, setSessionActive] = useState(false);
-  const [sessionTime, setSessionTime] = useState("24:00:00");
+  const [, setSessionTime] = useState("24:00:00");
   const [showMoreOptions, setShowMoreOptions] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -1342,13 +1344,65 @@ export const TopBar = React.memo(function TopBar({
 
                         {showExportMenu && (
                           <div className="mt-1 w-full bg-card rounded-xl shadow-sm border border-border p-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-background rounded-lg flex items-center justify-between cursor-not-allowed">
-                              <span>Export as PNG</span>
-                              <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                            <button
+                              onClick={async () => {
+                                const boardNode = document.getElementById("HIXCanvas-board-capture");
+                                if (!boardNode) {
+                                  if (showToast) showToast("Could not find canvas to export", "error");
+                                  return;
+                                }
+                                try {
+                                  if (showToast) showToast("Exporting as PNG...", "info");
+                                  const bgColor = boardBg === "white" ? "#F5F5F5" : boardBg === "black" ? "#111111" : "#1B4D3E";
+                                  const dataUrl = await toPng(boardNode, { backgroundColor: bgColor, quality: 0.95, pixelRatio: 2 });
+                                  const a = document.createElement("a");
+                                  a.href = dataUrl;
+                                  a.download = `${boardName || "board"}.png`;
+                                  a.click();
+                                  setShowExportMenu(false);
+                                  if (showToast) showToast("Board exported as PNG!", "success");
+                                } catch (err) {
+                                  console.error("PNG export error:", err);
+                                  if (showToast) showToast("Failed to export PNG", "error");
+                                }
+                              }}
+                              className="w-full text-left px-2 py-2 text-xs font-semibold text-foreground hover:bg-background hover:text-indigo-600 rounded-lg transition-colors"
+                            >
+                              Export as PNG
                             </button>
-                            <button disabled className="w-full text-left px-2 py-2 text-xs font-semibold text-gray-400 hover:bg-background rounded-lg flex items-center justify-between cursor-not-allowed">
-                              <span>Export as PDF</span>
-                              <span className="text-[9px] bg-muted px-1 py-0.5 rounded uppercase font-bold text-gray-400">Soon</span>
+                            <button
+                              onClick={async () => {
+                                const boardNode = document.getElementById("HIXCanvas-board-capture");
+                                if (!boardNode) {
+                                  if (showToast) showToast("Could not find canvas to export", "error");
+                                  return;
+                                }
+                                try {
+                                  if (showToast) showToast("Exporting as PDF...", "info");
+                                  const bgColor = boardBg === "white" ? "#F5F5F5" : boardBg === "black" ? "#111111" : "#1B4D3E";
+                                  const dataUrl = await toPng(boardNode, { backgroundColor: bgColor, quality: 0.95, pixelRatio: 2 });
+                                  const img = new Image();
+                                  img.src = dataUrl;
+                                  await new Promise((resolve) => { img.onload = resolve; });
+                                  const width = img.width || 1200;
+                                  const height = img.height || 800;
+                                  const pdf = new jsPDF({
+                                    orientation: width > height ? "landscape" : "portrait",
+                                    unit: "px",
+                                    format: [width, height]
+                                  });
+                                  pdf.addImage(dataUrl, "PNG", 0, 0, width, height);
+                                  pdf.save(`${boardName || "board"}.pdf`);
+                                  setShowExportMenu(false);
+                                  if (showToast) showToast("Board exported as PDF!", "success");
+                                } catch (err) {
+                                  console.error("PDF export error:", err);
+                                  if (showToast) showToast("Failed to export PDF", "error");
+                                }
+                              }}
+                              className="w-full text-left px-2 py-2 text-xs font-semibold text-foreground hover:bg-background hover:text-indigo-600 rounded-lg transition-colors"
+                            >
+                              Export as PDF
                             </button>
                             <button
                               onClick={() => {

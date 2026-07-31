@@ -21,9 +21,7 @@ export function BoardChat({
   onSendMessage,
   onTyping,
   isOpen,
-  onClose,
-  unreadCount,
-  onToggle
+  onClose
 }: BoardChatProps) {
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);

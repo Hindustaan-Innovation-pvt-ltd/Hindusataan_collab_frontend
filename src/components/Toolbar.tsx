@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  Trash2, Minus, Plus, Pencil, Brush, Highlighter, Smile, Image as ImageIcon, Loader2
+  Trash2, Minus, Plus, Pencil, Brush, Highlighter, Smile, Image as ImageIcon, Loader2, Wand2
 } from "lucide-react";
 
 import type { PenThickness, PenType, ShapeKind, Tool } from "../types";
@@ -32,6 +32,8 @@ interface ToolbarProps {
   setArrowWidth?: (w: number) => void;
   arrowDash?: string;
   setArrowDash?: (d: string) => void;
+  arrowRouting?: "straight" | "elbow" | "curved";
+  setArrowRouting?: (r: "straight" | "elbow" | "curved") => void;
 
   penType: PenType;
   setPenType: (t: PenType) => void;
@@ -53,6 +55,10 @@ interface ToolbarProps {
   onInsertShape?: (kind: string, sizeScale: number) => void;
   onInsertDeviceFrame?: (kind: string, sizeScale: number) => void;
   onInsertSticker?: (svgUrl: string, sizeScale: number) => void;
+  smartShapeEnabled?: boolean;
+  setSmartShapeEnabled?: (val: boolean) => void;
+  smartShapeThreshold?: number;
+  setSmartShapeThreshold?: (val: number) => void;
 }
 
 function Toolbar({
@@ -63,6 +69,7 @@ function Toolbar({
   arrowColor = "#6B7280", setArrowColor,
   arrowWidth = 4, setArrowWidth,
   arrowDash = "solid", setArrowDash,
+  arrowRouting = "elbow", setArrowRouting,
   penType, setPenType,
   penThickness, setPenThickness,
   toolMenuOpen, setToolMenuOpen,
@@ -76,6 +83,10 @@ function Toolbar({
   textFontFamily = "sans-serif",
   setTextFontFamily,
   onInsertEmoji, onInsertShape, onInsertDeviceFrame, onInsertSticker,
+  smartShapeEnabled = true,
+  setSmartShapeEnabled,
+  smartShapeThreshold = 0.90,
+  setSmartShapeThreshold,
 }: ToolbarProps) {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [quickInsertOpen, setQuickInsertOpen] = useState(false);
@@ -308,6 +319,51 @@ function Toolbar({
                 <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Colors</div>
                 <ColorPalette colors={PEN_COLORS} active={penColor} onPick={setPenColor} flat={true} />
               </div>
+
+              {setSmartShapeEnabled && (
+                <>
+                  <div className="h-px bg-border/60 my-2" />
+                  <div className="flex items-center justify-between px-1 py-1">
+                    <span className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Wand2 size={14} className={smartShapeEnabled ? "text-[#3742FA]" : "text-muted-foreground"} />
+                      Smart Shape
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSmartShapeEnabled(!smartShapeEnabled)}
+                      className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${
+                        smartShapeEnabled ? "bg-[#3742FA]" : "bg-muted"
+                      }`}
+                    >
+                      <div
+                        className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${
+                          smartShapeEnabled ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {smartShapeEnabled && setSmartShapeThreshold && (
+                    <div className="mt-1 px-1">
+                      <div className="text-[10px] font-bold text-muted-foreground mb-1 flex justify-between items-center uppercase tracking-wider">
+                        <span>Threshold</span>
+                        <span className="font-bold text-foreground bg-muted px-1.5 py-0.5 rounded text-[11px]">
+                          {Math.round((smartShapeThreshold ?? 0.90) * 100)}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={60}
+                        max={99}
+                        value={Math.round((smartShapeThreshold ?? 0.90) * 100)}
+                        onChange={(e) => setSmartShapeThreshold(parseInt(e.target.value) / 100)}
+                        className="w-full h-1 bg-muted rounded-lg appearance-none cursor-pointer accent-[#3742FA]"
+                        style={{ accentColor: "#3742FA" }}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </>
           )}
 
@@ -373,6 +429,32 @@ function Toolbar({
                     className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowDash === "dashed" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
                   >
                     Dashed
+                  </button>
+                </div>
+              </div>
+
+              <div className="h-px bg-border/60 my-0.5" />
+
+              <div>
+                <div className="text-[10px] font-bold text-muted-foreground mb-2 px-1 uppercase tracking-wider">Routing</div>
+                <div className="grid grid-cols-3 gap-1.5">
+                  <button
+                    onClick={() => setArrowRouting?.("straight")}
+                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowRouting === "straight" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Straight
+                  </button>
+                  <button
+                    onClick={() => setArrowRouting?.("elbow")}
+                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowRouting === "elbow" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Elbow
+                  </button>
+                  <button
+                    onClick={() => setArrowRouting?.("curved")}
+                    className={`h-9 flex items-center justify-center rounded-xl transition-all cursor-pointer text-xs font-semibold ${arrowRouting === "curved" ? "bg-muted shadow-inner scale-95 border border-border text-foreground" : "hover:bg-muted/40 text-muted-foreground hover:text-foreground"}`}
+                  >
+                    Curved
                   </button>
                 </div>
               </div>
@@ -465,7 +547,7 @@ function Toolbar({
       {quickInsertOpen && (
         <div ref={quickInsertPanelRef} className={`absolute z-50 pointer-events-auto transition-all animate-in fade-in slide-in-from-left-2 duration-200 ${quickInsertPanelPositionClass}`}>
           <QuickInsertPanel
-            onInsertIcon={(name: string) => { onInsertIcon?.(name); setQuickInsertOpen(false); }}
+            onInsertIcon={(name: string) => { onInsertIcon?.(name, 1); setQuickInsertOpen(false); }}
             onInsertEmoji={(emoji: string) => { onInsertEmoji?.(emoji, 1); setQuickInsertOpen(false); }}
             onInsertShape={(kind: string) => { onInsertShape?.(kind, 1); setQuickInsertOpen(false); }}
             onInsertDeviceFrame={(kind: string) => { onInsertDeviceFrame?.(kind, 1); setQuickInsertOpen(false); }}

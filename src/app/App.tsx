@@ -5,8 +5,8 @@ import IconNode from "../components/IconNode";
 // import { toPng } from "html-to-image";
 
 import type { Tool, ShapeKind, Pt, ShapeEl, PenType, PenThickness, PathEl, ConnectionEl, FreeArrowEl, El, Cam, Peer, Comment, StickyEl, GraphEl, Board, ImageEl } from "../types";
-import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, ARROW_COLORS, TEXT_COLORS, TABLE_COLORS, INIT_ELS } from "../constants";
-import { uid, worldPt, pathD, getElementBox } from "../utils";
+import { STICKY_COLORS, SHAPE_COLORS, PEN_COLORS, TEXT_COLORS, TABLE_COLORS, INIT_ELS } from "../constants";
+import { uid, worldPt, pathD, getElementBox, shapeRecognitionEngine, smartExtendEngine, aiEraserEngine, startShapeCreation } from "../utils";
 
 import StickyNote from "../components/StickyNote";
 import TextNode from "../components/TextNode";
@@ -137,6 +137,7 @@ export default function App() {
   const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   const [cam, setCam] = useState<Cam>({ x: 0, y: 0, z: 1 });
+  const [liveShapePreview, setLiveShapePreview] = useState<ShapeEl | null>(null);
   const [stickyColor, setStickyColor] = useState(STICKY_COLORS[0]);
   const [stickyTextColor, setStickyTextColor] = useState("#1E293B");
   const [shapeColor, setShapeColor] = useState(SHAPE_COLORS[0]);
@@ -145,6 +146,7 @@ export default function App() {
   const [arrowColor, setArrowColor] = useState("#6B7280");
   const [arrowWidth, setArrowWidth] = useState(4);
   const [arrowDash, setArrowDash] = useState("solid");
+  const [arrowRouting, setArrowRouting] = useState<"straight" | "elbow" | "curved">("elbow");
   const [textColor] = useState(TEXT_COLORS[0]);
   const [tableColor] = useState(TABLE_COLORS[0]);
   const [tableConfig] = useState({ rows: 3, cols: 3, template: "basic" });
@@ -152,6 +154,8 @@ export default function App() {
   const [selectedCellId, setSelectedCellId] = useState<string | null>(null);
   const [penType, setPenType] = useState<PenType>("pen");
   const [penThickness, setPenThickness] = useState<PenThickness>(3);
+  const [smartShapeEnabled, setSmartShapeEnabled] = useState<boolean>(true);
+  const [smartShapeThreshold, setSmartShapeThreshold] = useState<number>(0.90);
   const [textFontSize, setTextFontSize] = useState<number>(20);
   const [textFontFamily, setTextFontFamily] = useState<string>("sans-serif");
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
@@ -312,6 +316,7 @@ export default function App() {
   const arrowColorRef = useRef(arrowColor);
   const arrowWidthRef = useRef(arrowWidth);
   const arrowDashRef = useRef(arrowDash);
+  const arrowRoutingRef = useRef(arrowRouting);
   const textColorRef = useRef(textColor);
   const tableColorRef = useRef(tableColor);
   const tableConfigRef = useRef(tableConfig);
@@ -320,6 +325,10 @@ export default function App() {
   const penThicknessRef = useRef(penThickness);
   const boardBgRef = useRef(boardBg);
   const spaceRef = useRef(false);
+  const smartShapeEnabledRef = useRef(smartShapeEnabled);
+
+  useEffect(() => { smartShapeEnabledRef.current = smartShapeEnabled; }, [smartShapeEnabled]);
+  useEffect(() => { shapeRecognitionEngine.setThreshold(smartShapeThreshold); }, [smartShapeThreshold]);
 
   useEffect(() => { camRef.current = cam; }, [cam]);
   useEffect(() => { elsRef.current = els; }, [els]);
@@ -334,6 +343,7 @@ export default function App() {
     arrowColorRef.current = arrowColor;
     arrowWidthRef.current = arrowWidth;
     arrowDashRef.current = arrowDash;
+    arrowRoutingRef.current = arrowRouting;
     textColorRef.current = textColor;
     tableColorRef.current = tableColor;
     tableConfigRef.current = tableConfig;
@@ -504,11 +514,10 @@ export default function App() {
         if (msg.payload.senderId !== currentUserId && msg.payload.user_id !== currentUserId) {
           if (!isChatOpen) {
             setChatUnreadCount(prev => prev + 1);
-            showToast({
-              title: "New Message",
-              description: `${msg.payload.senderName || msg.payload.username}: ${msg.payload.message.substring(0, 50)}${msg.payload.message.length > 50 ? '...' : ''}`,
-              type: "info"
-            });
+            showToast(
+              `New Message from ${msg.payload.senderName || msg.payload.username}: ${msg.payload.message.substring(0, 50)}${msg.payload.message.length > 50 ? '...' : ''}`,
+              "info"
+            );
             playNotificationSound();
             showBrowserNotification("New Message in Board", {
               body: `${msg.payload.senderName || msg.payload.username}: ${msg.payload.message}`,
@@ -825,7 +834,12 @@ export default function App() {
 
         const pt = snapShiftAngle(startPt, worldPt(ue.clientX, ue.clientY, getRect(), camRef.current), ue.shiftKey);
         const elsUnder = document.elementsFromPoint(ue.clientX, ue.clientY);
-        const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
+        const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => {
+          if (!el) return false;
+          const tid = el.getAttribute("data-el-id");
+          const targetEl = elsRef.current.find(x => x.id === tid);
+          return targetEl && targetEl.type !== "free_arrow" && targetEl.type !== "connection" && targetEl.type !== "path";
+        });
 
         if (upTarget) {
           const toId = upTarget.getAttribute("data-el-id")!;
@@ -837,10 +851,11 @@ export default function App() {
               dx: pt.x - startPt.x, dy: pt.y - startPt.y,
               color: arrowColorRef.current || "#6B7280",
               sw: arrowWidthRef.current || 4,
-              dash: arrowDashRef.current || "solid"
+              dash: arrowDashRef.current || "solid",
+              routing: arrowRoutingRef.current || "elbow"
             }]);
           }
-        } else {
+        } else if (Math.hypot(pt.x - startPt.x, pt.y - startPt.y) > 10) {
           const newId = uid();
           setEls(p => [...p, {
             id: newId, type: "free_arrow",
@@ -849,6 +864,7 @@ export default function App() {
             color: arrowColorRef.current || "#6B7280",
             sw: arrowWidthRef.current || 4,
             dash: arrowDashRef.current || "solid",
+            routing: arrowRoutingRef.current || "elbow",
             from: id
           }]);
           setSelIds([newId]);
@@ -973,15 +989,23 @@ export default function App() {
     }
 
     if (toolRef.current === "shape") {
-      const id = uid();
-      setEls(p => [...p, {
-        id, type: "shape",
-        kind: shapeKindRef.current,
-        x: w.x - 80, y: w.y - 60, w: 160, h: 120,
-        color: shapeColorRef.current,
-      }]);
-      setSelIds([id]);
-      setTool("select");
+      startShapeCreation(
+        e.nativeEvent,
+        w,
+        shapeKindRef.current,
+        shapeColorRef.current,
+        (preview) => setLiveShapePreview(preview),
+        (finalShape) => {
+          setLiveShapePreview(null);
+          if (finalShape) {
+            setEls(p => [...p, finalShape]);
+            setSelIds([finalShape.id]);
+          }
+          setTool("select");
+        },
+        () => camRef.current,
+        getRect
+      );
       return;
     }
 
@@ -1055,8 +1079,6 @@ export default function App() {
         headerRow,
         altRowColors
       }]);
-      setSelIds([id]);
-      setTool("select");
       return;
     }
 
@@ -1077,7 +1099,22 @@ export default function App() {
           const pts = drawRef.current.slice();
           const id = uid();
           const sw = penThicknessRef.current;
-          setEls(p => [...p, { id, type: "path", x: 0, y: 0, pts, color: penColorRef.current, sw, penType: penTypeRef.current }]);
+          const color = penColorRef.current;
+          const pType = penTypeRef.current;
+
+          if (smartShapeEnabledRef.current && pType === "pen") {
+            shapeRecognitionEngine.recognize(pts).then((res) => {
+              if (res && res.confidence >= shapeRecognitionEngine.getThreshold()) {
+                const shapeEl = shapeRecognitionEngine.createShapeElement(res, color, sw);
+                setEls(p => [...p, shapeEl]);
+                showToast(`Recognized ${res.shapeType} (${Math.round(res.confidence * 100)}%)`, "success");
+              } else {
+                setEls(p => [...p, { id, type: "path", x: 0, y: 0, pts, color, sw, penType: pType }]);
+              }
+            });
+          } else {
+            setEls(p => [...p, { id, type: "path", x: 0, y: 0, pts, color, sw, penType: pType }]);
+          }
         }
         drawRef.current = [];
         setLivePts([]);
@@ -1088,21 +1125,26 @@ export default function App() {
     }
 
     if (toolRef.current === "eraser") {
-      const doErase = (clientX: number, clientY: number) => {
-        const elsUnder = document.elementsFromPoint(clientX, clientY);
-        const elTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
-        if (elTarget) {
-          const id = elTarget.getAttribute("data-el-id")!;
-          setEls(p => p.filter(x => {
-            if (x.id === id && !x.locked) return false;
-            return true;
-          }));
-        }
+      const doErase = (clientX: number, clientY: number, altKey: boolean) => {
+        const pt = worldPt(clientX, clientY, getRect(), camRef.current);
+        setEls(p => {
+          const res = aiEraserEngine.erase(pt, p, altKey, 14);
+          if (res.erasedIds.length > 0) {
+            return res.remainingEls;
+          }
+          const elsUnder = document.elementsFromPoint(clientX, clientY);
+          const elTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
+          if (elTarget) {
+            const id = elTarget.getAttribute("data-el-id")!;
+            return aiEraserEngine.eraseById(id, p, altKey).remainingEls;
+          }
+          return p;
+        });
       };
 
-      doErase(e.clientX, e.clientY);
+      doErase(e.clientX, e.clientY, e.altKey);
 
-      const onMove = (me: PointerEvent) => doErase(me.clientX, me.clientY);
+      const onMove = (me: PointerEvent) => doErase(me.clientX, me.clientY, me.altKey);
       const onUp = () => {
         window.removeEventListener("pointermove", onMove);
         window.removeEventListener("pointerup", onUp);
@@ -1136,7 +1178,8 @@ export default function App() {
               dx: endPt.x - startPt.x, dy: endPt.y - startPt.y,
               color: arrowColorRef.current || "#6B7280",
               sw: arrowWidthRef.current || 4,
-              dash: arrowDashRef.current || "solid"
+              dash: arrowDashRef.current || "solid",
+              routing: arrowRoutingRef.current || "elbow"
             }]);
             setSelIds([newId]);
           }
@@ -1198,18 +1241,21 @@ export default function App() {
       const dx = w.x - startW.x;
       const dy = w.y - startW.y;
 
-      setEls(p => p.map(el => {
-        const orig = originalEls.find(x => x.id === el.id);
-        if (!orig) return el;
+      setEls(p => {
+        const moved = p.map(el => {
+          const orig = originalEls.find(x => x.id === el.id);
+          if (!orig) return el;
 
-        if (orig.type === "path") {
-          return { ...orig, pts: orig.pts.map(pt => ({ x: pt.x + dx, y: pt.y + dy })) };
-        }
-        if (orig.type === "free_arrow") {
-          return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy, from: undefined, to: undefined };
-        }
-        return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy };
-      }));
+          if (orig.type === "path") {
+            return { ...orig, pts: orig.pts.map(pt => ({ x: pt.x + dx, y: pt.y + dy })) };
+          }
+          if (orig.type === "free_arrow") {
+            return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy, from: undefined, to: undefined };
+          }
+          return { ...orig, x: (orig as any).x + dx, y: (orig as any).y + dy };
+        });
+        return smartExtendEngine.autoUpdateAttachments(moved);
+      });
       return;
     }
 
@@ -1269,7 +1315,10 @@ export default function App() {
   }, []);
 
   const onUpdateEl = useCallback((id: string, partial: Partial<El>) => {
-    setEls(p => p.map(el => el.id === id ? { ...el, ...partial } as El : el));
+    setEls(p => {
+      const updated = p.map(el => el.id === id ? { ...el, ...partial } as El : el);
+      return smartExtendEngine.autoUpdateAttachments(updated);
+    });
   }, []);
 
   const onDelete = useCallback(() => {
@@ -1484,57 +1533,7 @@ export default function App() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const onStartConnect = useCallback((e: React.PointerEvent, id: string) => {
-    e.stopPropagation();
-    const startPt = worldPt(e.clientX, e.clientY, getRect(), camRef.current);
-    arrowRef.current = { id, start: startPt };
-    setLiveArrow({ start: startPt, end: startPt });
 
-    const onMove = (me: PointerEvent) => {
-      const pt = snapShiftAngle(startPt, worldPt(me.clientX, me.clientY, getRect(), camRef.current), me.shiftKey);
-      setLiveArrow({ start: startPt, end: pt });
-    };
-    const onUp = (ue: PointerEvent) => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-
-      const pt = snapShiftAngle(startPt, worldPt(ue.clientX, ue.clientY, getRect(), camRef.current), ue.shiftKey);
-      const elsUnder = document.elementsFromPoint(ue.clientX, ue.clientY);
-      const upTarget = elsUnder.map(el => el.closest("[data-el-id]")).find(el => el != null);
-
-      if (upTarget) {
-        const toId = upTarget.getAttribute("data-el-id")!;
-        if (toId !== id) {
-          setEls(p => [...p, {
-            id: uid(), type: "free_arrow",
-            from: id, to: toId,
-            x: startPt.x, y: startPt.y,
-            dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-            color: arrowColorRef.current || "#6B7280",
-            sw: arrowWidthRef.current || 4,
-            dash: arrowDashRef.current || "solid"
-          }]);
-        }
-      } else {
-        const newId = uid();
-        setEls(p => [...p, {
-          id: newId, type: "free_arrow",
-          x: startPt.x, y: startPt.y,
-          dx: pt.x - startPt.x, dy: pt.y - startPt.y,
-          color: arrowColorRef.current || "#6B7280",
-          sw: arrowWidthRef.current || 4,
-          dash: arrowDashRef.current || "solid",
-          from: id
-        }]);
-        setSelIds([newId]);
-      }
-      arrowRef.current = null;
-      setLiveArrow(null);
-      setTool("select");
-    };
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  }, []);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -1870,7 +1869,7 @@ export default function App() {
                     selected={selected} editing={editing}
                     zoom={cam.z}
                     onBlur={onBlur} onDblClick={onElDblClick}
-                    onStartConnect={onStartConnect}
+
                     onUpdate={onUpdateEl}
                   />
                 );
@@ -1889,7 +1888,7 @@ export default function App() {
                   <ShapeNode
                     key={el.id} el={el as ShapeEl}
                     selected={selected}
-                    onStartConnect={onStartConnect}
+
                     editing={editing}
                     onResize={onUpdateEl}
                     onDblClick={(id) => setEditId(id)}
@@ -2030,6 +2029,17 @@ export default function App() {
                 height: Math.abs(marquee.start.y - marquee.end.y),
               }}
             />
+          )}
+
+          {/* Live shape preview */}
+          {liveShapePreview && (
+            <div className="absolute pointer-events-none z-[9998]">
+              <ShapeNode
+                key="live-shape" el={liveShapePreview}
+                selected={false} editing={false}
+                onResize={() => {}} onDblClick={() => {}} onBlur={() => {}}
+              />
+            </div>
           )}
 
           {/* Live drawing preview */}
@@ -2464,6 +2474,11 @@ export default function App() {
           setArrowDash(d);
           setEls(p => p.map(el => selIds.includes(el.id) && (el.type === "free_arrow" || el.type === "connection") ? { ...el, dash: d } : el));
         }}
+        arrowRouting={arrowRouting}
+        setArrowRouting={(r) => {
+          setArrowRouting(r);
+          setEls(p => p.map(el => selIds.includes(el.id) && (el.type === "free_arrow") ? { ...el, routing: r } : el));
+        }}
         penType={penType}
         setPenType={handlePenTypeChange}
         penThickness={penThickness}
@@ -2485,6 +2500,10 @@ export default function App() {
         onInsertShape={onInsertShape}
         onInsertDeviceFrame={onInsertDeviceFrame}
         onInsertSticker={onInsertSticker}
+        smartShapeEnabled={smartShapeEnabled}
+        setSmartShapeEnabled={setSmartShapeEnabled}
+        smartShapeThreshold={smartShapeThreshold}
+        setSmartShapeThreshold={setSmartShapeThreshold}
       />
 
       {/* Toast Notification */}

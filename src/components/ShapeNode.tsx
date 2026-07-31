@@ -1,19 +1,18 @@
 import React, { useRef, useEffect, useState } from "react";
 import type { ShapeEl, ShapeKind } from "../types";
 import { shapePathD } from "../utils/util";
-import ConnectionNodes from "./ConnectionNodes";
+import { smartExtendEngine } from "../utils/smartExtend";
 
 interface ShapeNodeProps {
   el: ShapeEl;
   selected: boolean;
   editing: boolean;
-  onStartConnect?: (e: React.PointerEvent, id: string) => void;
   onResize: (id: string, partial: Partial<ShapeEl>) => void;
   onDblClick: (id: string) => void;
   onBlur: (id: string, text: string) => void;
 }
 
-const MIN_SIZE = 30;
+// const MIN_SIZE = 30;
 
 type HandlePosition = "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r";
 
@@ -21,7 +20,6 @@ function ShapeNode({
   el,
   selected,
   editing,
-  onStartConnect,
   onResize,
   onDblClick,
   onBlur,
@@ -100,70 +98,15 @@ function ShapeNode({
       const dx = moveEvent.clientX - startX;
       const dy = moveEvent.clientY - startY;
 
-      let newX = initialX;
-      let newY = initialY;
-      let newW = initialW;
-      let newH = initialH;
-
-      const ratio = initialW / initialH;
-
-      if (handle === "tl" || handle === "bl" || handle === "l") {
-        const potentialW = initialW - dx;
-        if (potentialW >= MIN_SIZE) {
-          newW = potentialW;
-          newX = initialX + dx;
-        } else {
-          newW = MIN_SIZE;
-          newX = initialX + (initialW - MIN_SIZE);
-        }
-      } else if (handle === "tr" || handle === "br" || handle === "r") {
-        newW = Math.max(MIN_SIZE, initialW + dx);
-      }
-
-      if (handle === "tl" || handle === "tr" || handle === "t") {
-        const potentialH = initialH - dy;
-        if (potentialH >= MIN_SIZE) {
-          newH = potentialH;
-          newY = initialY + dy;
-        } else {
-          newH = MIN_SIZE;
-          newY = initialY + (initialH - MIN_SIZE);
-        }
-      } else if (handle === "bl" || handle === "br" || handle === "b") {
-        newH = Math.max(MIN_SIZE, initialH + dy);
-      }
-
-      if (moveEvent.shiftKey && handle.length === 2) {
-        if (Math.abs(dx) > Math.abs(dy)) {
-          let adjH = newW / ratio;
-          if (adjH < MIN_SIZE) {
-            adjH = MIN_SIZE;
-            newW = MIN_SIZE * ratio;
-            if (handle === "tl" || handle === "bl") {
-              newX = initialX + (initialW - newW);
-            }
-          }
-          if (handle === "tl" || handle === "tr") {
-            newY = initialY + (initialH - adjH);
-          }
-          newH = adjH;
-        } else {
-          let adjW = newH * ratio;
-          if (adjW < MIN_SIZE) {
-            adjW = MIN_SIZE;
-            newH = MIN_SIZE / ratio;
-            if (handle === "tl" || handle === "tr") {
-              newY = initialY + (initialH - newH);
-            }
-          }
-          if (handle === "tl" || handle === "bl") {
-            newX = initialX + (initialW - adjW);
-          }
-          newW = adjW;
-        }
-      }
-
-      onResize(el.id, { x: newX, y: newY, w: newW, h: newH });
+      const res = smartExtendEngine.resizeShape(
+        { x: initialX, y: initialY, w: initialW, h: initialH },
+        dx,
+        dy,
+        handle,
+        kind,
+        moveEvent.shiftKey
+      );
+      onResize(el.id, res);
     };
 
     const onPointerUp = (upEvent: PointerEvent) => {
@@ -209,14 +152,6 @@ function ShapeNode({
         onDblClick(el.id);
       }}
     >
-      <ConnectionNodes
-        id={el.id}
-        w={w}
-        h={h}
-        selected={selected}
-        onStartConnect={onStartConnect}
-      />
-
       <svg
         width={w}
         height={h}

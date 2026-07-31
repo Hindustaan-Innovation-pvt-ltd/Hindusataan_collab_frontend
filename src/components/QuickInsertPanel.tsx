@@ -296,7 +296,7 @@ export default function QuickInsertPanel({ onInsertIcon, onInsertEmoji, onInsert
                 No items found
               </div>
             ) : (
-              results.map((item) => (
+              results.map((item: any) => (
                 <button
                   key={item.id}
                   onClick={() => handleInsert(item)}

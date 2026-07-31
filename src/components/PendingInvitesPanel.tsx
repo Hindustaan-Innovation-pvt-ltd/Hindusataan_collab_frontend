@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Check, X, Bell } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Bell } from "lucide-react";
 import { collaborationService } from "../services/collaborationService";
 import type { Invite } from "../types";
 import { toast } from "sonner";

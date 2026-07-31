@@ -1,23 +1,23 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
-import { Sparkles, ArrowRight, Mail, Lock, User, ShieldAlert, ArrowLeft, CheckCircle2, Eye, EyeOff, ShieldCheck, Check, Phone } from "lucide-react";
+import { Sparkles, ArrowRight, Mail, Lock, User, ArrowLeft, CheckCircle2, Eye, EyeOff, ShieldCheck, Check, Phone } from "lucide-react";
 import axios from "axios";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Checkbox } from "../ui/checkbox";
 
-const SESSION_KEY = "HIXCanvas_session";
+// const SESSION_KEY = "HIXCanvas_session";
 
-interface SessionUser {
-  name: string;
-  email: string;
-  role?: string;
-}
+// interface SessionUser {
+//   name: string;
+//   email: string;
+//   role?: string;
+// }
 
-function setSession(user: SessionUser) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify({ name: user.name, email: user.email }));
-}
+// function setSession(user: SessionUser) {
+//   localStorage.setItem(SESSION_KEY, JSON.stringify({ name: user.name, email: user.email }));
+// }
 
 const STICKY_NOTES = [
   { color: "#FFE566", text: "Brainstorm ideas", rotate: -6, top: "12%", left: "8%" },

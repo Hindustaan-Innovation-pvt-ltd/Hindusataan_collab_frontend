@@ -1,6 +1,7 @@
 import React from "react";
 import type { FreeArrowEl, El } from "../types";
-import { getElementBox, getBoundaryPt } from "../utils";
+import { getElementBox, getBoundaryPt, smartExtendEngine } from "../utils";
+import { connectorEngine } from "../utils/connectorEngine";
 
 interface ArrowNodeProps {
   el: FreeArrowEl;
@@ -42,7 +43,7 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
     endY = pt.y;
   }
 
-  const handlePointerDown = (e: React.PointerEvent, handle: "start" | "end") => {
+  const handlePointerDown = (e: React.PointerEvent, handle: "start" | "end" | "bend") => {
     e.stopPropagation();
     e.preventDefault();
     const target = e.currentTarget;
@@ -51,15 +52,20 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
     const initClientX = e.clientX;
     const initClientY = e.clientY;
 
-    const initX = el.x;
-    const initY = el.y;
-    const initDx = el.dx;
-    const initDy = el.dy;
     const initFrom = el.from;
     const initTo = el.to;
+    const initBend = el.bend;
 
     let currentFrom = initFrom;
     let currentTo = initTo;
+
+    const routingType = el.routing || "straight";
+    const initBendPt = connectorEngine.getRoutingPath(
+      { x: startX, y: startY },
+      { x: endX, y: endY },
+      initBend as any,
+      routingType
+    ).bendPt;
 
     const onMove = (me: PointerEvent) => {
       if (me.pointerId !== e.pointerId) return;
@@ -67,46 +73,39 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
       const dX = (me.clientX - initClientX) / zoom;
       const dY = (me.clientY - initClientY) / zoom;
 
+      if (handle === "bend") {
+        const targetPt = {
+          x: initBendPt.x + dX,
+          y: initBendPt.y + dY,
+        };
+        const newBend = connectorEngine.calculateBendFromPoint({ x: startX, y: startY }, { x: endX, y: endY }, targetPt);
+        onUpdate(el.id, { bend: newBend as any });
+        return;
+      }
+
       const elsUnder = document.elementsFromPoint(me.clientX, me.clientY);
-      const upTarget = elsUnder.map(node => node.closest("[data-el-id]")).find(node => node != null);
+      const upTarget = elsUnder.map(node => node.closest("[data-el-id]")).find(node => {
+        if (!node) return false;
+        const tid = node.getAttribute("data-el-id");
+        const targetEl = els.find(x => x.id === tid);
+        return targetEl && targetEl.type !== "free_arrow" && targetEl.type !== "connection" && targetEl.type !== "path";
+      });
       const snapId = upTarget ? upTarget.getAttribute("data-el-id")! : undefined;
 
       const finalSnapId = snapId !== el.id ? snapId : undefined;
 
       if (handle === "start") {
         currentFrom = finalSnapId;
-        let newX = initX + dX;
-        let newY = initY + dY;
-        if (me.shiftKey) {
-          const endPtX = initX + initDx;
-          const endPtY = initY + initDy;
-          const ang = Math.atan2(newY - endPtY, newX - endPtX);
-          const dist = Math.hypot(newX - endPtX, newY - endPtY);
-          const snapAng = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
-          newX = endPtX + dist * Math.cos(snapAng);
-          newY = endPtY + dist * Math.sin(snapAng);
-        }
+        const ext = smartExtendEngine.extendLine(el, dX, dY, "start", me.shiftKey);
         onUpdate(el.id, {
-          x: newX,
-          y: newY,
-          dx: (initX + initDx) - newX,
-          dy: (initY + initDy) - newY,
+          ...ext,
           from: currentFrom,
         });
       } else if (handle === "end") {
         currentTo = finalSnapId;
-        let newDx = initDx + dX;
-        let newDy = initDy + dY;
-        if (me.shiftKey) {
-          const ang = Math.atan2(newDy, newDx);
-          const dist = Math.hypot(newDx, newDy);
-          const snapAng = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
-          newDx = dist * Math.cos(snapAng);
-          newDy = dist * Math.sin(snapAng);
-        }
+        const ext = smartExtendEngine.extendLine(el, dX, dY, "end", me.shiftKey);
         onUpdate(el.id, {
-          dx: newDx,
-          dy: newDy,
+          ...ext,
           to: currentTo,
         });
       }
@@ -127,9 +126,13 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
   const dash = el.dash === "dashed" ? `${sw * 2.5}, ${sw * 2.5}` : undefined;
   const color = el.color || "#6B7280";
 
-  const dx = endX - startX;
-  const dy = endY - startY;
-  const angle = Math.atan2(dy, dx);
+  const routingType = el.routing || "straight";
+  const { d, bendPt, angle } = connectorEngine.getRoutingPath(
+    { x: startX, y: startY },
+    { x: endX, y: endY },
+    el.bend,
+    routingType
+  );
 
   // Open V-shaped arrowhead (not filled triangle, proportionally scaled with sw)
   const wingLen = Math.max(16, sw * 3.8);
@@ -146,25 +149,27 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
     <svg className="absolute overflow-visible" style={{ left: 0, top: 0, width: 1, height: 1, pointerEvents: "none", shapeRendering: "geometricPrecision" }}>
       <g data-el-id={el.id}>
         {/* Invisible thick hit target for easy clicking/dragging */}
-        <line
-          x1={startX} y1={startY} x2={endX} y2={endY}
-          stroke="transparent" strokeWidth={Math.max(20, sw + 14)}
+        <path
+          d={d}
+          stroke="transparent" strokeWidth={Math.max(20, sw + 14)} fill="none"
           style={{ pointerEvents: "stroke", cursor: "move" }}
         />
         {/* Main stem line */}
-        <line
-          x1={startX} y1={startY} x2={endX} y2={endY}
-          stroke={color} strokeWidth={sw} strokeDasharray={dash}
+        <path
+          d={d}
+          stroke={color} strokeWidth={sw} strokeDasharray={dash} fill="none"
           strokeLinecap="round" strokeLinejoin="round"
           style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 5px #3742FA)" : undefined }}
         />
         {/* Hollow V-shaped arrowhead */}
-        <path
-          d={arrowheadD}
-          stroke={color} strokeWidth={sw} fill="none"
-          strokeLinecap="round" strokeLinejoin="round"
-          style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 5px #3742FA)" : undefined }}
-        />
+        {el.arrowHead !== false && (
+          <path
+            d={arrowheadD}
+            stroke={color} strokeWidth={sw} fill="none"
+            strokeLinecap="round" strokeLinejoin="round"
+            style={{ pointerEvents: "none", filter: selected ? "drop-shadow(0 0 5px #3742FA)" : undefined }}
+          />
+        )}
         {selected && (
           <>
             <circle
@@ -178,6 +183,12 @@ export default function ArrowNode({ el, selected, els, zoom, onUpdate }: ArrowNo
               fill="#fff" stroke="#3742FA" strokeWidth="2.5"
               style={{ pointerEvents: "all", cursor: "crosshair", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}
               onPointerDown={(e) => handlePointerDown(e, "end")}
+            />
+            <circle
+              cx={bendPt.x} cy={bendPt.y} r="6"
+              fill="#fff" stroke="#3742FA" strokeWidth="2.5"
+              style={{ pointerEvents: "all", cursor: "pointer", filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.15))" }}
+              onPointerDown={(e) => handlePointerDown(e, "bend")}
             />
           </>
         )}

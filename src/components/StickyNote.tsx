@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from "react";
 import type { StickyEl } from "../types";
-import ConnectionNodes from "./ConnectionNodes";
 
 interface StickyNoteProps {
   el: StickyEl;
@@ -9,12 +8,11 @@ interface StickyNoteProps {
   zoom: number;
   onBlur: (id: string, text: string) => void;
   onDblClick: (id: string) => void;
-  onStartConnect?: (e: React.PointerEvent, id: string) => void;
   onUpdate: (id: string, partial: Partial<StickyEl>) => void;
 }
 
 function StickyNote({
-  el, selected, editing, zoom, onBlur, onDblClick, onStartConnect, onUpdate
+  el, selected, editing, zoom, onBlur, onDblClick, onUpdate
 }: StickyNoteProps) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { if (editing) ref.current?.focus(); }, [editing]);
@@ -80,7 +78,7 @@ function StickyNote({
         cursor: editing ? "default" : "grab",
       }}
     >
-      <ConnectionNodes id={el.id} w={el.w} h={el.h} selected={selected} onStartConnect={onStartConnect} />
+
 
       {/* Header strip */}
       <div

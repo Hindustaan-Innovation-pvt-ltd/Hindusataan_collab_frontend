@@ -18,8 +18,8 @@ export function pathD(pts: Pt[]): string {
 export function getElementBox(el: El): { cx: number; cy: number; w: number; h: number } | null {
   if (el.type === "sticky" || el.type === "shape" || el.type === "device_frame" || el.type === "graph" || el.type === "icon") {
     const e = el as StickyEl | ShapeEl | DeviceFrameEl | GraphEl | IconEl;
-    const w = "w" in e ? e.w : ("size" in e ? e.size : 100);
-    const h = "h" in e ? e.h : ("size" in e ? e.size : 100);
+    const w = ("w" in e && typeof e.w === "number") ? e.w : ("size" in e && typeof e.size === "number" ? e.size : 100);
+    const h = ("h" in e && typeof e.h === "number") ? e.h : ("size" in e && typeof e.size === "number" ? e.size : 100);
     return { cx: e.x + w / 2, cy: e.y + h / 2, w, h };
   }
   if (el.type === "text") {
@@ -117,3 +117,7 @@ export function shapePathD(kind: ShapeKind, w: number, h: number): string {
     default: return "";
   }
 }
+export * from "./shapeRecognition";
+export * from "./smartExtend";
+export * from "./aiEraser";
+export * from "./shapeCreation";
